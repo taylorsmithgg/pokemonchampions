@@ -167,22 +167,8 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
     let bestMoves = [...state.moves];
     let applied = false;
 
-    // 1. Try live tournament data
-    if (liveStats) {
-      const liveSet = getLiveSet(liveStats, state.species);
-      if (liveSet) {
-        bestNature = liveSet.nature;
-        bestSps = { ...liveSet.sps };
-        bestAbility = liveSet.ability || bestAbility;
-        bestItem = liveSet.item || bestItem;
-        bestTera = '';
-        bestMoves = [...liveSet.moves, '', '', '', ''].slice(0, 4);
-        applied = true;
-      }
-    }
-
-    // 2. If no live data, try preset
-    if (!applied && presets.length > 0) {
+    // 1. Presets first — they're curated for Champions meta (especially Megas)
+    if (presets.length > 0) {
       const p = presets[0];
       bestNature = p.nature;
       bestSps = { ...p.sps };
@@ -191,6 +177,19 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
       bestTera = '';
       bestMoves = [...p.moves, '', '', '', ''].slice(0, 4);
       applied = true;
+    }
+
+    // 2. If no preset, try live tournament data
+    if (!applied && liveStats) {
+      const liveSet = getLiveSet(liveStats, state.species);
+      if (liveSet) {
+        bestNature = liveSet.nature;
+        bestSps = { ...liveSet.sps };
+        bestAbility = liveSet.ability || bestAbility;
+        bestItem = liveSet.item || bestItem;
+        bestMoves = [...liveSet.moves, '', '', '', ''].slice(0, 4);
+        applied = true;
+      }
     }
 
     // 3. If still nothing, generate from base stats
