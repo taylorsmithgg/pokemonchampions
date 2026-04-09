@@ -225,16 +225,26 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
                 );
               }}
             />
-            {state.species && (
-              <button
-                onClick={() => {
-                  const optimized = buildOptimizedState(state.species, state.level);
-                  onChange(optimized);
-                }}
-                className="w-full py-2.5 rounded-lg bg-gradient-to-r from-poke-red to-poke-red-dark text-white text-sm font-bold tracking-wide hover:from-poke-red-light hover:to-poke-red transition-all shadow-lg shadow-poke-red/20 hover:shadow-poke-red/40"
-              >
-                Optimize for Meta
-              </button>
+            {state.species && (() => {
+              const archs = getArchetypes(state.species);
+              const topArch = archs[0];
+              return (
+                <button
+                  onClick={() => {
+                    const optimized = buildOptimizedState(state.species, state.level);
+                    onChange(optimized);
+                  }}
+                  className="w-full py-3 rounded-lg bg-gradient-to-r from-poke-red to-poke-red-dark text-white hover:from-poke-red-light hover:to-poke-red transition-all shadow-lg shadow-poke-red/20 hover:shadow-poke-red/40 text-left px-4"
+                >
+                  <div className="text-sm font-bold">Optimize → {topArch?.name || 'Best Build'}</div>
+                  {topArch && (
+                    <div className="text-xs text-white/70 mt-0.5">
+                      {topArch.nature} · {topArch.item || 'auto item'} · {topArch.moves.filter(Boolean).join(', ') || 'auto moves'}
+                    </div>
+                  )}
+                </button>
+              );
+            })()}
             )}
             {presets.length > 0 && (
               <div className="flex flex-wrap gap-1">
