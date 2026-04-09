@@ -60,30 +60,45 @@ function MiniStatBar({ stat, base, sp, nature, level }: { stat: StatID; base: nu
 function TeamSlot({
   index,
   pokemon,
+  team,
   onChange,
   onLoadToCalc,
   onAutoFill,
 }: {
   index: number;
   pokemon: PokemonState;
+  team: PokemonState[];
   onChange: (state: PokemonState) => void;
   onLoadToCalc: (side: 'attacker' | 'defender') => void;
   onAutoFill: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  // Sort Pokemon by how well they fit the current team composition
   const allPokemon = useMemo(() => {
     const all = getAvailablePokemon();
-    const tierOrder: Record<string, number> = { S: 0, 'A+': 1, A: 2, B: 3, C: 4 };
+    // Get scores from team builder for contextual ordering
+    const picks = suggestNextPick(team, 50);
+    const scoreMap = new Map(picks.map(p => [p.species, p.score]));
+
+    const tierOrder: Record<string, number> = { S: 5, 'A+': 4, A: 3, B: 2, C: 1 };
     const presetSpecies = new Set(PRESETS.map(p => p.species));
+
     return [...all].sort((a, b) => {
+      // Primary: team-contextual score (higher = better fit)
+      const sa = scoreMap.get(a) ?? -1;
+      const sb = scoreMap.get(b) ?? -1;
+      if (sa > 0 || sb > 0) {
+        if (sa !== sb) return sb - sa; // Higher score first
+      }
+      // Secondary: tier ranking
       const ta = NORMAL_TIER_LIST.find(e => e.name === a);
       const tb = NORMAL_TIER_LIST.find(e => e.name === b);
-      const sa = ta ? tierOrder[ta.tier] ?? 5 : presetSpecies.has(a) ? 3 : 10;
-      const sb = tb ? tierOrder[tb.tier] ?? 5 : presetSpecies.has(b) ? 3 : 10;
-      if (sa !== sb) return sa - sb;
+      const tierA = ta ? tierOrder[ta.tier] ?? 0 : presetSpecies.has(a) ? 2 : 0;
+      const tierB = tb ? tierOrder[tb.tier] ?? 0 : presetSpecies.has(b) ? 2 : 0;
+      if (tierA !== tierB) return tierB - tierA;
       return a.localeCompare(b);
     });
-  }, []);
+  }, [team]);
   const allMoves = useMemo(() => getAvailableMoves(), []);
   const allItems = useMemo(() => getAvailableItems(), []);
   const allAbilities = useMemo(() => getAvailableAbilities(), []);
@@ -387,6 +402,7 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
               key={i}
               index={i}
               pokemon={pokemon}
+              team={team}
               onChange={state => updateSlot(i, state)}
               onLoadToCalc={side => onLoadToCalc(pokemon, side)}
               onAutoFill={() => handleAutoFill(i)}
