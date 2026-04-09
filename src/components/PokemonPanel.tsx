@@ -200,21 +200,25 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
         : { hp: 2, atk: 0, def: 0, spa: 32, spd: 0, spe: 32 };
     }
 
-    // 4. Run meta benchmarks to refine the spread (if we have moves)
-    const activeMoves = bestMoves.filter(Boolean);
-    if (activeMoves.length > 0) {
-      try {
-        const metaResult = analyzeForMeta(state.species, activeMoves, bestAbility, bestItem, state.level);
-        if (metaResult?.suggestedSpread) {
-          const metaSps = metaResult.suggestedSpread.sps;
-          const metaTotal = Object.values(metaSps).reduce((a, b) => a + b, 0);
-          // Only use meta spread if it's valid (sums to 66) and has meaningful allocation
-          if (metaTotal >= 60 && metaTotal <= 66) {
-            bestNature = metaResult.suggestedSpread.nature;
-            bestSps = { ...metaSps };
+    // 4. Run meta benchmarks to refine the SP spread ONLY (keep the preset nature)
+    //    Presets have curated natures — Adamant Garchomp, Modest Gholdengo, etc.
+    //    The meta engine tends to always pick Jolly/Timid for speed benchmarks,
+    //    which isn't always correct.
+    if (!applied) {
+      const activeMoves = bestMoves.filter(Boolean);
+      if (activeMoves.length > 0) {
+        try {
+          const metaResult = analyzeForMeta(state.species, activeMoves, bestAbility, bestItem, state.level);
+          if (metaResult?.suggestedSpread) {
+            const metaSps = metaResult.suggestedSpread.sps;
+            const metaTotal = Object.values(metaSps).reduce((a, b) => a + b, 0);
+            if (metaTotal >= 60 && metaTotal <= 66) {
+              // Only take the SPs, NOT the nature — preset/live data nature is better
+              bestSps = { ...metaSps };
+            }
           }
-        }
-      } catch { /* use existing spread */ }
+        } catch { /* use existing spread */ }
+      }
     }
 
     // Final validation: ensure SPs sum to 66
