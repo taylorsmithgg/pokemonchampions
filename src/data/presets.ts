@@ -56,7 +56,7 @@ export const PRESETS: PokemonPreset[] = [
     item: 'Kangaskhanite',
     teraType: '',
     sps: { hp: 0, atk: 32, def: 2, spa: 0, spd: 0, spe: 32 },
-    moves: ['Return', 'Power-Up Punch', 'Sucker Punch', 'Protect'],
+    moves: ['Body Slam', 'Power-Up Punch', 'Sucker Punch', 'Protect'],
     label: 'Mega Parental Bond',
   },
   {
@@ -89,7 +89,7 @@ export const PRESETS: PokemonPreset[] = [
     item: 'Lopunnite',
     teraType: '',
     sps: { hp: 0, atk: 32, def: 2, spa: 0, spd: 0, spe: 32 },
-    moves: ['Close Combat', 'Return', 'Fake Out', 'Ice Punch'],
+    moves: ['Close Combat', 'Body Slam', 'Fake Out', 'Ice Punch'],
     label: 'Mega Scrappy',
   },
   {
@@ -394,7 +394,7 @@ export const PRESETS: PokemonPreset[] = [
     item: 'Mystic Water',
     teraType: '',
     sps: { hp: 32, atk: 0, def: 32, spa: 2, spd: 0, spe: 0 },
-    moves: ['Scald', 'Hurricane', 'U-turn', 'Protect'],
+    moves: ['Surf', 'Hurricane', 'U-turn', 'Protect'],
     label: 'Rain Setter',
   },
   {
