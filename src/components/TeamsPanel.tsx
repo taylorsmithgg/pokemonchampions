@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { getSpriteId } from '../utils/sprites';
+import { getSpriteUrl } from '../utils/sprites';
 import { TEAMS, TEAM_ARCHETYPES, type TeamComp, type TeamMember } from '../data/teams';
 
 interface TeamsPanelProps {
@@ -11,7 +11,6 @@ interface TeamsPanelProps {
 
 function MemberCard({ member, onLoad }: { member: TeamMember; onLoad: (side: 'attacker' | 'defender') => void }) {
   const [expanded, setExpanded] = useState(false);
-  const spriteId = getSpriteId(member.species);
 
   // Format SP spread
   const spLabels: Record<string, string> = { hp: 'HP', atk: 'Atk', def: 'Def', spa: 'SpA', spd: 'SpD', spe: 'Spe' };
@@ -27,7 +26,7 @@ function MemberCard({ member, onLoad }: { member: TeamMember; onLoad: (side: 'at
         onClick={() => setExpanded(!expanded)}
       >
         <img
-          src={`https://play.pokemonshowdown.com/sprites/ani/${spriteId}.gif`}
+          src={getSpriteUrl(member.species)}
           alt={member.species}
           className="w-10 h-10 object-contain"
           loading="lazy"
@@ -143,11 +142,10 @@ function TeamCard({ team, onLoadMember, onLoadFullTeam }: { team: TeamComp; onLo
         {/* Mini team preview */}
         <div className="flex gap-1 mt-3">
           {team.members.map((m: TeamMember) => {
-            const id = getSpriteId(m.species);
             return (
               <div key={m.species} className="flex flex-col items-center gap-0.5">
                 <img
-                  src={`https://play.pokemonshowdown.com/sprites/ani/${id}.gif`}
+                  src={getSpriteUrl(m.species)}
                   alt={m.species}
                   className="w-8 h-8 object-contain"
                   loading="lazy"

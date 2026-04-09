@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { getSpriteId } from '../utils/sprites';
+import { getSpriteUrl, getSpriteFallbackUrl } from '../utils/sprites';
 import { Link } from 'react-router-dom';
 import {
   NORMAL_TIER_LIST,
@@ -34,7 +34,6 @@ function PokemonDetailCard({ entry, onClose }: { entry: TierEntry; onClose: () =
   const { stats: liveStats } = useLiveData();
   const liveData = liveStats?.pokemon?.[speciesName];
   const spreads = useMemo(() => suggestSpreads(speciesName, 50), [speciesName]);
-  const spriteId = getSpriteId(speciesName);
 
   if (!data) return null;
 
@@ -51,11 +50,11 @@ function PokemonDetailCard({ entry, onClose }: { entry: TierEntry; onClose: () =
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img
-              src={`https://play.pokemonshowdown.com/sprites/ani/${spriteId}.gif`}
+              src={getSpriteUrl(speciesName)}
               alt={entry.name}
               className="w-16 h-16 object-contain"
               onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                e.currentTarget.src = `https://play.pokemonshowdown.com/sprites/dex/${spriteId}.png`;
+                e.currentTarget.src = getSpriteFallbackUrl(speciesName);
               }}
             />
             <div>
@@ -169,10 +168,9 @@ function PokemonDetailCard({ entry, onClose }: { entry: TierEntry; onClose: () =
             <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Top Teammates</h4>
             <div className="flex flex-wrap gap-1.5">
               {topTeammates.map(([name, usage]) => {
-                const tmId = getSpriteId(name);
                 return (
                   <div key={name} className="flex items-center gap-1 px-2 py-1 bg-poke-surface rounded-lg border border-poke-border">
-                    <img src={`https://play.pokemonshowdown.com/sprites/ani/${tmId}.gif`} alt="" className="w-5 h-5 object-contain" loading="lazy" onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none'; }} />
+                    <img src={getSpriteUrl(name)} alt="" className="w-5 h-5 object-contain" loading="lazy" onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none'; }} />
                     <span className="text-[9px] text-slate-300">{name}</span>
                     <span className="text-[8px] text-slate-600">{(usage * 100).toFixed(0)}%</span>
                   </div>
@@ -191,7 +189,6 @@ function TierCard({ entry, onClick }: { entry: TierEntry; onClick: () => void })
   const data = getPokemonData(speciesName);
   const { stats: liveStats } = useLiveData();
   const liveData = liveStats?.pokemon?.[speciesName];
-  const spriteId = getSpriteId(speciesName);
   const champItemSet = new Set(getAvailableItems());
   const topItem = liveData ? Object.entries(liveData.items).filter(([n]) => champItemSet.has(n)).sort((a, b) => b[1] - a[1])[0] : null;
 
@@ -204,11 +201,11 @@ function TierCard({ entry, onClick }: { entry: TierEntry; onClick: () => void })
         {/* Large sprite */}
         <div className="w-14 h-14 shrink-0 flex items-center justify-center">
           <img
-            src={`https://play.pokemonshowdown.com/sprites/ani/${spriteId}.gif`}
+            src={getSpriteUrl(speciesName)}
             alt={entry.name}
             className="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform"
             onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-              e.currentTarget.src = `https://play.pokemonshowdown.com/sprites/dex/${spriteId}.png`;
+              e.currentTarget.src = getSpriteFallbackUrl(speciesName);
             }}
             loading="lazy"
           />

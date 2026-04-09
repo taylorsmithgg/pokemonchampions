@@ -5,7 +5,7 @@ import { auditTeam, type TeamAudit } from '../calc/teamAudit';
 import { buildOptimalTeam, suggestNextPick } from '../calc/teamBuilder';
 import { PRESETS } from '../data/presets';
 import { NORMAL_TIER_LIST } from '../data/tierlist';
-import { getSpriteUrl, getSpriteId } from '../utils/sprites';
+import { getSpriteUrl } from '../utils/sprites';
 import {
   getAvailablePokemon,
   getAvailableMoves,
@@ -130,7 +130,6 @@ function TeamSlot({
     });
   };
 
-  const spriteId = getSpriteId(pokemon.species || '');
   const totalSP = Object.values(pokemon.sps).reduce((a: number, b: number) => a + b, 0);
 
   return (
@@ -141,7 +140,7 @@ function TeamSlot({
           <span className="text-sm font-bold text-poke-gold w-5">{index + 1}</span>
           {pokemon.species && (
             <img
-              src={`https://play.pokemonshowdown.com/sprites/ani/${spriteId}.gif`}
+              src={getSpriteUrl(pokemon.species)}
               alt=""
               className="w-12 h-12 object-contain shrink-0"
               loading="lazy"

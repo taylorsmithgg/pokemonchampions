@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { getSpriteId } from '../utils/sprites';
+import { getSpriteUrl } from '../utils/sprites';
 import { getRecommendations, type SynergyRecommendation, type SynergyReason } from '../data/synergies';
 import { suggestLeadPartners, type LeadScore } from '../calc/openerAnalysis';
 import type { PokemonState } from '../types';
@@ -41,7 +41,6 @@ function RecommendationCard({
   onLoad: (species: string, side: 'attacker' | 'defender') => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const spriteId = getSpriteId(rec.species);
 
   // Group reasons by type and show the strongest
   const topReason = rec.reasons.reduce((best, r) => r.strength > best.strength ? r : best, rec.reasons[0]);
@@ -53,7 +52,7 @@ function RecommendationCard({
     >
       <div className="flex items-center gap-2 p-2">
         <img
-          src={`https://play.pokemonshowdown.com/sprites/ani/${spriteId}.gif`}
+          src={getSpriteUrl(rec.species)}
           alt={rec.species}
           className="w-12 h-12 object-contain shrink-0"
           loading="lazy"
@@ -223,12 +222,11 @@ export function SynergyPanel({ attacker, defender, onLoadPokemon }: SynergyPanel
             </p>
             {openerSuggestions.map((lead: LeadScore, i: number) => {
               const partner = lead.pokemon[0] === activeSpecies ? lead.pokemon[1] : lead.pokemon[0];
-              const spriteId = getSpriteId(partner);
               return (
                 <div key={i} className="bg-slate-800/40 rounded-lg border border-poke-border/40 p-2.5 space-y-1.5">
                   <div className="flex items-center gap-2">
                     <img
-                      src={`https://play.pokemonshowdown.com/sprites/ani/${spriteId}.gif`}
+                      src={getSpriteUrl(partner)}
                       alt={partner}
                       className="w-12 h-12 object-contain"
                       loading="lazy"

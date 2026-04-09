@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { getSpriteId } from '../utils/sprites';
+import { getSpriteUrl, getSpriteFallbackUrl } from '../utils/sprites';
 import {
   NORMAL_TIER_LIST,
   MEGA_TIER_LIST,
@@ -22,10 +22,9 @@ function MiniSprite({ species }: { species: string }) {
 
   if (hasError) return null;
 
-  const spriteId = getSpriteId(species);
   const src = useFallback
-    ? `https://play.pokemonshowdown.com/sprites/dex/${spriteId}.png`
-    : `https://play.pokemonshowdown.com/sprites/ani/${spriteId}.gif`;
+    ? getSpriteFallbackUrl(species)
+    : getSpriteUrl(species);
 
   return (
     <img

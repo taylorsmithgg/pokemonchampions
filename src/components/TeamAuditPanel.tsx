@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { getSpriteId } from '../utils/sprites';
+import { getSpriteUrl } from '../utils/sprites';
 import { auditTeam, type TeamAudit, type AuditIssue, type Severity } from '../calc/teamAudit';
 import type { PokemonState } from '../types';
 
@@ -35,7 +35,6 @@ function IssueCard({ issue, onLoadPokemon }: { issue: AuditIssue; onLoadPokemon:
           {issue.suggestedPokemon && issue.suggestedPokemon.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1.5">
               {issue.suggestedPokemon.map((name: string) => {
-                const spriteId = getSpriteId(name);
                 return (
                   <button
                     key={name}
@@ -44,7 +43,7 @@ function IssueCard({ issue, onLoadPokemon }: { issue: AuditIssue; onLoadPokemon:
                     title={`Load ${name}`}
                   >
                     <img
-                      src={`https://play.pokemonshowdown.com/sprites/ani/${spriteId}.gif`}
+                      src={getSpriteUrl(name)}
                       alt=""
                       className="w-6 h-6 object-contain"
                       loading="lazy"
