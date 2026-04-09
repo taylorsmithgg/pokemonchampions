@@ -246,27 +246,65 @@ export function auditTeam(team: PokemonState[]): TeamAudit {
     hasPivot: members.some(m => hasMove(m, 'U-turn', 'Volt Switch', 'Parting Shot', 'Flip Turn', 'Teleport')),
   };
 
+  // Detect Pokemon that COULD provide speed control but don't have the move equipped
+  const KNOWN_TR_SETTERS = ['Mimikyu', 'Hatterene', 'Porygon2', 'Dusclops', 'Cresselia', 'Armarouge', 'Gothitelle', 'Bronzong', 'Slowbro', 'Slowking', 'Indeedee-F'];
+  const KNOWN_TAILWIND = ['Whimsicott', 'Talonflame', 'Pelipper', 'Murkrow', 'Suicune', 'Drifblim', 'Corviknight'];
+  const KNOWN_FAKE_OUT = ['Incineroar', 'Rillaboom', 'Meowscarada', 'Kangaskhan', 'Ambipom', 'Mienshao', 'Sneasler', 'Lopunny', 'Hitmontop'];
+
+  const potentialTR = members.filter(m => KNOWN_TR_SETTERS.includes(m.species) && !hasMove(m, 'Trick Room'));
+  const potentialTailwind = members.filter(m => KNOWN_TAILWIND.includes(m.species) && !hasMove(m, 'Tailwind'));
+  const potentialFakeOut = members.filter(m => KNOWN_FAKE_OUT.includes(m.species) && !hasMove(m, 'Fake Out'));
+
   // Check for missing critical roles
   if (!roles.hasFakeOut && !roles.hasTailwind && !roles.hasTrickRoom) {
-    issues.push({
-      id: 'no-speed-control',
-      severity: 'critical',
-      category: 'Speed Control',
-      title: 'No speed control (Fake Out, Tailwind, or Trick Room)',
-      detail: 'Your team has no way to control the pace of battle. Faster teams will overwhelm you, and you can\'t protect setup turns.',
-      suggestion: 'Add Whimsicott (Tailwind), Incineroar (Fake Out), or Mimikyu (Trick Room)',
-      suggestedPokemon: ['Whimsicott', 'Incineroar', 'Mimikyu'],
-    });
+    const hasPotential = potentialTR.length > 0 || potentialTailwind.length > 0 || potentialFakeOut.length > 0;
+
+    if (hasPotential) {
+      // Team has Pokemon that COULD fill the role — suggest moveset change
+      const moveHints: string[] = [];
+      potentialTR.forEach(m => moveHints.push(`${m.species} can learn Trick Room`));
+      potentialTailwind.forEach(m => moveHints.push(`${m.species} can learn Tailwind`));
+      potentialFakeOut.forEach(m => moveHints.push(`${m.species} can learn Fake Out`));
+
+      issues.push({
+        id: 'speed-control-available',
+        severity: 'warning',
+        category: 'Speed Control',
+        title: 'Speed control available but not equipped',
+        detail: `Your team has Pokemon that can provide speed control, but they don't have the moves: ${moveHints.join(', ')}. Consider adjusting their movesets.`,
+        suggestion: moveHints[0] + ' — swap a move slot to add it',
+      });
+    } else {
+      issues.push({
+        id: 'no-speed-control',
+        severity: 'critical',
+        category: 'Speed Control',
+        title: 'No speed control (Fake Out, Tailwind, or Trick Room)',
+        detail: 'Your team has no way to control the pace of battle and no Pokemon that naturally learn these moves.',
+        suggestion: 'Add Whimsicott (Tailwind), Incineroar (Fake Out), or Mimikyu (Trick Room)',
+        suggestedPokemon: ['Whimsicott', 'Incineroar', 'Mimikyu'],
+      });
+    }
   } else if (!roles.hasFakeOut) {
-    issues.push({
-      id: 'no-fake-out',
-      severity: 'warning',
-      category: 'Speed Control',
-      title: 'No Fake Out user',
-      detail: 'Fake Out guarantees a free turn for your partner by flinching one opponent. Without it, setup moves and Tailwind are vulnerable to disruption.',
-      suggestion: 'Consider Incineroar, Rillaboom, or Meowscarada for Fake Out',
-      suggestedPokemon: ['Incineroar', 'Rillaboom', 'Meowscarada'],
-    });
+    if (potentialFakeOut.length > 0) {
+      issues.push({
+        id: 'fake-out-available',
+        severity: 'info',
+        category: 'Speed Control',
+        title: `${potentialFakeOut[0].species} can learn Fake Out`,
+        detail: `Fake Out guarantees a free turn for your partner. ${potentialFakeOut[0].species} can learn it — consider swapping a move.`,
+      });
+    } else {
+      issues.push({
+        id: 'no-fake-out',
+        severity: 'warning',
+        category: 'Speed Control',
+        title: 'No Fake Out user',
+        detail: 'Fake Out guarantees a free turn for your partner by flinching one opponent.',
+        suggestion: 'Consider Incineroar, Rillaboom, or Meowscarada for Fake Out',
+        suggestedPokemon: ['Incineroar', 'Rillaboom', 'Meowscarada'],
+      });
+    }
   }
 
   if (!roles.hasIntim) {
