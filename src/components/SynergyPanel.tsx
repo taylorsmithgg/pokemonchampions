@@ -191,7 +191,7 @@ export function SynergyPanel({ attacker, defender, onLoadPokemon }: SynergyPanel
 
       {activeTab === 'synergy' && (
         activeRecs.length > 0 ? (
-          <div className="p-2 space-y-1.5 max-h-[400px] overflow-y-auto">
+          <div className="p-2 space-y-1.5 ">
             <p className="text-[10px] text-slate-600 px-1">
               Partners for <span className="text-white font-medium">{activeSpecies}</span> — click to expand, ATK/DEF to load
             </p>
@@ -216,7 +216,7 @@ export function SynergyPanel({ attacker, defender, onLoadPokemon }: SynergyPanel
 
       {activeTab === 'openers' && (
         openerSuggestions.length > 0 ? (
-          <div className="p-2 space-y-1.5 max-h-[400px] overflow-y-auto">
+          <div className="p-2 space-y-1.5 ">
             <p className="text-[10px] text-slate-600 px-1">
               Best lead partners for <span className="text-white font-medium">{activeSpecies}</span> in Doubles
             </p>

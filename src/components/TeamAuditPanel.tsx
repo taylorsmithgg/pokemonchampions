@@ -126,7 +126,7 @@ export function TeamAuditPanel({ attacker, defender, onLoadPokemon }: TeamAuditP
         </div>
 
         {/* Issues */}
-        <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
+        <div className="space-y-1.5 ">
           {criticals.map(i => <IssueCard key={i.id} issue={i} onLoadPokemon={onLoadPokemon} />)}
           {warnings.map(i => <IssueCard key={i.id} issue={i} onLoadPokemon={onLoadPokemon} />)}
           {goods.map(i => <IssueCard key={i.id} issue={i} onLoadPokemon={onLoadPokemon} />)}

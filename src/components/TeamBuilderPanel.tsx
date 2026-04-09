@@ -467,7 +467,7 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
           </div>
 
           {/* Issues */}
-          <div className="space-y-2 max-h-[300px] overflow-y-auto">
+          <div className="space-y-2 ">
             {criticals.map((issue) => (
               <div key={issue.id} className="p-2 rounded-lg border border-red-500/30 bg-red-500/5">
                 <div className="flex items-center gap-1.5 mb-0.5">
