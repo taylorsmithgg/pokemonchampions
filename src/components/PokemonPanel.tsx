@@ -425,7 +425,24 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
             item={state.item}
             onChange={sps => update('sps', sps)}
             onNatureChange={n => update('nature', n)}
-            onApplySpread={(sps, nature) => onChange({ ...state, sps, nature })}
+            onApplySpread={(newSps, newNature) => {
+              // Atomic update — set both SPs and nature in one call to avoid stale state
+              onChange({
+                species: state.species,
+                level: state.level,
+                nature: newNature,
+                ability: state.ability,
+                item: state.item,
+                teraType: '',
+                sps: { hp: newSps.hp, atk: newSps.atk, def: newSps.def, spa: newSps.spa, spd: newSps.spd, spe: newSps.spe },
+                boosts: state.boosts,
+                status: state.status,
+                currentHp: state.currentHp,
+                moves: state.moves,
+                isMega: state.isMega,
+                moveOptions: state.moveOptions,
+              });
+            }}
           />
         )}
 
