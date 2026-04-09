@@ -169,6 +169,12 @@ function initChampionsPokemon() {
     if (EXCLUDED_POKEMON.has(name)) continue;
     // Skip alternate forms of excluded Pokemon
     if (species.baseSpecies && EXCLUDED_POKEMON.has(species.baseSpecies as string)) continue;
+    // Skip Mega forms — these auto-resolve when Mega Stone is equipped
+    if (name.includes('-Mega')) continue;
+    // Skip Gigantamax forms — Dynamax not in Champions
+    if (name.includes('-Gmax')) continue;
+    // Skip Totem forms
+    if (name.includes('-Totem')) continue;
     // Include fully evolved Pokemon (not NFE) and Pikachu
     if (name === 'Pikachu' || !species.nfe) {
       CHAMPIONS_POKEMON_SET.add(name);
