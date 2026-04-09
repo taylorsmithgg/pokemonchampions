@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import type { StatID, StatsTable } from '@smogon/calc';
 import { MAX_TOTAL_SP, MAX_STAT_SP, STAT_IDS, STAT_LABELS, STAT_COLORS, getNatureMod } from '../data/champions';
 import { suggestSpreads, type SpreadSuggestion } from '../calc/spOptimizer';
+import { getArchetypes, detectArchetype, type Archetype } from '../calc/archetypes';
 import type { NatureName } from '../types';
 
 interface StatPointAllocatorProps {
@@ -16,9 +17,10 @@ interface StatPointAllocatorProps {
   onChange: (sps: StatsTable) => void;
   onNatureChange?: (nature: NatureName) => void;
   onApplySpread?: (sps: StatsTable, nature: NatureName) => void;
+  onApplyArchetype?: (arch: Archetype) => void;
 }
 
-export function StatPointAllocator({ species, sps, baseStats, nature, level, onChange, onApplySpread }: StatPointAllocatorProps) {
+export function StatPointAllocator({ species, sps, baseStats, nature, level, onChange, onApplySpread, onApplyArchetype }: StatPointAllocatorProps) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const totalUsed = Object.values(sps).reduce((a, b) => a + b, 0);
   const remaining = MAX_TOTAL_SP - totalUsed;
@@ -27,6 +29,16 @@ export function StatPointAllocator({ species, sps, baseStats, nature, level, onC
     if (!species) return [];
     return suggestSpreads(species, level);
   }, [species, level]);
+
+  const archetypes = useMemo(() => {
+    if (!species) return [];
+    return getArchetypes(species);
+  }, [species]);
+
+  const currentArchetype = useMemo(() => {
+    if (!species) return '';
+    return detectArchetype(species, sps, nature);
+  }, [species, sps, nature]);
 
   function handleChange(stat: StatID, value: number) {
     const currentOther = totalUsed - sps[stat];
@@ -65,7 +77,12 @@ export function StatPointAllocator({ species, sps, baseStats, nature, level, onC
           <span className={`text-sm font-bold ${remaining === 0 ? 'text-emerald-400' : remaining < 0 ? 'text-red-400' : 'text-amber-400'}`}>
             {totalUsed} used / {remaining} free
           </span>
-          {suggestions.length > 0 && (
+          {currentArchetype && (
+            <span className="text-xs text-poke-gold px-2 py-0.5 rounded bg-poke-gold/10 border border-poke-gold/20">
+              {currentArchetype}
+            </span>
+          )}
+          {(archetypes.length > 0 || suggestions.length > 0) && (
             <button
               onClick={() => setShowSuggestions(!showSuggestions)}
               className={`text-xs px-2 py-1 rounded border transition-colors ${
@@ -74,51 +91,83 @@ export function StatPointAllocator({ species, sps, baseStats, nature, level, onC
                   : 'bg-poke-surface border-poke-border text-slate-500 hover:text-poke-red-light hover:border-poke-red/50'
               }`}
             >
-              Spreads
+              Archetypes
             </button>
           )}
         </div>
       </div>
 
-      {/* Role-based spread suggestions */}
-      {showSuggestions && suggestions.length > 0 && (
+      {/* Archetypes + Spread suggestions */}
+      {showSuggestions && (
         <div className="mb-3 space-y-2 p-3 rounded-lg border border-poke-border" style={{ backgroundColor: '#12121F' }}>
-          <div className="text-sm text-slate-500 mb-1">Suggested spreads for {species}:</div>
-          {suggestions.map((s, i) => (
-            <div
-              key={i}
-              className="p-3 rounded-lg border border-poke-border cursor-pointer hover:border-poke-red/30 transition-colors group"
-              style={{ backgroundColor: '#1a1b30' }}
-              onClick={() => applySuggestion(s)}
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-semibold text-white">{s.name}</span>
-                <div className="flex gap-1">
-                  {s.tags.map(tag => (
-                    <span key={tag} className="text-xs px-1.5 py-0.5 bg-poke-red/10 text-poke-red-light rounded">
-                      {tag}
-                    </span>
-                  ))}
+          {/* Archetypes (full sets with moves + items) */}
+          {archetypes.length > 0 && (
+            <>
+              <div className="text-sm font-semibold text-white">Archetypes</div>
+              <div className="text-xs text-slate-500 mb-1">Full competitive sets — click to apply SP spread, moves, and item</div>
+              {archetypes.map((arch, i) => (
+                <div
+                  key={i}
+                  className="p-3 rounded-lg border border-poke-border cursor-pointer hover:border-poke-red/30 transition-colors"
+                  style={{ backgroundColor: '#1a1b30' }}
+                  onClick={() => {
+                    if (onApplyArchetype) {
+                      onApplyArchetype(arch);
+                    } else if (onApplySpread) {
+                      onApplySpread({ ...arch.sps }, arch.nature);
+                    }
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-bold text-white">{arch.name}</span>
+                    <div className="flex gap-1">
+                      {arch.tags.map(tag => (
+                        <span key={tag} className="text-xs px-1.5 py-0.5 bg-poke-red/10 text-poke-red-light rounded">{tag}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="text-xs text-slate-400 mb-2">{arch.description}</div>
+                  <div className="text-sm font-mono text-amber-400/80 mb-1">
+                    {Object.entries(arch.sps).filter(([, v]) => v > 0).map(([k, v]) => `${v} ${STAT_LABELS[k as StatID]}`).join(' / ')} — {arch.nature}
+                  </div>
+                  {arch.moves.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-1">
+                      {arch.moves.map(m => (
+                        <span key={m} className="text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: '#12121F' }}>{m}</span>
+                      ))}
+                    </div>
+                  )}
+                  {arch.item && (
+                    <div className="text-xs text-poke-gold">Item: {arch.item}</div>
+                  )}
                 </div>
-              </div>
-              <div className="text-sm text-slate-400 mb-1">{s.description}</div>
-              <div className="text-sm font-mono text-amber-400/80 mb-1">
-                {Object.entries(s.sps)
-                  .filter(([, v]) => v > 0)
-                  .map(([k, v]) => `${v} ${STAT_LABELS[k as StatID]}`)
-                  .join(' / ')
-                } — {s.nature}
-              </div>
-              <div className="text-xs text-slate-600 italic">{s.rationale[0]}</div>
-              {s.rationale.length > 1 && (
-                <div className="hidden group-hover:block mt-1 space-y-0.5">
-                  {s.rationale.slice(1).map((r, j) => (
-                    <div key={j} className="text-xs text-slate-600 italic">{r}</div>
-                  ))}
+              ))}
+            </>
+          )}
+
+          {/* SP-only spreads (secondary) */}
+          {suggestions.length > 0 && (
+            <>
+              <div className="text-sm font-semibold text-white mt-3 pt-3 border-t border-poke-border">SP-Only Spreads</div>
+              <div className="text-xs text-slate-500 mb-1">Stat allocation only — keeps your current moves and item</div>
+              {suggestions.slice(0, 3).map((s, i) => (
+                <div
+                  key={i}
+                  className="p-2 rounded-lg border border-poke-border cursor-pointer hover:border-poke-red/30 transition-colors"
+                  style={{ backgroundColor: '#1a1b30' }}
+                  onClick={() => applySuggestion(s)}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-white">{s.name}</span>
+                    <span className="text-xs text-slate-600">{s.nature}</span>
+                  </div>
+                  <div className="text-xs font-mono text-amber-400/80">
+                    {Object.entries(s.sps).filter(([, v]) => v > 0).map(([k, v]) => `${v} ${STAT_LABELS[k as StatID]}`).join(' / ')}
+                  </div>
                 </div>
-              )}
-            </div>
-          ))}
+              ))}
+            </>
+          )}
         </div>
       )}
 

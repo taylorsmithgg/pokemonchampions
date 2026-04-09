@@ -482,6 +482,20 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
                 sps: { hp: newSps.hp, atk: newSps.atk, def: newSps.def, spa: newSps.spa, spd: newSps.spd, spe: newSps.spe },
               });
             }}
+            onApplyArchetype={(arch) => {
+              onChange({
+                ...createDefaultPokemonState(),
+                species: state.species,
+                level: state.level,
+                ability: state.ability,
+                status: state.status,
+                currentHp: state.currentHp,
+                nature: arch.nature,
+                sps: { hp: arch.sps.hp, atk: arch.sps.atk, def: arch.sps.def, spa: arch.sps.spa, spd: arch.sps.spd, spe: arch.sps.spe },
+                moves: arch.moves.length > 0 ? [...arch.moves, '', '', '', ''].slice(0, 4) : state.moves,
+                item: arch.item || state.item,
+              });
+            }}
           />
         )}
 
