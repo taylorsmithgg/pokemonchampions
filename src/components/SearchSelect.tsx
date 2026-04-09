@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 
 interface SearchSelectProps {
   options: string[];
@@ -103,7 +104,7 @@ export function SearchSelect({ options, value, onChange, placeholder = 'Select..
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </div>
-      {isOpen && (
+      {isOpen && createPortal(
         <div
           id="search-select-dropdown"
           className="rounded-lg border-2 border-poke-border max-h-[70vh] overflow-y-auto"
@@ -145,7 +146,8 @@ export function SearchSelect({ options, value, onChange, placeholder = 'Select..
           {filtered.length === 0 && (
             <div className="px-3 py-3 text-sm text-slate-500" style={{ backgroundColor: '#1a1b30' }}>No results</div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

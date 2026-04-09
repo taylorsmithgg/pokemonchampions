@@ -189,61 +189,49 @@ export function getAvailableAbilities(): string[] {
 }
 
 // ─── Items ──────────────────────────────────────────────────────────
-// Exclude items tied to banned Pokemon, removed mechanics, or non-competitive items
-const EXCLUDED_ITEMS = new Set([
-  // Z-Crystals (Z-Moves not in Champions)
-  'Buginium Z', 'Darkinium Z', 'Dragonium Z', 'Electrium Z', 'Fairium Z',
-  'Fightinium Z', 'Firium Z', 'Flyinium Z', 'Ghostium Z', 'Grassium Z',
-  'Groundium Z', 'Icium Z', 'Normalium Z', 'Poisonium Z', 'Psychium Z',
-  'Rockium Z', 'Steelium Z', 'Waterium Z',
-  'Aloraichium Z', 'Decidium Z', 'Eevium Z', 'Incinium Z', 'Kommonium Z',
-  'Lunalium Z', 'Lycanium Z', 'Marshadium Z', 'Mewnium Z', 'Mimikium Z',
-  'Pikanium Z', 'Pikashunium Z', 'Primarium Z', 'Snorlium Z', 'Solganium Z',
-  'Tapunium Z', 'Ultranecrozium Z',
-  // Dynamax items
-  'Max Mushrooms',
-  // Legendary-specific items
-  'Rusted Sword', 'Rusted Shield', 'Soul Dew',
-  'Adamant Crystal', 'Lustrous Globe', 'Griseous Core', 'Griseous Orb',
-  // Paradox/Ogerpon items
-  'Booster Energy', 'Wellspring Mask', 'Hearthflame Mask', 'Cornerstone Mask',
-  // Non-competitive items (balls, stones, etc.)
-  'Fast Ball', 'Friend Ball', 'Great Ball', 'Heavy Ball', 'Level Ball',
-  'Love Ball', 'Lure Ball', 'Moon Ball', 'Poke Ball', 'Premier Ball',
-  'Quick Ball', 'Repeat Ball', 'Safari Ball', 'Timer Ball', 'Ultra Ball',
-  'Beast Ball', 'Cherish Ball', 'Dive Ball', 'Dream Ball', 'Dusk Ball',
-  'Heal Ball', 'Luxury Ball', 'Master Ball', 'Nest Ball', 'Net Ball',
-  'Sport Ball', 'Park Ball',
-  // Evolution stones (not battle items)
-  'Fire Stone', 'Water Stone', 'Thunder Stone', 'Leaf Stone', 'Moon Stone',
-  'Sun Stone', 'Shiny Stone', 'Dusk Stone', 'Dawn Stone', 'Ice Stone',
-  'Dragon Scale', 'Deep Sea Scale', 'Deep Sea Tooth', 'Dubious Disc',
-  'Electirizer', 'Magmarizer', 'Oval Stone', 'Protector', 'Razor Claw',
-  'Razor Fang', 'Reaper Cloth', 'Sachet', 'Whipped Dream',
-  'Prism Scale', 'Upgrade',
-  // Arceus plates (Arceus banned)
-  'Draco Plate', 'Dread Plate', 'Earth Plate', 'Fist Plate', 'Flame Plate',
-  'Icicle Plate', 'Insect Plate', 'Iron Plate', 'Meadow Plate', 'Mind Plate',
-  'Pixie Plate', 'Sky Plate', 'Splash Plate', 'Spooky Plate', 'Stone Plate',
-  'Toxic Plate', 'Zap Plate', 'Blank Plate', 'Legend Plate',
-  // Silvally memories (Silvally banned)
-  'Bug Memory', 'Dark Memory', 'Dragon Memory', 'Electric Memory', 'Fairy Memory',
-  'Fighting Memory', 'Fire Memory', 'Flying Memory', 'Ghost Memory', 'Grass Memory',
-  'Ground Memory', 'Ice Memory', 'Poison Memory', 'Psychic Memory', 'Rock Memory',
-  'Steel Memory', 'Water Memory',
-  // Misc non-battle
-  'Berry Juice', 'Bright Powder', 'Smoke Ball', 'Amulet Coin', 'Lucky Egg',
-  'Exp. Share', 'Soothe Bell', 'Cleanse Tag',
+// Champions has a LIMITED item pool — use a whitelist from Game8's confirmed list
+const CHAMPIONS_ITEMS = new Set([
+  // Type-boost items (20% boost)
+  'Black Belt', 'Black Glasses', 'Charcoal', 'Dragon Fang', 'Fairy Feather',
+  'Hard Stone', 'Magnet', 'Metal Coat', 'Miracle Seed', 'Mystic Water',
+  'Never-Melt Ice', 'Poison Barb', 'Sharp Beak', 'Silk Scarf', 'Silver Powder',
+  'Soft Sand', 'Spell Tag', 'Twisted Spoon',
+  // Competitive staples
+  'Leftovers', 'Focus Sash', 'Choice Scarf', 'White Herb', 'Mental Herb',
+  'Shell Bell', 'Scope Lens', 'Quick Claw', 'Focus Band',
+  'King\'s Rock', 'Bright Powder', 'Light Ball',
+  // Berries — recovery
+  'Sitrus Berry', 'Lum Berry', 'Oran Berry', 'Leppa Berry',
+  'Cheri Berry', 'Chesto Berry', 'Pecha Berry', 'Rawst Berry',
+  'Aspear Berry', 'Persim Berry',
+  // Berries — type resist (50% damage)
+  'Occa Berry', 'Passho Berry', 'Wacan Berry', 'Rindo Berry',
+  'Yache Berry', 'Chople Berry', 'Kebia Berry', 'Shuca Berry',
+  'Coba Berry', 'Payapa Berry', 'Tanga Berry', 'Charti Berry',
+  'Kasib Berry', 'Haban Berry', 'Colbur Berry', 'Babiri Berry',
+  'Chilan Berry', 'Roseli Berry',
+  // Mega Stones
+  'Charizardite X', 'Charizardite Y', 'Venusaurite', 'Blastoisinite',
+  'Gengarite', 'Kangaskhanite', 'Gyaradosite', 'Scizorite', 'Pinsirite',
+  'Aerodactylite', 'Ampharosite', 'Steelixite', 'Heracronite',
+  'Tyranitarite', 'Gardevoirite', 'Galladite', 'Alakazite', 'Aggronite',
+  'Medichamite', 'Banettite', 'Absolite', 'Glalitite', 'Sablenite',
+  'Sharpedonite', 'Cameruptite', 'Lopunnite', 'Slowbronite', 'Pidgeotite',
+  'Altarianite', 'Lucarionite', 'Abomasite', 'Manectite', 'Houndoominite',
+  'Audinite', 'Beedrillite', 'Garchompite',
+  // New Z-A Mega Stones
+  'Meganiumite', 'Feraligite', 'Emboarite', 'Chesnaughtite',
+  'Delphoxite', 'Greninjite', 'Victreebelite', 'Dragoninite',
+  'Froslassite', 'Starminite', 'Floettite', 'Excadrite',
+  'Hawluchanite', 'Chimechite', 'Golurkite', 'Meowsticite',
+  'Crabominite', 'Glimmoranite', 'Scovillainite',
+  'Skarmorite', 'Clefablite', 'Drampanite', 'Chandelurite',
 ]);
 
+
 export function getAvailableItems(): string[] {
-  const items: string[] = [];
-  for (const item of gen9.items) {
-    if (!EXCLUDED_ITEMS.has(item.name)) {
-      items.push(item.name);
-    }
-  }
-  return items.sort();
+  // Use whitelist — Champions has a curated item pool
+  return Array.from(CHAMPIONS_ITEMS).sort();
 }
 
 // ─── Types ──────────────────────────────────────────────────────────
