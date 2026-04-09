@@ -425,6 +425,7 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
             item={state.item}
             onChange={sps => update('sps', sps)}
             onNatureChange={n => update('nature', n)}
+            onApplySpread={(sps, nature) => onChange({ ...state, sps, nature })}
           />
         )}
 

@@ -16,9 +16,10 @@ interface StatPointAllocatorProps {
   item: string;
   onChange: (sps: StatsTable) => void;
   onNatureChange?: (nature: NatureName) => void;
+  onApplySpread?: (sps: StatsTable, nature: NatureName) => void;
 }
 
-export function StatPointAllocator({ species, sps, baseStats, nature, level, moves, ability, item, onChange, onNatureChange }: StatPointAllocatorProps) {
+export function StatPointAllocator({ species, sps, baseStats, nature, level, moves, ability, item, onChange, onNatureChange, onApplySpread }: StatPointAllocatorProps) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showMeta, setShowMeta] = useState(false);
   const totalUsed = Object.values(sps).reduce((a, b) => a + b, 0);
@@ -58,8 +59,12 @@ export function StatPointAllocator({ species, sps, baseStats, nature, level, mov
   }
 
   function applySuggestion(s: SpreadSuggestion) {
-    onChange({ ...s.sps });
-    if (onNatureChange) onNatureChange(s.nature);
+    if (onApplySpread) {
+      onApplySpread({ ...s.sps }, s.nature);
+    } else {
+      onChange({ ...s.sps });
+      if (onNatureChange) onNatureChange(s.nature);
+    }
     setShowSuggestions(false);
   }
 
@@ -151,8 +156,12 @@ export function StatPointAllocator({ species, sps, baseStats, nature, level, mov
             <div
               className="p-2 bg-amber-500/5 rounded-lg border border-amber-500/20 cursor-pointer hover:border-amber-500/40 transition-colors"
               onClick={() => {
-                onChange({ ...metaAnalysis.suggestedSpread!.sps });
-                if (onNatureChange) onNatureChange(metaAnalysis.suggestedSpread!.nature);
+                if (onApplySpread) {
+                  onApplySpread({ ...metaAnalysis.suggestedSpread!.sps }, metaAnalysis.suggestedSpread!.nature);
+                } else {
+                  onChange({ ...metaAnalysis.suggestedSpread!.sps });
+                  if (onNatureChange) onNatureChange(metaAnalysis.suggestedSpread!.nature);
+                }
                 setShowMeta(false);
               }}
             >
