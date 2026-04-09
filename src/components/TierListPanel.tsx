@@ -1,4 +1,3 @@
-import { getSpriteId } from '../utils/sprites';
 import { useState, useMemo } from 'react';
 import { getSpriteId } from '../utils/sprites';
 import {

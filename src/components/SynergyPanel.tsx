@@ -1,4 +1,3 @@
-import { getSpriteId } from '../utils/sprites';
 import { useMemo, useState } from 'react';
 import { getSpriteId } from '../utils/sprites';
 import { getRecommendations, type SynergyRecommendation, type SynergyReason } from '../data/synergies';

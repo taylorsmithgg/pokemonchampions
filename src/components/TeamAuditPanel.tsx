@@ -1,4 +1,3 @@
-import { getSpriteId } from '../utils/sprites';
 import { useMemo } from 'react';
 import { getSpriteId } from '../utils/sprites';
 import { auditTeam, type TeamAudit, type AuditIssue, type Severity } from '../calc/teamAudit';
