@@ -2,11 +2,10 @@
 // Finds underexplored strategies unique to the Champions metagame
 // by analyzing the roster algorithmically — not derivative of Smogon data
 
-import { Generations, Move } from '@smogon/calc';
-import { getAvailablePokemon, getPokemonData, getAvailableMoves } from '../data/champions';
+import { Generations } from '@smogon/calc';
+import { getAvailablePokemon, getPokemonData } from '../data/champions';
 import { NORMAL_TIER_LIST } from '../data/tierlist';
 import { PRESETS } from '../data/presets';
-import type { NatureName } from '../types';
 
 const gen9 = Generations.get(9);
 
@@ -256,7 +255,6 @@ function findAbilityCombos(): Discovery[] {
   // Count Intimidate users in pool
   const intimidateUsers: string[] = [];
   const weatherSetters: Record<string, string[]> = { Sun: [], Rain: [], Sand: [], Snow: [] };
-  const redirectors: string[] = [];
 
   for (const name of pool) {
     const data = getPokemonData(name);
