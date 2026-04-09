@@ -157,18 +157,30 @@ function TeamSlot({
             />
           </div>
           {pokemon.species && (
-            <div className="flex gap-0.5">
+            <div className="flex gap-1.5 items-center">
               <button
                 onClick={onAutoFill}
-                className="text-[8px] px-1.5 py-0.5 bg-poke-gold/15 text-poke-gold border border-poke-gold/30 rounded hover:bg-poke-gold/25 transition-colors"
-                title="Auto-fill optimal set from live data"
+                className="text-xs px-2 py-1 bg-poke-gold/15 text-poke-gold border border-poke-gold/30 rounded-lg hover:bg-poke-gold/25 transition-colors"
+                title="Auto-fill optimal set"
               >
-                Auto
+                Optimize
               </button>
-              <button onClick={() => onLoadToCalc('attacker')} className="text-[8px] px-1.5 py-0.5 bg-poke-red/15 text-poke-red-light border border-poke-red/30 rounded hover:bg-poke-red/25">ATK</button>
-              <button onClick={() => onLoadToCalc('defender')} className="text-[8px] px-1.5 py-0.5 bg-poke-blue/15 text-poke-blue-light border border-poke-blue/30 rounded hover:bg-poke-blue/25">DEF</button>
-              <button onClick={() => setExpanded(!expanded)} className="text-[8px] px-1 py-0.5 text-slate-500 hover:text-white">
-                {expanded ? '−' : '+'}
+              <button
+                onClick={() => onLoadToCalc('attacker')}
+                className="text-xs px-2.5 py-1 bg-poke-red/15 text-poke-red-light border border-poke-red/30 rounded-lg hover:bg-poke-red/25 transition-colors font-semibold"
+                title="Set as Attacker in calculator"
+              >
+                Attacker
+              </button>
+              <button
+                onClick={() => onLoadToCalc('defender')}
+                className="text-xs px-2.5 py-1 bg-poke-blue/15 text-poke-blue-light border border-poke-blue/30 rounded-lg hover:bg-poke-blue/25 transition-colors font-semibold"
+                title="Set as Defender in calculator"
+              >
+                Defender
+              </button>
+              <button onClick={() => setExpanded(!expanded)} className="text-sm px-2 py-1 text-slate-500 hover:text-white transition-colors">
+                {expanded ? '▲' : '▼'}
               </button>
             </div>
           )}
