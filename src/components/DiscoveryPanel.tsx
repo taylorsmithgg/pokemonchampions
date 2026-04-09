@@ -56,10 +56,10 @@ function DiscoveryCard({ discovery, onLoadPokemon }: {
 
             {/* Quick load buttons */}
             <div className="flex flex-wrap gap-1">
-              {discovery.pokemon.map(species => (
+              {discovery.pokemon.map((species, idx) => (
                 <button
                   key={species}
-                  onClick={() => onLoadPokemon(species, 'attacker')}
+                  onClick={() => onLoadPokemon(discovery.calcPokemon?.[idx] || species, 'attacker')}
                   className="text-xs px-2 py-1 bg-poke-surface border border-poke-border text-slate-400 rounded hover:border-poke-red/30 hover:text-poke-red-light transition-colors"
                 >
                   {species}

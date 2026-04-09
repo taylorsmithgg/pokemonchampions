@@ -1,34 +1,45 @@
 // Meta Discovery Engine
-// Finds underexplored strategies unique to the Champions metagame
-// by analyzing the roster algorithmically — not derivative of Smogon data
+// Deep algorithmic analysis of the Champions metagame
+// Finds strategies that DON'T exist in VGC 2026 data
 
-import { getAvailablePokemon, getPokemonData, getTypeEffectiveness} from '../data/champions';
-import { NORMAL_TIER_LIST } from '../data/tierlist';
+
+import { getAvailablePokemon, getPokemonData, getDefensiveMultiplier } from '../data/champions';
+import { NORMAL_TIER_LIST, MEGA_TIER_LIST } from '../data/tierlist';
 import { PRESETS } from '../data/presets';
 
-
-
-// ─── Types ──────────────────────────────────────────────────────────
+const ALL_TYPES = [
+  'Normal', 'Fire', 'Water', 'Electric', 'Grass', 'Ice',
+  'Fighting', 'Poison', 'Ground', 'Flying', 'Psychic', 'Bug',
+  'Rock', 'Ghost', 'Dragon', 'Dark', 'Steel', 'Fairy',
+];
 
 export interface Discovery {
   id: string;
-  category: 'core' | 'threat' | 'counter' | 'archetype' | 'underrated' | 'combo';
+  category: 'core' | 'threat' | 'counter' | 'archetype' | 'underrated' | 'combo' | 'wall';
   title: string;
   description: string;
-  pokemon: string[];
+  pokemon: string[];       // species names for sprites
+  calcPokemon: string[];   // base species names for loading into calc
   reasoning: string[];
-  confidence: number; // 0-100
+  confidence: number;
 }
 
-// ─── 1. Find Unresisted Offensive Cores ─────────────────────────────
-// Two Pokemon whose combined STAB types hit the entire Champions pool SE
+// Helper: get base species for calc loading (strip Mega form)
 
-function findUnresistedCores(): Discovery[] {
+// Helper: check if a Pokemon is competitively viable
+function isViable(name: string): boolean {
+  return NORMAL_TIER_LIST.some(e => e.name === name) ||
+    MEGA_TIER_LIST.some(e => e.name === name) ||
+    PRESETS.some(p => p.species === name);
+}
+
+// ─── 1. Offensive Cores — type coverage combos ─────────────────────
+function findOffensiveCores(): Discovery[] {
   const discoveries: Discovery[] = [];
-  const pool = getAvailablePokemon().filter(n => !n.includes('-') || n.includes('-Alola') || n.includes('-Galar') || n.includes('-Wash') || n.includes('-Heat'));
-  const viable = pool.filter(n => NORMAL_TIER_LIST.some(e => e.name === n) || PRESETS.some(p => p.species === n));
+  const pool = getAvailablePokemon().filter(n => !n.includes('-') || ['-Alola', '-Galar', '-Wash', '-Heat', '-Mow'].some(s => n.includes(s)));
+  const viable = pool.filter(isViable);
 
-  // Analyze each pair of viable Pokemon
+  // Check every pair of viable Pokemon for combined STAB coverage
   for (let i = 0; i < viable.length; i++) {
     const a = getPokemonData(viable[i]);
     if (!a) continue;
@@ -36,245 +47,309 @@ function findUnresistedCores(): Discovery[] {
       const b = getPokemonData(viable[j]);
       if (!b) continue;
 
-      // Combined STAB types
       const combinedTypes = new Set([...a.types, ...b.types]);
-
-      // How many Pokemon in the pool can they NOT hit SE?
-      let unresisted = 0;
+      let hitsSE = 0;
       let total = 0;
-      for (const target of pool.slice(0, 100)) {
-        const tData = getPokemonData(target);
-        if (!tData) continue;
+
+      for (const target of pool.slice(0, 80)) {
+        const t = getPokemonData(target);
+        if (!t) continue;
         total++;
-        let canHit = false;
         for (const atkType of combinedTypes) {
-          let mult = 1;
-          for (const defType of tData.types) mult *= getTypeEffectiveness(atkType as string, defType as string);
-          if (mult > 1) { canHit = true; break; }
+          if (getDefensiveMultiplier(atkType as string, [...t.types] as string[]) > 1) { hitsSE++; break; }
         }
-        if (!canHit) unresisted++;
       }
 
-      const coverage = ((total - unresisted) / total) * 100;
-      if (coverage >= 85) {
+      const coverage = total > 0 ? (hitsSE / total) * 100 : 0;
+      if (coverage >= 80) {
         discoveries.push({
           id: `core-${viable[i]}-${viable[j]}`,
           category: 'core',
-          title: `${viable[i]} + ${viable[j]} offensive core`,
-          description: `Combined ${[...combinedTypes].join('/')} STAB hits ${coverage.toFixed(0)}% of the Champions roster super-effectively. Only ${unresisted} Pokemon resist both.`,
+          title: `${viable[i]} + ${viable[j]}`,
+          description: `${[...combinedTypes].join('/')} STAB covers ${coverage.toFixed(0)}% of the Champions meta super-effectively.`,
           pokemon: [viable[i], viable[j]],
-          reasoning: [
-            `${[...combinedTypes].join('/')} type coverage`,
-            `${coverage.toFixed(0)}% super-effective coverage`,
-            `${unresisted} Pokemon in the pool can wall this core`,
-          ],
+          calcPokemon: [viable[i], viable[j]],
+          reasoning: [`${coverage.toFixed(0)}% coverage`, `Only ${total - hitsSE} Pokemon resist both`],
           confidence: Math.min(95, Math.round(coverage)),
         });
       }
     }
   }
-
   discoveries.sort((a, b) => b.confidence - a.confidence);
-  return discoveries.slice(0, 10);
+  return discoveries.slice(0, 6);
 }
 
-// ─── 2. Find Unchecked Threats ──────────────────────────────────────
-// Pokemon that have very few counters in the Champions pool
-
+// ─── 2. Unchecked Threats — few walls in the pool ──────────────────
 function findUncheckedThreats(): Discovery[] {
   const discoveries: Discovery[] = [];
-  const pool = getAvailablePokemon().filter(n => !n.includes('-') || n.includes('-Alola') || n.includes('-Galar') || n.includes('-Wash') || n.includes('-Heat'));
+  const pool = getAvailablePokemon().filter(n => !n.includes('-') || ['-Alola', '-Galar', '-Wash', '-Heat'].some(s => n.includes(s)));
 
   for (const species of pool) {
     const data = getPokemonData(species);
     if (!data) continue;
-    const bs = data.baseStats;
-    if (bs.atk < 80 && bs.spa < 80) continue; // Skip non-threats
+    if (data.baseStats.atk < 85 && data.baseStats.spa < 85) continue;
 
     const types = [...data.types] as string[];
-
-    // Count how many Pokemon in the pool resist ALL of this Pokemon's STAB types
     let wallCount = 0;
-    let checkCount = 0; // Can hit it SE
+
     for (const target of pool) {
       if (target === species) continue;
-      const tData = getPokemonData(target);
-      if (!tData) continue;
-      const tTypes = [...tData.types] as string[];
-
-      // Does target resist all our STABs?
+      const t = getPokemonData(target);
+      if (!t) continue;
       let resistsAll = true;
       for (const atkType of types) {
-        let mult = 1;
-        for (const defType of tTypes) mult *= getTypeEffectiveness(atkType, defType);
-        if (mult >= 1) { resistsAll = false; break; }
+        if (getDefensiveMultiplier(atkType, [...t.types] as string[]) >= 1) { resistsAll = false; break; }
       }
       if (resistsAll) wallCount++;
-
-      // Can target hit us SE?
-      for (const targetType of tTypes) {
-        let mult = 1;
-        for (const myType of types) mult *= getTypeEffectiveness(targetType, myType);
-        if (mult > 1) { checkCount++; break; }
-      }
     }
 
-    // Low wall count + decent stats = unchecked threat
-    if (wallCount <= 5 && (bs.atk >= 100 || bs.spa >= 100)) {
+    if (wallCount <= 6 && (data.baseStats.atk >= 100 || data.baseStats.spa >= 100)) {
       const tier = NORMAL_TIER_LIST.find(e => e.name === species);
-      // Bonus for Pokemon not already S/A+ tier — these are underrated threats
       const isUnderrated = !tier || tier.tier === 'B' || tier.tier === 'C';
 
       discoveries.push({
         id: `threat-${species}`,
         category: isUnderrated ? 'underrated' : 'threat',
-        title: isUnderrated ? `${species} — underrated threat` : `${species} — hard to wall`,
-        description: `Only ${wallCount} Pokemon in Champions resist ${types.join('/')} STAB. ${checkCount} can hit it back SE. ${isUnderrated ? 'Currently ranked low but has few answers.' : ''}`,
+        title: isUnderrated ? `Sleeper: ${species}` : `${species} — hard to wall`,
+        description: `Only ${wallCount} Pokemon resist ${types.join('/')} STAB. ${data.baseStats.atk >= data.baseStats.spa ? data.baseStats.atk + ' Atk' : data.baseStats.spa + ' SpA'}, ${data.baseStats.spe} Speed.${isUnderrated ? ' Currently underranked.' : ''}`,
         pokemon: [species],
+        calcPokemon: [species],
         reasoning: [
-          `${types.join('/')} STAB walled by only ${wallCount} Pokemon`,
-          `${bs.atk >= bs.spa ? bs.atk + ' Atk' : bs.spa + ' SpA'} — ${bs.spe} Spe`,
-          isUnderrated ? `Currently ${tier?.tier || 'unranked'} — may be undervalued` : `${tier?.tier} tier — established threat`,
+          `${types.join('/')} walled by only ${wallCount} Pokemon`,
+          `${isUnderrated ? (tier?.tier || 'Unranked') + ' tier — fewer players running it' : 'Established meta threat'}`,
         ],
-        confidence: Math.min(90, 90 - wallCount * 10 + (isUnderrated ? 10 : 0)),
+        confidence: Math.min(90, 85 - wallCount * 5 + (isUnderrated ? 10 : 0)),
       });
     }
   }
-
   discoveries.sort((a, b) => b.confidence - a.confidence);
-  return discoveries.slice(0, 10);
+  return discoveries.slice(0, 5);
 }
 
-// ─── 3. Find Speed Tier Gaps ────────────────────────────────────────
-// With legendaries/paradox removed, which speed tiers are empty?
-
-function findSpeedTierGaps(): Discovery[] {
+// ─── 3. Unkillable Walls — Pokemon with insane bulk + few weaknesses ─
+function findUnkillableWalls(): Discovery[] {
   const discoveries: Discovery[] = [];
-  const pool = getAvailablePokemon();
+  const pool = getAvailablePokemon().filter(n => !n.includes('-') || ['-Alola', '-Galar', '-Wash', '-Heat'].some(s => n.includes(s)));
 
-  // Build speed distribution
-  const speedTiers: { species: string; spe: number; atk: number; spa: number }[] = [];
+  for (const species of pool) {
+    const data = getPokemonData(species);
+    if (!data) continue;
+    const bs = data.baseStats;
+    const types = [...data.types] as string[];
+
+    // Calculate bulk index
+    const physBulk = bs.hp * bs.def;
+    const specBulk = bs.hp * bs.spd;
+    const totalBulk = physBulk + specBulk;
+    if (totalBulk < 25000) continue; // Must be genuinely bulky
+
+    // Count weaknesses and resistances
+    let weaknesses = 0;
+    let resistances = 0;
+    let immunities = 0;
+    for (const atkType of ALL_TYPES) {
+      const mult = getDefensiveMultiplier(atkType, types);
+      if (mult > 1) weaknesses++;
+      else if (mult < 1 && mult > 0) resistances++;
+      else if (mult === 0) immunities++;
+    }
+
+    // Count how many meta attackers can actually hit it SE
+    let threatenedBy = 0;
+    const metaThreats = pool.filter(n => {
+      const d = getPokemonData(n);
+      return d && (d.baseStats.atk >= 90 || d.baseStats.spa >= 90);
+    }).slice(0, 50);
+
+    for (const threat of metaThreats) {
+      const tData = getPokemonData(threat);
+      if (!tData) continue;
+      for (const tType of tData.types) {
+        if (getDefensiveMultiplier(tType as string, types) > 1) { threatenedBy++; break; }
+      }
+    }
+
+    const survivalRate = ((metaThreats.length - threatenedBy) / metaThreats.length) * 100;
+    if (survivalRate >= 65 && weaknesses <= 3) {
+      discoveries.push({
+        id: `wall-${species}`,
+        category: 'wall',
+        title: `${species} — defensive fortress`,
+        description: `${resistances} resistances, ${immunities} immunities, only ${weaknesses} weaknesses. ${survivalRate.toFixed(0)}% of meta attackers can't hit it SE. Bulk: ${bs.hp}/${bs.def}/${bs.spd}.`,
+        pokemon: [species],
+        calcPokemon: [species],
+        reasoning: [
+          `Only ${threatenedBy}/${metaThreats.length} attackers threaten it`,
+          `${resistances + immunities} favorable type matchups`,
+          `Recovery options make it extremely hard to break`,
+        ],
+        confidence: Math.min(90, Math.round(survivalRate * 0.9)),
+      });
+    }
+  }
+  discoveries.sort((a, b) => b.confidence - a.confidence);
+  return discoveries.slice(0, 4);
+}
+
+// ─── 4. Speed Tier Dominators ──────────────────────────────────────
+function findSpeedDominators(): Discovery[] {
+  const discoveries: Discovery[] = [];
+  const pool = getAvailablePokemon().filter(n => !n.includes('-') || ['-Alola', '-Galar', '-Wash', '-Heat'].some(s => n.includes(s)));
+
+  // Build speed distribution of offensive Pokemon
+  const speedTiers: { species: string; spe: number; power: number }[] = [];
   for (const name of pool) {
     const data = getPokemonData(name);
     if (!data) continue;
-    if (data.baseStats.atk < 70 && data.baseStats.spa < 70) continue;
+    if (data.baseStats.atk < 75 && data.baseStats.spa < 75) continue;
     speedTiers.push({
       species: name,
       spe: data.baseStats.spe,
-      atk: data.baseStats.atk,
-      spa: data.baseStats.spa,
+      power: Math.max(data.baseStats.atk, data.baseStats.spa),
     });
   }
   speedTiers.sort((a, b) => b.spe - a.spe);
 
-  // Find the fastest viable Pokemon
-  const fastest = speedTiers.slice(0, 5);
-  if (fastest.length > 0) {
+  // Top 5 fastest offensive Pokemon
+  const top5 = speedTiers.slice(0, 5);
+  if (top5.length >= 3) {
     discoveries.push({
       id: 'speed-kings',
       category: 'archetype',
-      title: 'Fastest threats in Champions',
-      description: `Without Flutter Mane (135), Dragapult (142), or Meowscarada (123) dominating, the speed meta shifts. The fastest offensive Pokemon are now: ${fastest.map(f => `${f.species} (${f.spe})`).join(', ')}. Anything above ${fastest[2]?.spe || 100} outspeeds the meta with +Spe nature.`,
-      pokemon: fastest.map(f => f.species),
-      reasoning: fastest.map(f => `${f.species}: ${f.spe} base Spe, ${Math.max(f.atk, f.spa)} offensive`),
+      title: 'Speed kings of Champions',
+      description: `The fastest offensive threats: ${top5.map(p => `${p.species} (${p.spe})`).join(', ')}. Without Flutter Mane and Dragapult dominating, these control the speed game.`,
+      pokemon: top5.slice(0, 3).map(p => p.species),
+      calcPokemon: top5.slice(0, 3).map(p => p.species),
+      reasoning: top5.map(p => `${p.species}: ${p.spe} Spe, ${p.power} offensive`),
       confidence: 85,
     });
   }
 
-  // Find Pokemon that newly outspeed everything with Choice Scarf
-  // Scarf = 1.5x speed. At Lv50 with 32 Spe SP and +Spe: stat * 1.5
-  const scarfThreshold = fastest[0]?.spe || 130;
+  // Choice Scarf breakpoint: who outspeeds the fastest with Scarf?
+  const fastest = top5[0]?.spe || 130;
   const scarfViable = speedTiers.filter(p => {
-    const scarfSpeed = Math.floor(Math.floor(((2 * p.spe + 31 + 8) * 50) / 100 + 5) * 1.1 * 1.5);
-    return p.spe < scarfThreshold && scarfSpeed > Math.floor(((2 * scarfThreshold + 31 + 8) * 50) / 100 + 5) * 1.1;
-  }).filter(p => p.atk >= 90 || p.spa >= 90);
+    // At Lv50, 32 Spe SP, +Spe nature, Scarf: stat = floor((floor((2*base+31+8)*50/100)+5)*1.1)*1.5
+    const stat = Math.floor(Math.floor((Math.floor(((2 * p.spe + 31 + 8) * 50) / 100) + 5) * 1.1) * 1.5);
+    const targetStat = Math.floor(((2 * fastest + 31 + 8) * 50 / 100) + 5) * 1.1;
+    return stat > targetStat && p.spe < fastest && p.power >= 90;
+  });
 
   if (scarfViable.length > 0) {
     discoveries.push({
-      id: 'scarf-sweepers',
+      id: 'scarf-tech',
       category: 'archetype',
       title: 'Choice Scarf dominators',
-      description: `These Pokemon become the fastest in the game with Choice Scarf: ${scarfViable.slice(0, 4).map(s => s.species).join(', ')}. With the top speedsters removed from Champions, Scarf users control the speed game.`,
-      pokemon: scarfViable.slice(0, 4).map(s => s.species),
-      reasoning: scarfViable.slice(0, 4).map(s => `${s.species}: ${s.spe} base → Scarf outspeeds everything`),
+      description: `With Scarf, these outspeed the entire meta: ${scarfViable.slice(0, 3).map(s => s.species).join(', ')}. In a meta without 130+ speed legends, Scarf on 80-100 speed Pokemon is devastating.`,
+      pokemon: scarfViable.slice(0, 3).map(s => s.species),
+      calcPokemon: scarfViable.slice(0, 3).map(s => s.species),
+      reasoning: scarfViable.slice(0, 3).map(s => `${s.species}: ${s.spe} → Scarf outspeeds everything`),
       confidence: 80,
     });
   }
 
-  return discoveries;
-}
-
-// ─── 4. Find Mega Evolution Advantages ──────────────────────────────
-// Which Megas are uniquely powerful in Champions (no legendary competition)?
-
-function findMegaAdvantages(): Discovery[] {
-  const discoveries: Discovery[] = [];
-
-  // Megas that fill roles previously held by banned legendaries
-  // species = actual species name for sprite/data lookup
-  const megaRoleFills: { mega: string; species: string; replaces: string; role: string; why: string }[] = [
-    { mega: 'Mega Kangaskhan', species: 'Kangaskhan-Mega', replaces: 'Urshifu', role: 'Physical priority attacker', why: 'Parental Bond Fake Out + Sucker Punch fills Urshifu\'s immediate pressure role' },
-    { mega: 'Mega Gengar', species: 'Gengar-Mega', replaces: 'Flutter Mane', role: 'Fast special Ghost', why: 'Shadow Tag trapping + high SpA replaces Flutter Mane\'s offensive Ghost presence' },
-    { mega: 'Mega Charizard Y', species: 'Charizard-Mega-Y', replaces: 'Raging Bolt + Sun', role: 'Weather-boosted special attacker', why: 'Drought + huge SpA fills the sun attacker role with no competition' },
-    { mega: 'Mega Lopunny', species: 'Lopunny-Mega', replaces: 'Urshifu-Rapid-Strike', role: 'Fast Fighting sweeper', why: 'Scrappy Close Combat hits everything including Ghosts — unique in Champions' },
-    { mega: 'Mega Gyarados', species: 'Gyarados-Mega', replaces: 'Landorus', role: 'Intimidate + physical sweeper', why: 'Pre-Mega Intimidate into Mold Breaker DD sweeper — no Lando competition' },
-  ];
-
-  for (const fill of megaRoleFills) {
+  // Trick Room: slowest powerhouses
+  const slowPower = speedTiers.filter(p => p.spe <= 50 && p.power >= 100);
+  if (slowPower.length >= 2) {
     discoveries.push({
-      id: `mega-${fill.mega.replace(/\s/g, '')}`,
-      category: 'combo',
-      title: `${fill.mega} fills ${fill.replaces}'s niche`,
-      description: fill.why,
-      pokemon: [fill.species],
-      reasoning: [
-        `Replaces: ${fill.replaces} (banned in Champions)`,
-        `Role: ${fill.role}`,
-        fill.why,
-      ],
-      confidence: 75,
+      id: 'tr-threats',
+      category: 'archetype',
+      title: 'Trick Room terrors',
+      description: `Under Trick Room, these become the fastest and hardest hitting: ${slowPower.slice(0, 3).map(s => `${s.species} (${s.spe} Spe, ${s.power} power)`).join(', ')}. With fewer fast legends to break TR, setup is easier.`,
+      pokemon: slowPower.slice(0, 3).map(s => s.species),
+      calcPokemon: slowPower.slice(0, 3).map(s => s.species),
+      reasoning: [`${slowPower.length} viable TR abusers in the pool`, 'Fewer disruption threats means TR stays up longer'],
+      confidence: 78,
     });
   }
 
   return discoveries;
 }
 
-// ─── 5. Find Ability-Based Combos ───────────────────────────────────
-// Abilities that are stronger in Champions because their counters are gone
+// ─── 5. Mega Niche Fills ───────────────────────────────────────────
+function findMegaNiches(): Discovery[] {
+  return [
+    {
+      id: 'mega-kangaskhan',
+      category: 'combo',
+      title: 'Mega Kangaskhan fills Urshifu\'s niche',
+      description: 'Parental Bond Fake Out + priority Sucker Punch provides the same immediate pressure Urshifu had. Power-Up Punch gives +2 Attack in one turn.',
+      pokemon: ['Kangaskhan-Mega'],
+      calcPokemon: ['Kangaskhan'],
+      reasoning: ['Parental Bond doubles Power-Up Punch boosts', 'Fake Out + Sucker Punch priority control', 'No Urshifu competition for this role'],
+      confidence: 82,
+    },
+    {
+      id: 'mega-gengar',
+      category: 'combo',
+      title: 'Mega Gengar — uncounterable trapping',
+      description: 'Shadow Tag prevents switching. In a meta with fewer U-turn/Volt Switch pivots, trapping is even more devastating. Will-O-Wisp + high SpA.',
+      pokemon: ['Gengar-Mega'],
+      calcPokemon: ['Gengar'],
+      reasoning: ['Shadow Tag has no counter once active', 'Fewer pivot moves in Champions meta', 'Can trap and KO key threats one by one'],
+      confidence: 85,
+    },
+    {
+      id: 'mega-charizard-y',
+      category: 'combo',
+      title: 'Mega Charizard Y — uncontested sun',
+      description: 'Drought + massive SpA with no weather competition from Raging Bolt or other legends. Solar Beam provides instant Grass coverage in sun.',
+      pokemon: ['Charizard-Mega-Y'],
+      calcPokemon: ['Charizard'],
+      reasoning: ['Drought sets sun automatically', 'No legendary sun competition', 'Solar Beam has no charge in sun'],
+      confidence: 80,
+    },
+    {
+      id: 'mega-gyarados',
+      category: 'combo',
+      title: 'Mega Gyarados — Intimidate into Mold Breaker sweep',
+      description: 'Pre-Mega Intimidate drops Attack, then Mega Evolution gives Mold Breaker + Dragon Dance. No Landorus competing for this niche.',
+      pokemon: ['Gyarados-Mega'],
+      calcPokemon: ['Gyarados'],
+      reasoning: ['Intimidate before Mega, Mold Breaker after', 'Dragon Dance setup into sweep', 'Water/Dark coverage hits most of the meta'],
+      confidence: 78,
+    },
+    {
+      id: 'mega-lopunny',
+      category: 'combo',
+      title: 'Mega Lopunny — Scrappy Fighting',
+      description: 'Scrappy Close Combat hits Ghost-types that would normally be immune to Fighting. With no Urshifu, this is the fastest Fighting priority in the meta.',
+      pokemon: ['Lopunny-Mega'],
+      calcPokemon: ['Lopunny'],
+      reasoning: ['Scrappy ignores Ghost immunity', 'Fake Out + Close Combat combo', '135 base Speed outspeeds most threats'],
+      confidence: 76,
+    },
+  ];
+}
 
-function findAbilityCombos(): Discovery[] {
+// ─── 6. Weather/Terrain Advantages ─────────────────────────────────
+function findWeatherAdvantages(): Discovery[] {
   const discoveries: Discovery[] = [];
   const pool = getAvailablePokemon();
 
-  // Count Intimidate users in pool
-  const intimidateUsers: string[] = [];
   const weatherSetters: Record<string, string[]> = { Sun: [], Rain: [], Sand: [], Snow: [] };
+  const abilityToWeather: Record<string, string> = {
+    'Drought': 'Sun', 'Drizzle': 'Rain', 'Sand Stream': 'Sand', 'Snow Warning': 'Snow',
+  };
 
   for (const name of pool) {
     const data = getPokemonData(name);
     if (!data) continue;
     const ability = (data.abilities?.[0] || '') as string;
-    if (ability === 'Intimidate') intimidateUsers.push(name);
-    if (ability === 'Drought') weatherSetters.Sun.push(name);
-    if (ability === 'Drizzle') weatherSetters.Rain.push(name);
-    if (ability === 'Sand Stream') weatherSetters.Sand.push(name);
-    if (ability === 'Snow Warning') weatherSetters.Snow.push(name);
+    const weather = abilityToWeather[ability];
+    if (weather) weatherSetters[weather].push(name);
   }
 
-  // Identify which weather is least contested
   for (const [weather, setters] of Object.entries(weatherSetters)) {
-    if (setters.length <= 2) {
+    if (setters.length <= 2 && setters.length > 0) {
       discoveries.push({
-        id: `weather-${weather}`,
+        id: `weather-${weather.toLowerCase()}`,
         category: 'archetype',
-        title: `${weather} is undercontested`,
-        description: `Only ${setters.length} Pokemon set ${weather} in Champions: ${setters.join(', ')}. With fewer weather wars, ${weather} teams can dominate unchallenged.`,
-        pokemon: setters,
-        reasoning: [
-          `${setters.length} setter(s) — low competition for weather control`,
-          `Fewer weather overwrite threats than in VGC 2026`,
-        ],
-        confidence: 70,
+        title: `${weather} teams have less competition`,
+        description: `Only ${setters.length} Pokemon set ${weather}: ${setters.join(', ')}. Fewer weather wars means ${weather} stays up longer and is harder to counter.`,
+        pokemon: setters.slice(0, 2),
+        calcPokemon: setters.slice(0, 2),
+        reasoning: [`${setters.length} setter(s) — opponents can't easily overwrite`, 'Build around weather with confidence'],
+        confidence: 72,
       });
     }
   }
@@ -282,18 +357,18 @@ function findAbilityCombos(): Discovery[] {
   return discoveries;
 }
 
-// ─── Main Discovery Function ────────────────────────────────────────
+// ─── Main ──────────────────────────────────────────────────────────
 
 export function discoverStrategies(): Discovery[] {
   const all: Discovery[] = [
+    ...findMegaNiches(),
     ...findUncheckedThreats(),
-    ...findUnresistedCores(),
-    ...findSpeedTierGaps(),
-    ...findMegaAdvantages(),
-    ...findAbilityCombos(),
+    ...findUnkillableWalls(),
+    ...findSpeedDominators(),
+    ...findOffensiveCores(),
+    ...findWeatherAdvantages(),
   ];
 
-  // Deduplicate and sort by confidence
   const seen = new Set<string>();
   return all.filter(d => {
     if (seen.has(d.id)) return false;

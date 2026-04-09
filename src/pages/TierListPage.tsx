@@ -326,16 +326,19 @@ function MetaDiscoveriesSection() {
                   <h4 className="text-sm font-bold text-white mb-1">{d.title}</h4>
                   <p className="text-xs text-slate-400 leading-relaxed mb-2">{d.description}</p>
                   <div className="flex flex-wrap gap-1">
-                    {d.pokemon.map(species => (
+                    {d.pokemon.map((species, idx) => {
+                      const calcName = (d as any).calcPokemon?.[idx] || species.replace(/-Mega.*$/, '');
+                      return (
                       <Link
                         key={species}
-                        to={`/?pokemon=${encodeURIComponent(species.replace(/-Mega.*$/, ''))}`}
+                        to='/'
                         className="text-xs px-2 py-1 bg-poke-surface border border-poke-border text-slate-400 rounded hover:border-poke-red/30 hover:text-poke-red-light transition-colors"
-                        onClick={() => sessionStorage.setItem('loadPokemon', species.replace(/-Mega.*$/, ''))}
+                        onClick={() => sessionStorage.setItem('loadPokemon', calcName)}
                       >
-                        Use {species.replace(/-Mega.*$/, '')}
+                        Use {calcName}
                       </Link>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
