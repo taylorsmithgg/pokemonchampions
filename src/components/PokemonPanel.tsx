@@ -245,7 +245,6 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
                 </button>
               );
             })()}
-            )}
             {presets.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {presets.map((preset, i) => (
