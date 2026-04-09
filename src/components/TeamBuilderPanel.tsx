@@ -2,6 +2,9 @@ import { useState, useMemo, useCallback } from 'react';
 import type { StatID } from '@smogon/calc';
 import { SearchSelect } from './SearchSelect';
 import { auditTeam, type TeamAudit } from '../calc/teamAudit';
+import { buildOptimalTeam, suggestNextPick } from '../calc/teamBuilder';
+import { PRESETS } from '../data/presets';
+import { getSpriteUrl } from '../utils/sprites';
 import {
   getAvailablePokemon,
   getAvailableMoves,
@@ -278,23 +281,24 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
     setImportText('');
   }, [importText, team, onChange]);
 
-  const handleAutoFillAll = useCallback(() => {
-    const newTeam = team.map((p) => {
-      if (!p.species || !liveStats) return p;
-      const liveSet = getLiveSet(liveStats, p.species);
-      if (!liveSet) return p;
-      return {
-        ...p,
-        nature: liveSet.nature,
-        sps: liveSet.sps,
-        ability: liveSet.ability,
-        item: liveSet.item,
-        teraType: '',
-        moves: [...liveSet.moves, '', '', '', ''].slice(0, 4),
-      };
-    });
-    onChange(newTeam);
-  }, [team, liveStats, onChange]);
+  // Build a full optimal team from scratch (fills empty slots)
+  const handleBuildTeam = useCallback(() => {
+    const built = buildOptimalTeam(team);
+    onChange(built);
+  }, [team, onChange]);
+
+  // Fill all empty slots with next best picks
+  const handleFillEmpty = useCallback(() => {
+    const built = buildOptimalTeam(team);
+    onChange(built);
+  }, [team, onChange]);
+
+  // Get suggestions for next pick
+  const nextPicks = useMemo(() => {
+    const hasEmpty = team.some(p => !p.species);
+    if (!hasEmpty) return [];
+    return suggestNextPick(team, 6);
+  }, [team]);
 
   const scoreColor = audit.score >= 80 ? 'text-emerald-400' : audit.score >= 60 ? 'text-amber-400' : audit.score >= 40 ? 'text-orange-400' : 'text-red-400';
   const criticals = audit.issues.filter(i => i.severity === 'critical');
@@ -323,18 +327,24 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
             </div>
 
             <div className="flex gap-2 flex-wrap">
-              <button onClick={() => setShowImport(!showImport)} className="text-[10px] px-2.5 py-1 bg-poke-surface border border-poke-border text-slate-400 rounded-lg hover:text-white transition-colors">
-                Import Team
+              <button
+                onClick={handleBuildTeam}
+                className="text-sm px-4 py-1.5 bg-gradient-to-r from-poke-red to-poke-red-dark text-white rounded-lg font-bold hover:from-poke-red-light hover:to-poke-red transition-all shadow-lg shadow-poke-red/20"
+              >
+                Build Optimal Team
               </button>
-              <button onClick={handleAutoFillAll} className="text-[10px] px-2.5 py-1 bg-poke-gold/10 border border-poke-gold/30 text-poke-gold rounded-lg hover:bg-poke-gold/20 transition-colors">
-                Auto-fill All (Live Data)
+              <button onClick={handleFillEmpty} className="text-xs px-3 py-1.5 bg-poke-gold/10 border border-poke-gold/30 text-poke-gold rounded-lg hover:bg-poke-gold/20 transition-colors">
+                Fill Empty Slots
               </button>
-              <button onClick={() => onChange(Array.from({ length: 6 }, () => createDefaultPokemonState()))} className="text-[10px] px-2.5 py-1 bg-poke-surface border border-poke-border text-slate-400 rounded-lg hover:text-poke-red transition-colors">
-                Clear All
+              <button onClick={() => setShowImport(!showImport)} className="text-xs px-3 py-1.5 bg-poke-surface border border-poke-border text-slate-400 rounded-lg hover:text-white transition-colors">
+                Import
+              </button>
+              <button onClick={() => onChange(Array.from({ length: 6 }, () => createDefaultPokemonState()))} className="text-xs px-3 py-1.5 bg-poke-surface border border-poke-border text-slate-400 rounded-lg hover:text-poke-red transition-colors">
+                Clear
               </button>
               <div className="ml-auto flex items-center gap-2">
-                <span className={`text-sm font-bold ${scoreColor}`}>{audit.score}</span>
-                <span className="text-[10px] text-slate-500">/100</span>
+                <span className={`text-lg font-black ${scoreColor}`}>{audit.score}</span>
+                <span className="text-xs text-slate-500">/100</span>
               </div>
             </div>
           </div>
@@ -370,6 +380,63 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
             />
           ))}
         </div>
+
+        {/* Suggested next picks */}
+        {nextPicks.length > 0 && (
+          <div className="p-4 border-t border-poke-border">
+            <h3 className="text-sm font-bold text-white mb-2">Suggested Next Pick</h3>
+            <p className="text-xs text-slate-500 mb-3">Best Pokemon to fill the next empty slot based on what your team needs:</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {nextPicks.slice(0, 4).map((pick) => {
+                return (
+                  <button
+                    key={pick.species}
+                    onClick={() => {
+                      // Find first empty slot and fill it
+                      const emptyIdx = team.findIndex(p => !p.species);
+                      if (emptyIdx === -1) return;
+                      const preset = PRESETS.find((p: any) => p.species === pick.species);
+                      const data = getPokemonData(pick.species);
+                      const newTeam = [...team];
+                      newTeam[emptyIdx] = preset ? {
+                        ...createDefaultPokemonState(),
+                        species: preset.species,
+                        nature: preset.nature,
+                        ability: preset.ability,
+                        item: preset.item,
+                        sps: { ...preset.sps },
+                        moves: [...preset.moves, '', '', '', ''].slice(0, 4),
+                      } : {
+                        ...createDefaultPokemonState(),
+                        species: pick.species,
+                        ability: (data?.abilities?.[0] || '') as string,
+                      };
+                      onChange(newTeam);
+                    }}
+                    className="flex items-center gap-3 p-3 rounded-lg border border-poke-border text-left transition-colors hover:border-poke-red/30"
+                    style={{ backgroundColor: '#1a1b30' }}
+                  >
+                    <img
+                      src={getSpriteUrl(pick.species)}
+                      alt={pick.species}
+                      className="w-12 h-12 object-contain shrink-0"
+                      loading="lazy"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-sm font-bold text-white">{pick.species}</span>
+                        <span className="text-xs text-poke-gold font-mono">+{pick.score}</span>
+                      </div>
+                      <div className="text-xs text-slate-500 leading-snug">
+                        {pick.reasons.slice(0, 2).join(' · ')}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Audit results */}
         <div className="p-4 border-t border-poke-border">
