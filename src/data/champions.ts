@@ -117,6 +117,30 @@ const EXCLUDED_POKEMON = new Set([
   'Crucibelle', 'Crucibelle-Mega', 'Kerfluffle', 'Pajantom', 'Jumbao',
   'Caribolt', 'Smokomodo', 'Snaelstrom', 'Equilibra', 'Astrolotl',
   'Chromera', 'Saharaja', 'Hemogoblin', 'Venomicon', 'Venomicon-Epilogue',
+  // Legendary/Mythical Mega forms
+  'Mewtwo-Mega-X', 'Mewtwo-Mega-Y', 'Latias-Mega', 'Latios-Mega',
+  'Rayquaza-Mega', 'Diancie-Mega', 'Darkrai-Mega', 'Zeraora-Mega',
+  'Heatran-Mega', 'Magearna-Mega', 'Magearna-Original-Mega', 'Zygarde-Mega',
+  // Z-A exclusive Mega-Z forms (unconfirmed in Champions)
+  'Absol-Mega-Z', 'Garchomp-Mega-Z', 'Lucario-Mega-Z',
+  // Primal/Ultra/special forms of banned Pokemon
+  'Groudon-Primal', 'Kyogre-Primal', 'Necrozma-Ultra',
+  'Giratina-Origin', 'Dialga-Origin', 'Palkia-Origin',
+  'Zacian-Crowned', 'Zamazenta-Crowned', 'Eternatus-Eternamax',
+  'Zygarde-Complete', 'Keldeo-Resolute', 'Meloetta-Pirouette',
+  'Kyurem-Black', 'Kyurem-White', 'Darmanitan-Zen', 'Darmanitan-Galar-Zen',
+  // Unconfirmed Z-A forms
+  'Ramnarok-Radiant', 'Magearna-Original',
+  // Mega forms of banned/CAP/unavailable Pokemon
+  'Blaziken-Mega', 'Sceptile-Mega', 'Swampert-Mega', 'Metagross-Mega',
+  'Salamence-Mega', 'Mawile-Mega',
+  // Tatsugiri Megas (Tatsugiri banned)
+  'Tatsugiri-Curly-Mega', 'Tatsugiri-Droopy-Mega', 'Tatsugiri-Stretchy-Mega',
+  // Other unconfirmed forms
+  'Falinks-Mega', 'Eelektross-Mega', 'Golisopod-Mega', 'Malamar-Mega',
+  'Pyroar-Mega', 'Raichu-Mega-X', 'Raichu-Mega-Y', 'Scolipede-Mega',
+  'Scrafty-Mega', 'Staraptor-Mega', 'Barbaracle-Mega', 'Baxcalibur-Mega',
+  'Dragalge-Mega',
 ]);
 
 const CHAMPIONS_POKEMON_SET = new Set<string>();
