@@ -3,6 +3,7 @@ import { TEAMS, TEAM_ARCHETYPES, type TeamComp, type TeamMember } from '../data/
 
 interface TeamsPanelProps {
   onLoadMember: (member: TeamMember, side: 'attacker' | 'defender') => void;
+  onLoadFullTeam?: (team: TeamComp) => void;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -98,7 +99,7 @@ function MemberCard({ member, onLoad }: { member: TeamMember; onLoad: (side: 'at
   );
 }
 
-function TeamCard({ team, onLoadMember }: { team: TeamComp; onLoadMember: (member: TeamMember, side: 'attacker' | 'defender') => void }) {
+function TeamCard({ team, onLoadMember, onLoadFullTeam }: { team: TeamComp; onLoadMember: (member: TeamMember, side: 'attacker' | 'defender') => void; onLoadFullTeam?: (team: TeamComp) => void }) {
   const [expanded, setExpanded] = useState(false);
   const archetype = TEAM_ARCHETYPES.find(a => a.id === team.archetype);
 
@@ -121,9 +122,19 @@ function TeamCard({ team, onLoadMember }: { team: TeamComp; onLoadMember: (membe
               {team.gimmick}
             </span>
           </div>
-          <svg className={`w-5 h-5 text-slate-600 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
+          <div className="flex items-center gap-2">
+            {onLoadFullTeam && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onLoadFullTeam(team); }}
+                className="text-xs px-3 py-1.5 bg-gradient-to-r from-poke-red to-poke-red-dark text-white rounded-lg font-bold hover:from-poke-red-light hover:to-poke-red transition-all"
+              >
+                Load Team
+              </button>
+            )}
+            <svg className={`w-5 h-5 text-slate-600 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
         </div>
 
         <p className="text-xs text-slate-400 leading-relaxed">{team.description}</p>
@@ -216,7 +227,7 @@ function TeamCard({ team, onLoadMember }: { team: TeamComp; onLoadMember: (membe
   );
 }
 
-export function TeamsPanel({ onLoadMember, isOpen, onClose }: TeamsPanelProps) {
+export function TeamsPanel({ onLoadMember, onLoadFullTeam, isOpen, onClose }: TeamsPanelProps) {
   const [filterArchetype, setFilterArchetype] = useState<string>('all');
   const [filterGimmick, setFilterGimmick] = useState<string>('all');
 
@@ -273,7 +284,7 @@ export function TeamsPanel({ onLoadMember, isOpen, onClose }: TeamsPanelProps) {
         {/* Content */}
         <div className="p-4 space-y-4">
           {filtered.map(team => (
-            <TeamCard key={team.id} team={team} onLoadMember={onLoadMember} />
+            <TeamCard key={team.id} team={team} onLoadMember={onLoadMember} onLoadFullTeam={onLoadFullTeam} />
           ))}
 
           {filtered.length === 0 && (

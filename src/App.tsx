@@ -299,6 +299,25 @@ function Calculator() {
       {/* Teams Panel */}
       <TeamsPanel
         onLoadMember={handleTeamMemberLoad}
+        onLoadFullTeam={(comp) => {
+          const newTeam = comp.members.map(m => ({
+            ...createDefaultPokemonState(),
+            species: m.species,
+            nature: m.nature,
+            ability: m.ability,
+            item: m.item,
+            sps: { hp: m.sps.hp, atk: m.sps.atk, def: m.sps.def, spa: m.sps.spa, spd: m.sps.spd, spe: m.sps.spe },
+            moves: [...m.moves, '', '', '', ''].slice(0, 4),
+          }));
+          // Pad to 6 if team has fewer members
+          while (newTeam.length < 6) newTeam.push(createDefaultPokemonState());
+          setTeam(newTeam);
+          // Also load first two into attacker/defender
+          if (newTeam[0].species) setAttacker(newTeam[0]);
+          if (newTeam[1].species) setDefender(newTeam[1]);
+          setShowTeams(false);
+          setShowTeamBuilder(true); // Open builder to show the full team
+        }}
         isOpen={showTeams}
         onClose={() => setShowTeams(false)}
       />
