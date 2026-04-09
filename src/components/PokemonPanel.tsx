@@ -22,8 +22,8 @@ import { importShowdownSet, exportShowdownSet } from '../utils/importExport';
 import { LiveUsagePanel } from './LiveUsagePanel';
 import { useLiveData } from '../hooks/useLiveData';
 import { getLiveSet } from '../data/liveData';
-import { analyzeForMeta } from '../calc/metaBenchmarks';
 import type { PokemonState, NatureName } from '../types';
+import { createDefaultPokemonState } from '../types';
 
 interface PokemonPanelProps {
   state: PokemonState;
@@ -34,8 +34,6 @@ interface PokemonPanelProps {
 function PokemonSprite({ species }: { species: string }) {
   const [useFallback, setUseFallback] = useState(false);
   const [hasError, setHasError] = useState(false);
-
-  // Reset state when species changes
   const [lastSpecies, setLastSpecies] = useState(species);
   if (species !== lastSpecies) {
     setLastSpecies(species);
@@ -60,7 +58,7 @@ function PokemonSprite({ species }: { species: string }) {
       <img
         src={src}
         alt={species}
-        className="max-w-full max-h-full object-contain image-rendering-pixelated"
+        className="max-w-full max-h-full object-contain"
         onError={() => {
           if (!useFallback) setUseFallback(true);
           else setHasError(true);
@@ -69,6 +67,64 @@ function PokemonSprite({ species }: { species: string }) {
       />
     </div>
   );
+}
+
+// Build a completely fresh optimized PokemonState — no spreading from old state
+function buildOptimizedState(
+  species: string,
+  level: number,
+  presets: ReturnType<typeof getPresetsBySpecies>,
+  liveStats: any,
+): PokemonState {
+  const base = createDefaultPokemonState();
+  base.species = species;
+  base.level = level;
+
+  const data = getPokemonData(species);
+  if (!data) return base;
+
+  const bs = data.baseStats;
+  const isPhys = bs.atk > bs.spa;
+  base.ability = (data.abilities?.[0] || '') as string;
+
+  // 1. Presets first
+  if (presets.length > 0) {
+    const p = presets[0];
+    return {
+      ...base,
+      nature: p.nature,
+      ability: p.ability,
+      item: p.item,
+      teraType: '',
+      sps: { hp: p.sps.hp, atk: p.sps.atk, def: p.sps.def, spa: p.sps.spa, spd: p.sps.spd, spe: p.sps.spe },
+      moves: [...p.moves, '', '', '', ''].slice(0, 4),
+    };
+  }
+
+  // 2. Live data
+  if (liveStats) {
+    const liveSet = getLiveSet(liveStats, species);
+    if (liveSet) {
+      return {
+        ...base,
+        nature: liveSet.nature,
+        ability: liveSet.ability || base.ability,
+        item: liveSet.item,
+        teraType: '',
+        sps: { hp: liveSet.sps.hp, atk: liveSet.sps.atk, def: liveSet.sps.def, spa: liveSet.sps.spa, spd: liveSet.sps.spd, spe: liveSet.sps.spe },
+        moves: [...liveSet.moves, '', '', '', ''].slice(0, 4),
+      };
+    }
+  }
+
+  // 3. Base stats fallback
+  return {
+    ...base,
+    nature: isPhys ? 'Adamant' : 'Modest',
+    sps: isPhys
+      ? { hp: 2, atk: 32, def: 0, spa: 0, spd: 0, spe: 32 }
+      : { hp: 2, atk: 0, def: 0, spa: 32, spd: 0, spe: 32 },
+  };
 }
 
 export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
@@ -95,150 +151,9 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
     ? speciesData.baseStats
     : { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
 
-  const update = <K extends keyof PokemonState>(key: K, value: PokemonState[K]) => {
-    onChange({ ...state, [key]: value });
-  };
-
-  const handleSpeciesChange = (species: string) => {
-    const data = species ? getPokemonData(species) : null;
-    const ability = data?.abilities?.[0] || '';
-    onChange({
-      ...state,
-      species,
-      ability: ability as string,
-      teraType: '',
-    });
-  };
-
-  const handleMoveChange = (index: number, move: string) => {
-    const moves = [...state.moves];
-    moves[index] = move;
-    update('moves', moves);
-  };
-
-  const handleMoveOptionChange = (index: number, key: 'isCrit' | 'hits', value: boolean | number) => {
-    update('moveOptions', {
-      ...state.moveOptions,
-      [index]: { ...state.moveOptions[index], [key]: value },
-    });
-  };
-
-  const handlePresetLoad = (preset: typeof presets[number]) => {
-    onChange({
-      ...state,
-      species: preset.species,
-      nature: preset.nature,
-      ability: preset.ability,
-      item: preset.item,
-      teraType: '',
-      sps: { ...preset.sps },
-      moves: [...preset.moves],
-    });
-  };
-
-  const handleImport = () => {
-    const imported = importShowdownSet(importText);
-    if (imported) {
-      onChange(imported);
-      setShowImport(false);
-      setImportText('');
-    }
-  };
-
-  const handleExport = () => {
-    const text = exportShowdownSet(state);
-    navigator.clipboard.writeText(text);
-  };
-
-  const handleOptimize = () => {
-    if (!state.species) return;
-
-    const speciesData = getPokemonData(state.species);
-    if (!speciesData) return;
-    const bs = speciesData.baseStats;
-    const isPhys = bs.atk > bs.spa;
-
-    // Collect the best data from all sources
-    let bestNature = state.nature;
-    let bestSps = { ...state.sps };
-    let bestAbility = state.ability || (speciesData.abilities?.[0] || '') as string;
-    let bestItem = state.item;
-    let bestTera = '';
-    let bestMoves = [...state.moves];
-    let applied = false;
-
-    // 1. Presets first — they're curated for Champions meta (especially Megas)
-    if (presets.length > 0) {
-      const p = presets[0];
-      bestNature = p.nature;
-      bestSps = { ...p.sps };
-      bestAbility = p.ability;
-      bestItem = p.item;
-      bestTera = '';
-      bestMoves = [...p.moves, '', '', '', ''].slice(0, 4);
-      applied = true;
-    }
-
-    // 2. If no preset, try live tournament data
-    if (!applied && liveStats) {
-      const liveSet = getLiveSet(liveStats, state.species);
-      if (liveSet) {
-        bestNature = liveSet.nature;
-        bestSps = { ...liveSet.sps };
-        bestAbility = liveSet.ability || bestAbility;
-        bestItem = liveSet.item || bestItem;
-        bestMoves = [...liveSet.moves, '', '', '', ''].slice(0, 4);
-        applied = true;
-      }
-    }
-
-    // 3. If still nothing, generate from base stats
-    if (!applied) {
-      bestNature = isPhys ? 'Jolly' : 'Timid';
-      bestSps = isPhys
-        ? { hp: 2, atk: 32, def: 0, spa: 0, spd: 0, spe: 32 }
-        : { hp: 2, atk: 0, def: 0, spa: 32, spd: 0, spe: 32 };
-    }
-
-    // 4. Run meta benchmarks to refine the SP spread ONLY (keep the preset nature)
-    //    Presets have curated natures — Adamant Garchomp, Modest Gholdengo, etc.
-    //    The meta engine tends to always pick Jolly/Timid for speed benchmarks,
-    //    which isn't always correct.
-    if (!applied) {
-      const activeMoves = bestMoves.filter(Boolean);
-      if (activeMoves.length > 0) {
-        try {
-          const metaResult = analyzeForMeta(state.species, activeMoves, bestAbility, bestItem, state.level);
-          if (metaResult?.suggestedSpread) {
-            const metaSps = metaResult.suggestedSpread.sps;
-            const metaTotal = Object.values(metaSps).reduce((a, b) => a + b, 0);
-            if (metaTotal >= 60 && metaTotal <= 66) {
-              // Only take the SPs, NOT the nature — preset/live data nature is better
-              bestSps = { ...metaSps };
-            }
-          }
-        } catch { /* use existing spread */ }
-      }
-    }
-
-    // Final validation: ensure SPs sum to 66
-    let spTotal = Object.values(bestSps).reduce((a, b) => a + b, 0);
-    if (spTotal < 66) {
-      // Distribute remaining to HP
-      bestSps.hp = Math.min(32, bestSps.hp + (66 - spTotal));
-      spTotal = Object.values(bestSps).reduce((a, b) => a + b, 0);
-      if (spTotal < 66) bestSps.def += (66 - spTotal);
-    }
-
-    onChange({
-      ...state,
-      nature: bestNature,
-      sps: bestSps,
-      ability: bestAbility,
-      item: bestItem,
-      teraType: bestTera,
-      moves: bestMoves,
-    });
+  // Simple state updater — always uses current state from props
+  const set = (partial: Partial<PokemonState>) => {
+    onChange({ ...state, ...partial });
   };
 
   return (
@@ -253,15 +168,14 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
           </h2>
           <div className="flex items-center gap-1.5">
             <button onClick={() => setShowImport(!showImport)} className="text-xs px-2 py-1 bg-poke-surface text-slate-400 rounded hover:text-white transition-colors">Import</button>
-            {state.species && <button onClick={handleExport} className="text-xs px-2 py-1 bg-poke-surface text-slate-400 rounded hover:text-white transition-colors">Export</button>}
+            {state.species && <button onClick={() => { navigator.clipboard.writeText(exportShowdownSet(state)); }} className="text-xs px-2 py-1 bg-poke-surface text-slate-400 rounded hover:text-white transition-colors">Export</button>}
           </div>
         </div>
-        {/* Inline metadata bar when Pokemon is selected */}
         {state.species && speciesData && (() => {
           const tier = getTierForPokemon(state.species);
           const tierDef = tier ? TIER_DEFINITIONS.find(d => d.tier === tier.tier) : null;
           const liveData = liveStats?.pokemon?.[state.species];
-          const topItem = liveData ? Object.entries(liveData.items).sort((a, b) => b[1] - a[1])[0] : null;
+          const topItem = liveData ? Object.entries(liveData.items).sort((a: any, b: any) => b[1] - a[1])[0] : null;
           return (
             <div className="flex items-center gap-2 flex-wrap">
               {speciesData.types.map((t: string) => <TypeBadge key={t} type={t} />)}
@@ -285,7 +199,7 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
             onChange={e => setImportText(e.target.value)}
           />
           <div className="flex gap-2 mt-2">
-            <button onClick={handleImport} className="text-sm px-4 py-1.5 bg-poke-red text-white rounded-lg font-semibold hover:bg-poke-red-dark transition-colors">Import</button>
+            <button onClick={() => { const r = importShowdownSet(importText); if (r) { onChange(r); setShowImport(false); setImportText(''); }}} className="text-sm px-4 py-1.5 bg-poke-red text-white rounded-lg font-semibold hover:bg-poke-red-dark transition-colors">Import</button>
             <button onClick={() => { setShowImport(false); setImportText(''); }} className="text-sm px-4 py-1.5 bg-poke-surface text-slate-400 rounded-lg hover:text-white transition-colors">Cancel</button>
           </div>
         </div>
@@ -299,7 +213,14 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
             <SearchSelect
               options={pokemon}
               value={state.species}
-              onChange={handleSpeciesChange}
+              onChange={(species) => {
+                const data = species ? getPokemonData(species) : null;
+                onChange({
+                  ...createDefaultPokemonState(),
+                  species,
+                  ability: (data?.abilities?.[0] || '') as string,
+                });
+              }}
               placeholder="Choose Pokemon..."
               label="Pokemon"
               renderOption={(name) => {
@@ -319,7 +240,10 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
             />
             {state.species && (
               <button
-                onClick={handleOptimize}
+                onClick={() => {
+                  const optimized = buildOptimizedState(state.species, state.level, presets, liveStats);
+                  onChange(optimized);
+                }}
                 className="w-full py-2.5 rounded-lg bg-gradient-to-r from-poke-red to-poke-red-dark text-white text-sm font-bold tracking-wide hover:from-poke-red-light hover:to-poke-red transition-all shadow-lg shadow-poke-red/20 hover:shadow-poke-red/40"
               >
                 Optimize for Meta
@@ -328,7 +252,17 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
             {presets.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {presets.map((preset, i) => (
-                  <button key={i} onClick={() => handlePresetLoad(preset)} className="text-xs px-2.5 py-1 bg-poke-surface border border-poke-border text-slate-400 rounded hover:border-poke-red/50 hover:text-poke-red-light transition-colors" title={preset.name}>
+                  <button key={i} onClick={() => {
+                    onChange({
+                      ...createDefaultPokemonState(),
+                      species: state.species,
+                      nature: preset.nature,
+                      ability: preset.ability,
+                      item: preset.item,
+                      sps: { hp: preset.sps.hp, atk: preset.sps.atk, def: preset.sps.def, spa: preset.sps.spa, spd: preset.sps.spd, spe: preset.sps.spe },
+                      moves: [...preset.moves, '', '', '', ''].slice(0, 4),
+                    });
+                  }} className="text-xs px-2.5 py-1 bg-poke-surface border border-poke-border text-slate-400 rounded hover:border-poke-red/50 hover:text-poke-red-light transition-colors" title={preset.name}>
                     {preset.label}
                   </button>
                 ))}
@@ -342,19 +276,19 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1">Level</label>
             <input
-              type="number"
-              min={1}
-              max={100}
+              type="text"
+              inputMode="numeric"
               value={state.level}
-              onChange={e => update('level', Math.max(1, Math.min(100, parseInt(e.target.value) || 50)))}
+              onChange={e => set({ level: Math.max(1, Math.min(100, parseInt(e.target.value) || 50)) })}
               className="w-full bg-poke-surface border border-poke-border rounded-lg px-2 py-1.5 text-sm text-white text-center"
+              style={{ minHeight: '28px' }}
             />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1">Nature</label>
             <select
               value={state.nature}
-              onChange={e => update('nature', e.target.value as NatureName)}
+              onChange={e => set({ nature: e.target.value as NatureName })}
               className="w-full bg-poke-surface border border-poke-border rounded-lg px-2 py-1.5 text-sm text-white"
             >
               {NATURES.map(n => (
@@ -369,14 +303,14 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
           <SearchSelect
             options={allAbilities}
             value={state.ability}
-            onChange={v => update('ability', v)}
+            onChange={v => set({ ability: v })}
             placeholder="Ability..."
             label="Ability"
           />
           <SearchSelect
             options={allItems}
             value={state.item}
-            onChange={v => update('item', v)}
+            onChange={v => set({ item: v })}
             placeholder="Item..."
             label="Item"
           />
@@ -387,7 +321,7 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
           <label className="block text-xs font-medium text-slate-400 mb-1">Status</label>
           <select
             value={state.status}
-            onChange={e => update('status', e.target.value as any)}
+            onChange={e => set({ status: e.target.value as any })}
             className="w-full bg-poke-surface border border-poke-border rounded-lg px-2 py-1.5 text-sm text-white"
           >
             {STATUS_CONDITIONS.map(s => (
@@ -407,7 +341,7 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
             min={1}
             max={100}
             value={state.currentHp}
-            onChange={e => update('currentHp', parseInt(e.target.value))}
+            onChange={e => set({ currentHp: parseInt(e.target.value) })}
             className="w-full"
             style={{
               background: `linear-gradient(to right, ${state.currentHp > 50 ? '#10b981' : state.currentHp > 25 ? '#f59e0b' : '#ef4444'}80 0%, ${state.currentHp > 50 ? '#10b981' : state.currentHp > 25 ? '#f59e0b' : '#ef4444'}80 ${state.currentHp}%, #334155 ${state.currentHp}%)`,
@@ -426,24 +360,21 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
             moves={state.moves}
             ability={state.ability}
             item={state.item}
-            onChange={sps => update('sps', sps)}
-            onNatureChange={n => update('nature', n)}
+            onChange={sps => set({ sps })}
+            onNatureChange={nature => set({ nature })}
             onApplySpread={(newSps, newNature) => {
-              // Atomic update — set both SPs and nature in one call to avoid stale state
               onChange({
+                ...createDefaultPokemonState(),
                 species: state.species,
                 level: state.level,
-                nature: newNature,
                 ability: state.ability,
                 item: state.item,
-                teraType: '',
-                sps: { hp: newSps.hp, atk: newSps.atk, def: newSps.def, spa: newSps.spa, spd: newSps.spd, spe: newSps.spe },
-                boosts: state.boosts,
                 status: state.status,
                 currentHp: state.currentHp,
                 moves: state.moves,
-                isMega: state.isMega,
                 moveOptions: state.moveOptions,
+                nature: newNature,
+                sps: { hp: newSps.hp, atk: newSps.atk, def: newSps.def, spa: newSps.spa, spd: newSps.spd, spe: newSps.spe },
               });
             }}
           />
@@ -460,8 +391,8 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
                 <label className="block text-[10px] text-slate-500 mb-0.5">{STAT_LABELS[stat]}</label>
                 <select
                   value={state.boosts[stat]}
-                  onChange={e => update('boosts', { ...state.boosts, [stat]: parseInt(e.target.value) })}
-                  className="w-full bg-slate-800 border border-slate-700 rounded text-xs text-white py-0.5 text-center"
+                  onChange={e => set({ boosts: { ...state.boosts, [stat]: parseInt(e.target.value) } })}
+                  className="w-full bg-poke-surface border border-poke-border rounded text-xs text-white py-0.5 text-center"
                 >
                   {[-6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(v => (
                     <option key={v} value={v}>{v > 0 ? `+${v}` : v}</option>
@@ -482,17 +413,26 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
                   <SearchSelect
                     options={allMoves}
                     value={state.moves[i]}
-                    onChange={v => handleMoveChange(i, v)}
+                    onChange={v => {
+                      const moves = [...state.moves];
+                      moves[i] = v;
+                      set({ moves });
+                    }}
                     placeholder={`Move ${i + 1}...`}
                   />
                 </div>
                 {state.moves[i] && (
                   <button
-                    onClick={() => handleMoveOptionChange(i, 'isCrit', !state.moveOptions[i]?.isCrit)}
+                    onClick={() => set({
+                      moveOptions: {
+                        ...state.moveOptions,
+                        [i]: { ...state.moveOptions[i], isCrit: !state.moveOptions[i]?.isCrit },
+                      },
+                    })}
                     className={`text-[10px] px-1.5 py-1.5 rounded border transition-colors shrink-0 ${
                       state.moveOptions[i]?.isCrit
                         ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
-                        : 'bg-slate-800 border-slate-700 text-slate-500 hover:text-slate-400'
+                        : 'bg-poke-surface border-poke-border text-slate-500 hover:text-slate-400'
                     }`}
                     title="Critical Hit"
                   >
@@ -509,15 +449,16 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
           <LiveUsagePanel
             species={state.species}
             stats={liveStats}
-            onLoadSet={(set) => {
+            onLoadSet={(loadedSet) => {
               onChange({
-                ...state,
-                nature: set.nature,
-                sps: set.sps,
-                ability: set.ability || state.ability,
-                item: set.item || state.item,
-                teraType: '',
-                moves: set.moves.length > 0 ? [...set.moves, '', '', '', ''].slice(0, 4) : state.moves,
+                ...createDefaultPokemonState(),
+                species: state.species,
+                level: state.level,
+                nature: loadedSet.nature,
+                sps: { hp: loadedSet.sps.hp, atk: loadedSet.sps.atk, def: loadedSet.sps.def, spa: loadedSet.sps.spa, spd: loadedSet.sps.spd, spe: loadedSet.sps.spe },
+                ability: loadedSet.ability || state.ability,
+                item: loadedSet.item || state.item,
+                moves: loadedSet.moves.length > 0 ? [...loadedSet.moves, '', '', '', ''].slice(0, 4) : state.moves,
               });
             }}
           />
