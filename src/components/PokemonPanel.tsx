@@ -22,6 +22,7 @@ import { importShowdownSet, exportShowdownSet } from '../utils/importExport';
 import { LiveUsagePanel } from './LiveUsagePanel';
 import { useLiveData } from '../hooks/useLiveData';
 import { getLiveSet } from '../data/liveData';
+import { analyzeForMeta } from '../calc/metaBenchmarks';
 import type { PokemonState, NatureName } from '../types';
 import { createDefaultPokemonState } from '../types';
 
@@ -87,43 +88,60 @@ function buildOptimizedState(
   const isPhys = bs.atk > bs.spa;
   base.ability = (data.abilities?.[0] || '') as string;
 
-  // 1. Presets first
+  // Step 1: Get moves, ability, item, nature from best source
+  let nature: NatureName = isPhys ? 'Adamant' : 'Modest';
+  let abilityName = base.ability;
+  let item = '';
+  let moves = ['', '', '', ''];
+
   if (presets.length > 0) {
     const p = presets[0];
-    return {
-      ...base,
-      nature: p.nature,
-      ability: p.ability,
-      item: p.item,
-      teraType: '',
-      sps: { hp: p.sps.hp, atk: p.sps.atk, def: p.sps.def, spa: p.sps.spa, spd: p.sps.spd, spe: p.sps.spe },
-      moves: [...p.moves, '', '', '', ''].slice(0, 4),
-    };
-  }
-
-  // 2. Live data
-  if (liveStats) {
+    nature = p.nature;
+    abilityName = p.ability;
+    item = p.item;
+    moves = [...p.moves, '', '', '', ''].slice(0, 4);
+  } else if (liveStats) {
     const liveSet = getLiveSet(liveStats, species);
     if (liveSet) {
-      return {
-        ...base,
-        nature: liveSet.nature,
-        ability: liveSet.ability || base.ability,
-        item: liveSet.item,
-        teraType: '',
-        sps: { hp: liveSet.sps.hp, atk: liveSet.sps.atk, def: liveSet.sps.def, spa: liveSet.sps.spa, spd: liveSet.sps.spd, spe: liveSet.sps.spe },
-        moves: [...liveSet.moves, '', '', '', ''].slice(0, 4),
-      };
+      nature = liveSet.nature;
+      abilityName = liveSet.ability || base.ability;
+      item = liveSet.item;
+      moves = [...liveSet.moves, '', '', '', ''].slice(0, 4);
     }
   }
 
-  // 3. Base stats fallback
+  // Step 2: Run meta benchmark to determine optimal SPs using those moves
+  let sps = isPhys
+    ? { hp: 2, atk: 32, def: 0, spa: 0, spd: 0, spe: 32 }
+    : { hp: 2, atk: 0, def: 0, spa: 32, spd: 0, spe: 32 };
+
+  const activeMoves = moves.filter(Boolean);
+  if (activeMoves.length > 0) {
+    try {
+      const metaResult = analyzeForMeta(species, activeMoves, abilityName, item, level);
+      if (metaResult?.suggestedSpread) {
+        const ms = metaResult.suggestedSpread.sps;
+        const total = Object.values(ms).reduce((a: number, b: number) => a + b, 0);
+        if (total >= 60 && total <= 66) {
+          sps = { hp: ms.hp, atk: ms.atk, def: ms.def, spa: ms.spa, spd: ms.spd, spe: ms.spe };
+          // Don't override nature from meta — keep preset/live nature
+        }
+      }
+    } catch { /* use default sps */ }
+  }
+
+  // Ensure total = 66
+  let spTotal = Object.values(sps).reduce((a, b) => a + b, 0);
+  while (spTotal < 66) { sps.hp = Math.min(32, sps.hp + 1); spTotal++; }
+
   return {
     ...base,
-    nature: isPhys ? 'Adamant' : 'Modest',
-    sps: isPhys
-      ? { hp: 2, atk: 32, def: 0, spa: 0, spd: 0, spe: 32 }
-      : { hp: 2, atk: 0, def: 0, spa: 32, spd: 0, spe: 32 },
+    nature,
+    ability: abilityName,
+    item,
+    teraType: '',
+    sps,
+    moves,
   };
 }
 
