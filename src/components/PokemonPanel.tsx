@@ -336,35 +336,74 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
           />
         </div>
 
-        {/* Smart item suggestions */}
+        {/* Smart item recommendations */}
         {state.species && (() => {
           const takenItems = new Set(teammateItems.filter(Boolean));
           const isDupe = state.item && takenItems.has(state.item);
           const items = suggestItems(state, takenItems);
           if (items.length === 0 && !isDupe) return null;
+
+          const primary = items[0];
+          const secondary = items[1];
+
           return (
-            <div>
+            <div className="rounded-lg border border-poke-border p-3 space-y-2" style={{ backgroundColor: '#12121F' }}>
               {isDupe && (
-                <div className="text-sm text-red-400 font-semibold mb-1">
-                  {state.item} is already held by a teammate
+                <div className="text-sm text-red-400 font-semibold flex items-center gap-1.5">
+                  <span>⚠</span> {state.item} is already held by a teammate
                 </div>
               )}
-              <div className="flex flex-wrap gap-1">
-                {items.slice(0, 4).map(s => (
+
+              {/* Primary + Secondary recommendations */}
+              <div className="grid grid-cols-2 gap-2">
+                {primary && (
                   <button
-                    key={s.item}
-                    onClick={() => set({ item: s.item })}
-                    className={`text-xs px-2.5 py-1 rounded border transition-colors ${
-                      state.item === s.item
-                        ? 'bg-poke-gold/20 border-poke-gold/40 text-poke-gold'
-                        : 'bg-poke-surface border-poke-border text-slate-400 hover:border-poke-gold/30 hover:text-poke-gold'
+                    onClick={() => set({ item: primary.item })}
+                    className={`p-2.5 rounded-lg border text-left transition-colors ${
+                      state.item === primary.item
+                        ? 'bg-poke-gold/15 border-poke-gold/40'
+                        : 'border-poke-border hover:border-poke-gold/30'
                     }`}
-                    title={s.reason}
+                    style={{ backgroundColor: state.item === primary.item ? undefined : '#1a1b30' }}
                   >
-                    {s.item}
+                    <div className="text-xs text-poke-gold font-bold mb-0.5">Best Item</div>
+                    <div className="text-sm text-white font-semibold">{primary.item}</div>
+                    <div className="text-xs text-slate-500 mt-0.5 leading-snug">{primary.reason}</div>
                   </button>
-                ))}
+                )}
+                {secondary && (
+                  <button
+                    onClick={() => set({ item: secondary.item })}
+                    className={`p-2.5 rounded-lg border text-left transition-colors ${
+                      state.item === secondary.item
+                        ? 'bg-poke-blue/15 border-poke-blue/40'
+                        : 'border-poke-border hover:border-poke-blue/30'
+                    }`}
+                    style={{ backgroundColor: state.item === secondary.item ? undefined : '#1a1b30' }}
+                  >
+                    <div className="text-xs text-poke-blue-light font-bold mb-0.5">Alternate</div>
+                    <div className="text-sm text-white font-semibold">{secondary.item}</div>
+                    <div className="text-xs text-slate-500 mt-0.5 leading-snug">{secondary.reason}</div>
+                  </button>
+                )}
               </div>
+
+              {/* Additional options */}
+              {items.length > 2 && (
+                <div className="flex flex-wrap gap-1">
+                  {items.slice(2, 6).map(s => (
+                    <button
+                      key={s.item}
+                      onClick={() => set({ item: s.item })}
+                      className="text-xs px-2 py-1 rounded border border-poke-border text-slate-500 hover:text-poke-gold hover:border-poke-gold/30 transition-colors"
+                      style={{ backgroundColor: '#1a1b30' }}
+                      title={s.reason}
+                    >
+                      {s.item}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })()}
