@@ -24,7 +24,6 @@ import { useLiveData } from '../hooks/useLiveData';
 import { getLiveSet } from '../data/liveData';
 import { analyzeForMeta } from '../calc/metaBenchmarks';
 import { suggestItems } from '../calc/itemOptimizer';
-import { getAvailableItems } from '../data/champions';
 import type { PokemonState, NatureName } from '../types';
 import { createDefaultPokemonState } from '../types';
 
