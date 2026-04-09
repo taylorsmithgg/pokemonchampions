@@ -5,6 +5,7 @@
 import { Generations } from '@smogon/calc';
 import { getAvailablePokemon, getPokemonData } from './champions';
 import { PRESETS, type PokemonPreset } from './presets';
+import { NORMAL_TIER_LIST } from './tierlist';
 
 const gen9 = Generations.get(9);
 
@@ -497,8 +498,27 @@ export function getRecommendations(selectedSpecies: string, otherSpecies?: strin
 
     if (reasons.length === 0) continue;
 
-    const totalScore = reasons.reduce((sum, r) => sum + r.strength, 0);
+    const synergyScore = reasons.reduce((sum, r) => sum + r.strength, 0);
+
+    // Meta viability bonus — S/A+ tier Pokemon get significant boosts
+    const tierEntry = NORMAL_TIER_LIST.find(e => e.name === candidateName);
+    const tierBonus: Record<string, number> = { S: 8, 'A+': 6, A: 4, B: 2, C: 0 };
+    const viability = tierEntry ? (tierBonus[tierEntry.tier] || 0) : 0;
+
+    // Preset bonus — Pokemon with presets are proven competitive picks
     const preset = PRESETS.find(p => p.species === candidateName);
+    const presetBonus = preset ? 3 : 0;
+
+    const totalScore = synergyScore + viability + presetBonus;
+
+    if (viability > 0) {
+      reasons.push({
+        type: 'stat-profile',
+        label: `${tierEntry!.tier} Tier`,
+        description: `Meta-viable — ranked ${tierEntry!.tier} tier in competitive play`,
+        strength: 0, // Don't double-count in display, just for context
+      });
+    }
 
     recommendations.push({
       species: candidateName,
@@ -508,7 +528,7 @@ export function getRecommendations(selectedSpecies: string, otherSpecies?: strin
     });
   }
 
-  // Sort by score, then by number of different reason types for diversity
+  // Sort by total score (synergy + meta viability)
   recommendations.sort((a, b) => {
     if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
     const aTypes = new Set(a.reasons.map(r => r.type)).size;
