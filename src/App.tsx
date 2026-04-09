@@ -8,6 +8,7 @@ import { TeamsPanel } from './components/TeamsPanel';
 import { SynergyPanel } from './components/SynergyPanel';
 import { TeamAuditPanel } from './components/TeamAuditPanel';
 import { MatchupPanel } from './components/MatchupPanel';
+import { TeamOverview } from './components/TeamOverview';
 import { TeamBuilderPanel } from './components/TeamBuilderPanel';
 import { FAQPage } from './pages/FAQPage';
 import { TierListPage } from './pages/TierListPage';
@@ -206,10 +207,12 @@ function Calculator() {
             state={attacker}
             onChange={setAttacker}
             side="attacker"
+            teammateItems={[defender.item]}
           />
 
           {/* Center: Results + Field */}
           <div className="space-y-5">
+            <TeamOverview attacker={attacker} defender={defender} />
             {showField && (
               <FieldPanel state={field} onChange={setField} />
             )}
@@ -239,6 +242,7 @@ function Calculator() {
             state={defender}
             onChange={setDefender}
             side="defender"
+            teammateItems={[attacker.item]}
           />
         </div>
 

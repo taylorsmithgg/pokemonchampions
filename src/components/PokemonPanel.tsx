@@ -23,6 +23,7 @@ import { LiveUsagePanel } from './LiveUsagePanel';
 import { useLiveData } from '../hooks/useLiveData';
 import { getLiveSet } from '../data/liveData';
 import { analyzeForMeta } from '../calc/metaBenchmarks';
+import { suggestItems } from '../calc/itemOptimizer';
 import type { PokemonState, NatureName } from '../types';
 import { createDefaultPokemonState } from '../types';
 
@@ -30,6 +31,7 @@ interface PokemonPanelProps {
   state: PokemonState;
   onChange: (state: PokemonState) => void;
   side: 'attacker' | 'defender';
+  teammateItems?: string[];
 }
 
 function PokemonSprite({ species }: { species: string }) {
@@ -145,7 +147,7 @@ function buildOptimizedState(
   };
 }
 
-export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
+export function PokemonPanel({ state, onChange, side, teammateItems = [] }: PokemonPanelProps) {
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState('');
   const { stats: liveStats } = useLiveData();
@@ -333,6 +335,39 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
             label="Item"
           />
         </div>
+
+        {/* Smart item suggestions */}
+        {state.species && (() => {
+          const takenItems = new Set(teammateItems.filter(Boolean));
+          const isDupe = state.item && takenItems.has(state.item);
+          const items = suggestItems(state, takenItems);
+          if (items.length === 0 && !isDupe) return null;
+          return (
+            <div>
+              {isDupe && (
+                <div className="text-sm text-red-400 font-semibold mb-1">
+                  {state.item} is already held by a teammate
+                </div>
+              )}
+              <div className="flex flex-wrap gap-1">
+                {items.slice(0, 4).map(s => (
+                  <button
+                    key={s.item}
+                    onClick={() => set({ item: s.item })}
+                    className={`text-xs px-2.5 py-1 rounded border transition-colors ${
+                      state.item === s.item
+                        ? 'bg-poke-gold/20 border-poke-gold/40 text-poke-gold'
+                        : 'bg-poke-surface border-poke-border text-slate-400 hover:border-poke-gold/30 hover:text-poke-gold'
+                    }`}
+                    title={s.reason}
+                  >
+                    {s.item}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Status */}
         <div>
