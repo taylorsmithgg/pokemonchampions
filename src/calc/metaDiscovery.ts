@@ -218,12 +218,13 @@ function findMegaAdvantages(): Discovery[] {
   const discoveries: Discovery[] = [];
 
   // Megas that fill roles previously held by banned legendaries
-  const megaRoleFills: { mega: string; replaces: string; role: string; why: string }[] = [
-    { mega: 'Mega Kangaskhan', replaces: 'Urshifu', role: 'Physical priority attacker', why: 'Parental Bond Fake Out + Sucker Punch fills Urshifu\'s immediate pressure role' },
-    { mega: 'Mega Gengar', replaces: 'Flutter Mane', role: 'Fast special Ghost', why: 'Shadow Tag trapping + high SpA replaces Flutter Mane\'s offensive Ghost presence' },
-    { mega: 'Mega Charizard Y', replaces: 'Raging Bolt + Sun', role: 'Weather-boosted special attacker', why: 'Drought + huge SpA fills the sun attacker role with no competition' },
-    { mega: 'Mega Lopunny', replaces: 'Urshifu-Rapid-Strike', role: 'Fast Fighting sweeper', why: 'Scrappy Close Combat hits everything including Ghosts — unique in Champions' },
-    { mega: 'Mega Gyarados', replaces: 'Landorus', role: 'Intimidate + physical sweeper', why: 'Pre-Mega Intimidate into Mold Breaker DD sweeper — no Lando competition' },
+  // species = actual species name for sprite/data lookup
+  const megaRoleFills: { mega: string; species: string; replaces: string; role: string; why: string }[] = [
+    { mega: 'Mega Kangaskhan', species: 'Kangaskhan', replaces: 'Urshifu', role: 'Physical priority attacker', why: 'Parental Bond Fake Out + Sucker Punch fills Urshifu\'s immediate pressure role' },
+    { mega: 'Mega Gengar', species: 'Gengar', replaces: 'Flutter Mane', role: 'Fast special Ghost', why: 'Shadow Tag trapping + high SpA replaces Flutter Mane\'s offensive Ghost presence' },
+    { mega: 'Mega Charizard Y', species: 'Charizard', replaces: 'Raging Bolt + Sun', role: 'Weather-boosted special attacker', why: 'Drought + huge SpA fills the sun attacker role with no competition' },
+    { mega: 'Mega Lopunny', species: 'Lopunny', replaces: 'Urshifu-Rapid-Strike', role: 'Fast Fighting sweeper', why: 'Scrappy Close Combat hits everything including Ghosts — unique in Champions' },
+    { mega: 'Mega Gyarados', species: 'Gyarados', replaces: 'Landorus', role: 'Intimidate + physical sweeper', why: 'Pre-Mega Intimidate into Mold Breaker DD sweeper — no Lando competition' },
   ];
 
   for (const fill of megaRoleFills) {
@@ -232,7 +233,7 @@ function findMegaAdvantages(): Discovery[] {
       category: 'combo',
       title: `${fill.mega} fills ${fill.replaces}'s niche`,
       description: fill.why,
-      pokemon: [fill.mega.replace('Mega ', '')],
+      pokemon: [fill.species],
       reasoning: [
         `Replaces: ${fill.replaces} (banned in Champions)`,
         `Role: ${fill.role}`,
