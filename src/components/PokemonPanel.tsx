@@ -24,6 +24,7 @@ import { useLiveData } from '../hooks/useLiveData';
 import { getLiveSet } from '../data/liveData';
 import { analyzeForMeta } from '../calc/metaBenchmarks';
 import { suggestItems } from '../calc/itemOptimizer';
+import { getAvailableItems } from '../data/champions';
 import type { PokemonState, NatureName } from '../types';
 import { createDefaultPokemonState } from '../types';
 
@@ -112,7 +113,20 @@ function buildOptimizedState(
     }
   }
 
-  // Step 2: Run meta benchmark to determine optimal SPs using those moves
+  // Step 2: Pick the best item using the item optimizer (based on actual moves)
+  if (moves.some(Boolean)) {
+    const tempState = { ...base, species, ability: abilityName, item, moves } as PokemonState;
+    const itemSuggestions = suggestItems(tempState, new Set());
+    if (itemSuggestions.length > 0) {
+      // Check if preset item is a Mega Stone — keep it if so
+      const isMegaStone = item.endsWith('ite') || item.endsWith('ite X') || item.endsWith('ite Y');
+      if (!isMegaStone) {
+        item = itemSuggestions[0].item;
+      }
+    }
+  }
+
+  // Step 3: Run meta benchmark to determine optimal SPs using those moves
   let sps = isPhys
     ? { hp: 2, atk: 32, def: 0, spa: 0, spd: 0, spe: 32 }
     : { hp: 2, atk: 0, def: 0, spa: 32, spd: 0, spe: 32 };
