@@ -106,7 +106,7 @@ export function SearchSelect({ options, value, onChange, placeholder = 'Select..
       {isOpen && (
         <div
           id="search-select-dropdown"
-          className="rounded-lg border-2 border-poke-border max-h-60 overflow-y-auto"
+          className="rounded-lg border-2 border-poke-border max-h-[70vh] overflow-y-auto"
           style={{ ...dropdownStyle, backgroundColor: '#1a1b30', boxShadow: '0 10px 40px rgba(0,0,0,0.9)' }}
         >
           {value && (
