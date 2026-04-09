@@ -23,7 +23,22 @@ import {
 import type { PokemonState, FieldState } from './types';
 
 function Calculator() {
-  const [attacker, setAttacker] = useState<PokemonState>(createDefaultPokemonState());
+  const [attacker, setAttacker] = useState<PokemonState>(() => {
+    // Check if a Pokemon was selected from tier list page
+    const loadPokemon = sessionStorage.getItem('loadPokemon');
+    if (loadPokemon) {
+      sessionStorage.removeItem('loadPokemon');
+      const data = getPokemonData(loadPokemon);
+      if (data) {
+        return {
+          ...createDefaultPokemonState(),
+          species: loadPokemon,
+          ability: (data.abilities?.[0] || '') as string,
+        };
+      }
+    }
+    return createDefaultPokemonState();
+  });
   const [defender, setDefender] = useState<PokemonState>({
     ...createDefaultPokemonState(),
     nature: 'Bold',

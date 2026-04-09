@@ -11,6 +11,7 @@ import {
 import { TYPE_COLORS, STAT_IDS, STAT_LABELS, STAT_COLORS, getPokemonData, getAvailableItems } from '../data/champions';
 import { useLiveData } from '../hooks/useLiveData';
 import { suggestSpreads } from '../calc/spOptimizer';
+import { discoverStrategies, type Discovery } from '../calc/metaDiscovery';
 import type { StatID } from '@smogon/calc';
 
 function StatBar({ stat, value, max = 200 }: { stat: StatID; value: number; max?: number }) {
@@ -179,6 +180,19 @@ function PokemonDetailCard({ entry, onClose }: { entry: TierEntry; onClose: () =
             </div>
           </div>
         )}
+
+        {/* Action: Use in Calculator */}
+        <div className="pt-3 border-t border-poke-border">
+          <Link
+            to={`/?pokemon=${encodeURIComponent(speciesName)}`}
+            className="block w-full py-2.5 rounded-lg bg-gradient-to-r from-poke-red to-poke-red-dark text-white text-sm font-bold text-center hover:from-poke-red-light hover:to-poke-red transition-all shadow-lg shadow-poke-red/20"
+            onClick={() => {
+              sessionStorage.setItem('loadPokemon', speciesName);
+            }}
+          >
+            Use {entry.name} in Calculator
+          </Link>
+        </div>
       </div>
     </div>
   );
@@ -262,6 +276,77 @@ function TierCard({ entry, onClick }: { entry: TierEntry; onClick: () => void })
   );
 }
 
+const DISCOVERY_CATEGORY_STYLES: Record<string, { color: string; bg: string; label: string }> = {
+  core: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', label: 'Core' },
+  threat: { color: 'text-red-400', bg: 'bg-red-500/10', label: 'Threat' },
+  counter: { color: 'text-sky-400', bg: 'bg-sky-500/10', label: 'Counter' },
+  archetype: { color: 'text-violet-400', bg: 'bg-violet-500/10', label: 'Strategy' },
+  underrated: { color: 'text-poke-gold', bg: 'bg-poke-gold/10', label: 'Sleeper' },
+  combo: { color: 'text-purple-400', bg: 'bg-purple-500/10', label: 'Combo' },
+};
+
+function MetaDiscoveriesSection() {
+  const [expanded, setExpanded] = useState(false);
+  const discoveries = useMemo(() => discoverStrategies(), []);
+
+  if (discoveries.length === 0) return null;
+
+  const shown = expanded ? discoveries.slice(0, 12) : discoveries.slice(0, 4);
+
+  return (
+    <div className="mb-8">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h2 className="text-lg font-bold text-white">Champions Meta Insights</h2>
+          <p className="text-xs text-slate-500">Strategies unique to this metagame — discovered algorithmically</p>
+        </div>
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="text-xs px-3 py-1.5 bg-poke-surface border border-poke-border text-slate-400 rounded-lg hover:text-white transition-colors"
+        >
+          {expanded ? 'Show Less' : `Show All (${discoveries.length})`}
+        </button>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {shown.map((d: Discovery) => {
+          const style = DISCOVERY_CATEGORY_STYLES[d.category] || DISCOVERY_CATEGORY_STYLES.core;
+          return (
+            <div key={d.id} className="poke-panel p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex -space-x-2 shrink-0">
+                  {d.pokemon.slice(0, 2).map(species => (
+                    <img key={species} src={getSpriteUrl(species)} alt={species} className="w-12 h-12 object-contain" loading="lazy" />
+                  ))}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-xs px-2 py-0.5 rounded ${style.bg} ${style.color} font-bold`}>{style.label}</span>
+                    <span className="text-xs text-slate-500">{d.confidence}%</span>
+                  </div>
+                  <h4 className="text-sm font-bold text-white mb-1">{d.title}</h4>
+                  <p className="text-xs text-slate-400 leading-relaxed mb-2">{d.description}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {d.pokemon.map(species => (
+                      <Link
+                        key={species}
+                        to={`/?pokemon=${encodeURIComponent(species.replace(/-Mega.*$/, ''))}`}
+                        className="text-xs px-2 py-1 bg-poke-surface border border-poke-border text-slate-400 rounded hover:border-poke-red/30 hover:text-poke-red-light transition-colors"
+                        onClick={() => sessionStorage.setItem('loadPokemon', species.replace(/-Mega.*$/, ''))}
+                      >
+                        Use {species.replace(/-Mega.*$/, '')}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function TierListPage() {
   const [listType, setListType] = useState<'normal' | 'mega'>('normal');
   const [filterTier, setFilterTier] = useState<Tier | 'all'>('all');
@@ -326,6 +411,9 @@ export function TierListPage() {
       </header>
 
       <main className="max-w-5xl mx-auto p-4">
+        {/* Meta Discoveries */}
+        <MetaDiscoveriesSection />
+
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Main list */}
           <div className="flex-1">
