@@ -64,10 +64,12 @@ function TeamSlot({
   onChange,
   onLoadToCalc,
   onAutoFill,
+  onReplace,
 }: {
   index: number;
   pokemon: PokemonState;
   team: PokemonState[];
+  onReplace: (species: string) => void;
   onChange: (state: PokemonState) => void;
   onLoadToCalc: (side: 'attacker' | 'defender') => void;
   onAutoFill: () => void;
@@ -99,6 +101,16 @@ function TeamSlot({
       return a.localeCompare(b);
     });
   }, [team]);
+
+  // Replacement suggestions — what would fit better in this slot?
+  const [showReplacements, setShowReplacements] = useState(false);
+  const replacements = useMemo(() => {
+    if (!pokemon.species || !showReplacements) return [];
+    // Remove this slot from the team temporarily
+    const teamWithout = team.map((p, i) => i === index ? createDefaultPokemonState() : p);
+    return suggestNextPick(teamWithout, 4);
+  }, [pokemon.species, team, index, showReplacements]);
+
   const allMoves = useMemo(() => getAvailableMoves(), []);
   const allItems = useMemo(() => getAvailableItems(), []);
   const allAbilities = useMemo(() => getAvailableAbilities(), []);
@@ -262,6 +274,54 @@ function TeamSlot({
             </div>
           </div>
         )}
+
+        {/* Replacement suggestions */}
+        {pokemon.species && (
+          <div className="mt-3 pt-3 border-t border-poke-border">
+            <button
+              onClick={() => setShowReplacements(!showReplacements)}
+              className={`text-xs px-3 py-1.5 rounded-lg border transition-colors w-full ${
+                showReplacements
+                  ? 'bg-amber-500/15 border-amber-500/30 text-amber-400'
+                  : 'bg-poke-surface border-poke-border text-slate-500 hover:text-amber-400 hover:border-amber-500/30'
+              }`}
+            >
+              {showReplacements ? 'Hide Replacements' : 'Suggest Replacements'}
+            </button>
+            {showReplacements && replacements.length > 0 && (
+              <div className="mt-2 space-y-1.5">
+                {replacements.map(pick => {
+                  const isSameAsCurrent = pick.species === pokemon.species;
+                  if (isSameAsCurrent) return null;
+                  return (
+                    <button
+                      key={pick.species}
+                      onClick={() => onReplace(pick.species)}
+                      className="w-full flex items-center gap-3 p-2.5 rounded-lg border border-poke-border text-left transition-colors hover:border-poke-red/30"
+                      style={{ backgroundColor: '#1a1b30' }}
+                    >
+                      <img
+                        src={getSpriteUrl(pick.species)}
+                        alt={pick.species}
+                        className="w-10 h-10 object-contain shrink-0"
+                        loading="lazy"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-white">{pick.species}</span>
+                          <span className="text-xs text-poke-gold font-mono">+{pick.score}</span>
+                        </div>
+                        <div className="text-xs text-slate-500 leading-snug truncate">
+                          {pick.reasons.slice(0, 2).join(' · ')}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -410,6 +470,23 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
               onChange={state => updateSlot(i, state)}
               onLoadToCalc={side => onLoadToCalc(pokemon, side)}
               onAutoFill={() => handleAutoFill(i)}
+              onReplace={(species) => {
+                const preset = PRESETS.find((p: any) => p.species === species);
+                const data = getPokemonData(species);
+                updateSlot(i, preset ? {
+                  ...createDefaultPokemonState(),
+                  species: preset.species,
+                  nature: preset.nature,
+                  ability: preset.ability,
+                  item: preset.item,
+                  sps: { ...preset.sps },
+                  moves: [...preset.moves, '', '', '', ''].slice(0, 4),
+                } : {
+                  ...createDefaultPokemonState(),
+                  species,
+                  ability: (data?.abilities?.[0] || '') as string,
+                });
+              }}
             />
           ))}
         </div>
