@@ -73,8 +73,8 @@ export function StatPointAllocator({ species, sps, baseStats, nature, level, mov
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-medium text-slate-400">Stat Points</span>
         <div className="flex items-center gap-2">
-          <span className={`text-xs font-bold ${remaining === 0 ? 'text-emerald-400' : remaining < 0 ? 'text-red-400' : 'text-amber-400'}`}>
-            {totalUsed}/{MAX_TOTAL_SP} SP
+          <span className={`text-sm font-bold ${remaining === 0 ? 'text-emerald-400' : remaining < 0 ? 'text-red-400' : 'text-amber-400'}`}>
+            {totalUsed} used / {remaining} free
           </span>
           {suggestions.length > 0 && (
             <button
