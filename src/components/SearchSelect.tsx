@@ -106,12 +106,15 @@ export function SearchSelect({ options, value, onChange, placeholder = 'Select..
       {isOpen && (
         <div
           id="search-select-dropdown"
-          className="rounded-lg border border-poke-border shadow-2xl max-h-60 overflow-y-auto"
-          style={{ ...dropdownStyle, backgroundColor: '#1E1F36' }}
+          className="rounded-lg border-2 border-poke-border max-h-60 overflow-y-auto"
+          style={{ ...dropdownStyle, backgroundColor: '#1a1b30', boxShadow: '0 10px 40px rgba(0,0,0,0.9)' }}
         >
           {value && (
             <div
-              className="px-3 py-2 text-sm text-slate-400 hover:bg-poke-border cursor-pointer border-b border-poke-border"
+              className="px-3 py-2 text-sm text-slate-400 cursor-pointer border-b border-poke-border"
+              style={{ backgroundColor: '#1a1b30' }}
+              onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#2a2b45')}
+              onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#1a1b30')}
               onClick={() => {
                 onChange('');
                 setIsOpen(false);
@@ -124,11 +127,12 @@ export function SearchSelect({ options, value, onChange, placeholder = 'Select..
           {filtered.map(option => (
             <div
               key={option}
-              className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
-                option === value
-                  ? 'bg-poke-red text-white'
-                  : 'text-slate-300 hover:bg-poke-border'
+              className={`px-3 py-2 text-sm cursor-pointer ${
+                option === value ? 'text-white' : 'text-slate-300'
               }`}
+              style={{ backgroundColor: option === value ? '#E3350D' : '#1a1b30' }}
+              onMouseEnter={e => { if (option !== value) e.currentTarget.style.backgroundColor = '#2a2b45'; }}
+              onMouseLeave={e => { if (option !== value) e.currentTarget.style.backgroundColor = '#1a1b30'; }}
               onClick={() => {
                 onChange(option);
                 setIsOpen(false);
@@ -139,7 +143,7 @@ export function SearchSelect({ options, value, onChange, placeholder = 'Select..
             </div>
           ))}
           {filtered.length === 0 && (
-            <div className="px-3 py-3 text-sm text-slate-500">No results</div>
+            <div className="px-3 py-3 text-sm text-slate-500" style={{ backgroundColor: '#1a1b30' }}>No results</div>
           )}
         </div>
       )}
