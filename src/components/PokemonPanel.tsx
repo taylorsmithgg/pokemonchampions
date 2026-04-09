@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import type { StatID, StatsTable } from '@smogon/calc';
 import { SearchSelect } from './SearchSelect';
 import { StatPointAllocator } from './StatPointAllocator';
@@ -95,11 +95,11 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
     ? speciesData.baseStats
     : { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
 
-  const update = useCallback(<K extends keyof PokemonState>(key: K, value: PokemonState[K]) => {
+  const update = <K extends keyof PokemonState>(key: K, value: PokemonState[K]) => {
     onChange({ ...state, [key]: value });
-  }, [state, onChange]);
+  };
 
-  const handleSpeciesChange = useCallback((species: string) => {
+  const handleSpeciesChange = (species: string) => {
     const data = species ? getPokemonData(species) : null;
     const ability = data?.abilities?.[0] || '';
     onChange({
@@ -108,22 +108,22 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
       ability: ability as string,
       teraType: '',
     });
-  }, [state, onChange]);
+  };
 
-  const handleMoveChange = useCallback((index: number, move: string) => {
+  const handleMoveChange = (index: number, move: string) => {
     const moves = [...state.moves];
     moves[index] = move;
     update('moves', moves);
-  }, [state.moves, update]);
+  };
 
-  const handleMoveOptionChange = useCallback((index: number, key: 'isCrit' | 'hits', value: boolean | number) => {
+  const handleMoveOptionChange = (index: number, key: 'isCrit' | 'hits', value: boolean | number) => {
     update('moveOptions', {
       ...state.moveOptions,
       [index]: { ...state.moveOptions[index], [key]: value },
     });
-  }, [state.moveOptions, update]);
+  };
 
-  const handlePresetLoad = useCallback((preset: typeof presets[number]) => {
+  const handlePresetLoad = (preset: typeof presets[number]) => {
     onChange({
       ...state,
       species: preset.species,
@@ -134,23 +134,23 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
       sps: { ...preset.sps },
       moves: [...preset.moves],
     });
-  }, [state, onChange]);
+  };
 
-  const handleImport = useCallback(() => {
+  const handleImport = () => {
     const imported = importShowdownSet(importText);
     if (imported) {
       onChange(imported);
       setShowImport(false);
       setImportText('');
     }
-  }, [importText, onChange]);
+  };
 
-  const handleExport = useCallback(() => {
+  const handleExport = () => {
     const text = exportShowdownSet(state);
     navigator.clipboard.writeText(text);
-  }, [state]);
+  };
 
-  const handleOptimize = useCallback(() => {
+  const handleOptimize = () => {
     if (!state.species) return;
 
     const speciesData = getPokemonData(state.species);
@@ -239,7 +239,7 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
       teraType: bestTera,
       moves: bestMoves,
     });
-  }, [state, liveStats, presets, onChange]);
+  };
 
   return (
     <div className="poke-panel">
