@@ -1,7 +1,7 @@
 // Pokemon Champions data layer
 // Wraps @smogon/calc Gen 9 data with Champions-specific modifications
 
-import { Generations } from '@smogon/calc';
+import { Generations, Pokemon as CalcPokemon } from '@smogon/calc';
 import type { StatID } from '@smogon/calc';
 import type { NatureName, TypeName } from '../types';
 
@@ -183,6 +183,33 @@ export function getAvailablePokemon(): string[] {
 
 export function getPokemonData(name: string) {
   return gen9.species.get(name.toLowerCase().replace(/[^a-z0-9]/g, '') as any);
+}
+
+// Resolve the effective form based on held item (detects Mega Stones)
+// Returns { species data for the correct form, the form name, isMega flag }
+export function resolveForm(species: string, item: string): {
+  data: ReturnType<typeof getPokemonData>;
+  formName: string;
+  isMega: boolean;
+} {
+  const baseData = getPokemonData(species);
+  if (!baseData) return { data: undefined, formName: species, isMega: false };
+
+  // Check if item is a Mega Stone
+  if (item && (item.endsWith('ite') || item.endsWith('ite X') || item.endsWith('ite Y'))) {
+    // Use @smogon/calc's getForme to resolve the Mega form name
+    try {
+      const megaFormName = CalcPokemon.getForme(9, species, item as any);
+      if (megaFormName && megaFormName !== species) {
+        const megaData = getPokemonData(megaFormName);
+        if (megaData) {
+          return { data: megaData, formName: megaFormName, isMega: true };
+        }
+      }
+    } catch { /* fall through to base */ }
+  }
+
+  return { data: baseData, formName: species, isMega: false };
 }
 
 // ─── Moves ──────────────────────────────────────────────────────────

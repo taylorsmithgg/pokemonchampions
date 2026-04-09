@@ -10,6 +10,7 @@ import {
   getAvailableItems,
   getAvailableAbilities,
   getPokemonData,
+  resolveForm,
   NATURES,
   getNatureLabel,
   STATUS_CONDITIONS,
@@ -132,10 +133,15 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
   const allItems = useMemo(() => getAvailableItems(), []);
   const allAbilities = useMemo(() => getAvailableAbilities(), []);
 
-  const speciesData = useMemo(() => {
-    if (!state.species) return null;
-    return getPokemonData(state.species);
-  }, [state.species]);
+  // Resolve the effective form (base or Mega based on held item)
+  const resolved = useMemo(() => {
+    if (!state.species) return { data: null, formName: '', isMega: false };
+    return resolveForm(state.species, state.item);
+  }, [state.species, state.item]);
+
+  const speciesData = resolved.data;
+  const effectiveFormName = resolved.formName;
+  const isMega = resolved.isMega;
 
   const presets = useMemo(() => {
     if (!state.species) return [];
@@ -174,6 +180,7 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
           const topItem = liveData ? Object.entries(liveData.items).filter(([n]: any) => champItemSet.has(n)).sort((a: any, b: any) => b[1] - a[1])[0] : null;
           return (
             <div className="flex items-center gap-2 flex-wrap">
+              {isMega && <span className="text-xs px-2 py-0.5 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-full font-bold">Mega</span>}
               {speciesData.types.map((t: string) => <TypeBadge key={t} type={t} />)}
               {tierDef && <span className={`text-xs font-black px-1.5 py-0.5 rounded ${tierDef.bgColor} ${tierDef.color} border ${tierDef.borderColor}`}>{tier!.tier} Tier</span>}
               {liveData && <span className="text-xs text-slate-500">{(liveData.usage.weighted * 100).toFixed(1)}% usage</span>}
@@ -204,7 +211,14 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
       <div className="p-5 space-y-5">
         {/* Species + Sprite + Optimize */}
         <div className="flex gap-4">
-          <PokemonSprite species={state.species} />
+          <div className="relative shrink-0">
+            <PokemonSprite species={effectiveFormName || state.species} />
+            {isMega && (
+              <div className="absolute -bottom-1 left-0 right-0 text-center">
+                <span className="text-[10px] px-2 py-0.5 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-full font-bold">MEGA</span>
+              </div>
+            )}
+          </div>
           <div className="flex-1 space-y-2">
             <SearchSelect
               options={pokemon}
