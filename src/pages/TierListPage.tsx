@@ -12,6 +12,7 @@ import { TYPE_COLORS, STAT_IDS, STAT_LABELS, STAT_COLORS, getPokemonData, getAva
 import { useLiveData } from '../hooks/useLiveData';
 import { suggestSpreads } from '../calc/spOptimizer';
 import { discoverStrategies, type Discovery } from '../calc/metaDiscovery';
+import { MetaRadarPanel } from '../components/MetaRadarPanel';
 import type { StatID } from '@smogon/calc';
 
 function StatBar({ stat, value, max = 200 }: { stat: StatID; value: number; max?: number }) {
@@ -350,7 +351,13 @@ function MetaDiscoveriesSection() {
   );
 }
 
+function handleLoadFromRadar(species: string, _side: 'attacker' | 'defender') {
+  sessionStorage.setItem('loadPokemon', species);
+  window.location.href = window.location.pathname.replace('/tier-list', '') || '/';
+}
+
 export function TierListPage() {
+  const [view, setView] = useState<'radar' | 'static'>('radar');
   const [listType, setListType] = useState<'normal' | 'mega'>('normal');
   const [filterTier, setFilterTier] = useState<Tier | 'all'>('all');
   const [filterRole, setFilterRole] = useState('all');
@@ -417,8 +424,34 @@ export function TierListPage() {
         {/* Meta Discoveries */}
         <MetaDiscoveriesSection />
 
+        {/* View tabs */}
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setView('radar')}
+            className={`text-sm px-4 py-2 rounded-lg border font-semibold transition-colors ${
+              view === 'radar' ? 'bg-poke-red/15 border-poke-red/40 text-poke-red-light' : 'bg-poke-surface border-poke-border text-slate-400 hover:text-white'
+            }`}
+          >
+            Meta Radar (Live)
+          </button>
+          <button
+            onClick={() => setView('static')}
+            className={`text-sm px-4 py-2 rounded-lg border font-semibold transition-colors ${
+              view === 'static' ? 'bg-poke-red/15 border-poke-red/40 text-poke-red-light' : 'bg-poke-surface border-poke-border text-slate-400 hover:text-white'
+            }`}
+          >
+            Static Tier List
+          </button>
+        </div>
+
+        {/* Meta Radar View */}
+        {view === 'radar' && (
+          <MetaRadarPanel onLoadPokemon={handleLoadFromRadar} />
+        )}
+
+        {/* Static Tier List View */}
+        {view === 'static' && (
         <div className="flex flex-col lg:flex-row gap-6">
-          {/* Main list */}
           <div className="flex-1">
             <div className="mb-6">
               <h1 className="text-2xl font-bold text-white mb-1">VGC 2026 Tier List</h1>
@@ -475,6 +508,7 @@ export function TierListPage() {
             </div>
           )}
         </div>
+        )}
       </main>
     </div>
   );
