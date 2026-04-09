@@ -21,9 +21,8 @@ import { getSpriteUrl, getSpriteFallbackUrl } from '../utils/sprites';
 import { importShowdownSet, exportShowdownSet } from '../utils/importExport';
 import { LiveUsagePanel } from './LiveUsagePanel';
 import { useLiveData } from '../hooks/useLiveData';
-import { getLiveSet } from '../data/liveData';
-import { analyzeForMeta } from '../calc/metaBenchmarks';
 import { suggestItems } from '../calc/itemOptimizer';
+import { getArchetypes } from '../calc/archetypes';
 import type { PokemonState, NatureName } from '../types';
 import { createDefaultPokemonState } from '../types';
 
@@ -72,13 +71,8 @@ function PokemonSprite({ species }: { species: string }) {
   );
 }
 
-// Build a completely fresh optimized PokemonState — no spreading from old state
-function buildOptimizedState(
-  species: string,
-  level: number,
-  presets: ReturnType<typeof getPresetsBySpecies>,
-  liveStats: any,
-): PokemonState {
+// Build optimized state — uses the SAME archetype system shown in the UI
+function buildOptimizedState(species: string, level: number): PokemonState {
   const base = createDefaultPokemonState();
   base.species = species;
   base.level = level;
@@ -86,78 +80,37 @@ function buildOptimizedState(
   const data = getPokemonData(species);
   if (!data) return base;
 
-  const bs = data.baseStats;
-  const isPhys = bs.atk > bs.spa;
   base.ability = (data.abilities?.[0] || '') as string;
 
-  // Step 1: Get moves, ability, item, nature from best source
-  let nature: NatureName = isPhys ? 'Adamant' : 'Modest';
-  let abilityName = base.ability;
-  let item = '';
-  let moves = ['', '', '', ''];
+  // Use the archetype system — same data the user sees in the Archetypes panel
+  const archetypes = getArchetypes(species);
+  if (archetypes.length > 0) {
+    const arch = archetypes[0]; // First archetype = top pick
+    return {
+      ...base,
+      nature: arch.nature,
+      ability: base.ability,
+      item: arch.item,
+      sps: { hp: arch.sps.hp, atk: arch.sps.atk, def: arch.sps.def, spa: arch.sps.spa, spd: arch.sps.spd, spe: arch.sps.spe },
+      moves: arch.moves.length > 0 ? [...arch.moves, '', '', '', ''].slice(0, 4) : base.moves,
+    };
+  }
 
+  // Fallback: use preset if no archetypes
+  const presets = getPresetsBySpecies(species);
   if (presets.length > 0) {
     const p = presets[0];
-    nature = p.nature;
-    abilityName = p.ability;
-    item = p.item;
-    moves = [...p.moves, '', '', '', ''].slice(0, 4);
-  } else if (liveStats) {
-    const liveSet = getLiveSet(liveStats, species);
-    if (liveSet) {
-      nature = liveSet.nature;
-      abilityName = liveSet.ability || base.ability;
-      item = liveSet.item;
-      moves = [...liveSet.moves, '', '', '', ''].slice(0, 4);
-    }
+    return {
+      ...base,
+      nature: p.nature,
+      ability: p.ability,
+      item: p.item,
+      sps: { ...p.sps },
+      moves: [...p.moves, '', '', '', ''].slice(0, 4),
+    };
   }
 
-  // Step 2: If no item was set by preset/live data, use the item optimizer
-  if (!item && moves.some(Boolean)) {
-    const tempState = { ...base, species, ability: abilityName, item: '', moves } as PokemonState;
-    const itemSuggestions = suggestItems(tempState, new Set());
-    // Skip Mega Stones in auto-optimization — user should choose Mega consciously
-    const nonMega = itemSuggestions.filter(s => !s.item.endsWith('ite') && !s.item.endsWith('ite X') && !s.item.endsWith('ite Y'));
-    if (nonMega.length > 0) {
-      item = nonMega[0].item;
-    } else if (itemSuggestions.length > 0) {
-      item = itemSuggestions[0].item;
-    }
-  }
-
-  // Step 3: Run meta benchmark to determine optimal SPs using those moves
-  let sps = isPhys
-    ? { hp: 2, atk: 32, def: 0, spa: 0, spd: 0, spe: 32 }
-    : { hp: 2, atk: 0, def: 0, spa: 32, spd: 0, spe: 32 };
-
-  const activeMoves = moves.filter(Boolean);
-  if (activeMoves.length > 0) {
-    try {
-      const metaResult = analyzeForMeta(species, activeMoves, abilityName, item, level);
-      if (metaResult?.suggestedSpread) {
-        const ms = metaResult.suggestedSpread.sps;
-        const total = Object.values(ms).reduce((a: number, b: number) => a + b, 0);
-        if (total >= 60 && total <= 66) {
-          sps = { hp: ms.hp, atk: ms.atk, def: ms.def, spa: ms.spa, spd: ms.spd, spe: ms.spe };
-          // Don't override nature from meta — keep preset/live nature
-        }
-      }
-    } catch { /* use default sps */ }
-  }
-
-  // Ensure total = 66
-  let spTotal = Object.values(sps).reduce((a, b) => a + b, 0);
-  while (spTotal < 66) { sps.hp = Math.min(32, sps.hp + 1); spTotal++; }
-
-  return {
-    ...base,
-    nature,
-    ability: abilityName,
-    item,
-    teraType: '',
-    sps,
-    moves,
-  };
+  return base;
 }
 
 export function PokemonPanel({ state, onChange, side, teammateItems = [] }: PokemonPanelProps) {
@@ -274,7 +227,7 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
             {state.species && (
               <button
                 onClick={() => {
-                  const optimized = buildOptimizedState(state.species, state.level, presets, liveStats);
+                  const optimized = buildOptimizedState(state.species, state.level);
                   onChange(optimized);
                 }}
                 className="w-full py-2.5 rounded-lg bg-gradient-to-r from-poke-red to-poke-red-dark text-white text-sm font-bold tracking-wide hover:from-poke-red-light hover:to-poke-red transition-all shadow-lg shadow-poke-red/20 hover:shadow-poke-red/40"
