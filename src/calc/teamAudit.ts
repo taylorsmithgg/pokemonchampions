@@ -7,6 +7,7 @@ import { Generations } from '@smogon/calc';
 import { Move } from '@smogon/calc';
 import { getPokemonData, getAvailablePokemon } from '../data/champions';
 import { PRESETS } from '../data/presets';
+import { NORMAL_TIER_LIST } from '../data/tierlist';
 import { getCachedUsageStats, getLiveTeammates } from '../data/liveData';
 import type { PokemonState } from '../types';
 
@@ -570,9 +571,13 @@ export function auditTeam(team: PokemonState[]): TeamAudit {
 
 function findOffensiveCoverage(uncoveredTypes: string[], excludeSpecies: string[]): string[] {
   const candidates = getAvailablePokemon().filter(n => !excludeSpecies.includes(n));
-  const scores: { name: string; hits: number }[] = [];
+  const tierScore: Record<string, number> = { S: 10, 'A+': 8, A: 6, B: 4, C: 2 };
+
+  const scored: { name: string; score: number }[] = [];
 
   for (const name of candidates) {
+    if (name.includes('-') && !name.includes('-Alola') && !name.includes('-Galar') && !name.includes('-Hisui') && !name.includes('-Paldea') && !name.includes('-Wash') && !name.includes('-Heat') && !name.includes('-Mow')) continue;
+
     const data = getPokemonData(name);
     if (!data) continue;
     let hits = 0;
@@ -581,36 +586,45 @@ function findOffensiveCoverage(uncoveredTypes: string[], excludeSpecies: string[
         if (getEffectiveness(atkType as string, uncovered) > 1) hits++;
       }
     }
-    if (hits > 0) scores.push({ name, hits });
+    if (hits === 0) continue;
+
+    let score = hits * 3;
+    const tier = NORMAL_TIER_LIST.find(e => e.name === name);
+    if (tier) score += tierScore[tier.tier] || 0;
+    if (PRESETS.some(p => p.species === name)) score += 3;
+
+    scored.push({ name, score });
   }
 
-  scores.sort((a, b) => b.hits - a.hits);
-
-  // Prefer Pokemon with presets (well-known competitive picks)
-  const withPresets = scores.filter(s => PRESETS.some(p => p.species === s.name));
-  const withoutPresets = scores.filter(s => !PRESETS.some(p => p.species === s.name));
-
-  return [...withPresets, ...withoutPresets].slice(0, 5).map(s => s.name);
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, 3).map(s => s.name);
 }
 
 function findDefensiveAnswers(weakType: string, excludeSpecies: string[]): string[] {
   const candidates = getAvailablePokemon().filter(n => !excludeSpecies.includes(n));
-  const answers: string[] = [];
+  const tierScore: Record<string, number> = { S: 10, 'A+': 8, A: 6, B: 4, C: 2 };
+
+  const scored: { name: string; score: number }[] = [];
 
   for (const name of candidates) {
+    // Skip alternate forms (anything with a hyphen that isn't a regional form)
+    if (name.includes('-') && !name.includes('-Alola') && !name.includes('-Galar') && !name.includes('-Hisui') && !name.includes('-Paldea') && !name.includes('-Wash') && !name.includes('-Heat') && !name.includes('-Mow')) continue;
+
     const data = getPokemonData(name);
     if (!data) continue;
     const mult = getDefensiveMultiplier(weakType, [...data.types] as string[]);
-    if (mult < 1) {
-      answers.push(name);
-      if (answers.length >= 5) break;
-    }
+    if (mult >= 1) continue; // Must resist
+
+    // Score by meta viability
+    let score = 0;
+    const tier = NORMAL_TIER_LIST.find(e => e.name === name);
+    if (tier) score += tierScore[tier.tier] || 0;
+    if (PRESETS.some(p => p.species === name)) score += 3;
+    if (mult === 0) score += 2; // Immune is better than resist
+
+    scored.push({ name, score });
   }
 
-  // Prefer Pokemon with presets
-  return answers.sort((a, b) => {
-    const aHas = PRESETS.some(p => p.species === a) ? 0 : 1;
-    const bHas = PRESETS.some(p => p.species === b) ? 0 : 1;
-    return aHas - bHas;
-  });
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, 3).map(s => s.name);
 }
