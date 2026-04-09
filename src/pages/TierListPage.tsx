@@ -1,0 +1,390 @@
+import { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  NORMAL_TIER_LIST,
+  MEGA_TIER_LIST,
+  TIER_DEFINITIONS,
+  type TierEntry,
+  type Tier,
+} from '../data/tierlist';
+import { TYPE_COLORS, STAT_IDS, STAT_LABELS, STAT_COLORS, getPokemonData } from '../data/champions';
+import { useLiveData } from '../hooks/useLiveData';
+import { suggestSpreads } from '../calc/spOptimizer';
+import type { StatID } from '@smogon/calc';
+
+function StatBar({ stat, value, max = 200 }: { stat: StatID; value: number; max?: number }) {
+  return (
+    <div className="flex items-center gap-1">
+      <span className="text-[9px] text-slate-500 w-6">{STAT_LABELS[stat]}</span>
+      <div className="flex-1 h-1.5 bg-poke-surface rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all"
+          style={{ width: `${Math.min(100, (value / max) * 100)}%`, backgroundColor: STAT_COLORS[stat] }}
+        />
+      </div>
+      <span className="text-[9px] text-slate-400 w-6 text-right font-mono">{value}</span>
+    </div>
+  );
+}
+
+function PokemonDetailCard({ entry, onClose }: { entry: TierEntry; onClose: () => void }) {
+  const speciesName = entry.isMega ? entry.name.replace('Mega ', '') : entry.name;
+  const data = getPokemonData(speciesName);
+  const { stats: liveStats } = useLiveData();
+  const liveData = liveStats?.pokemon?.[speciesName];
+  const spreads = useMemo(() => suggestSpreads(speciesName, 50), [speciesName]);
+  const spriteId = speciesName.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+
+  if (!data) return null;
+
+  const topMoves = liveData ? Object.entries(liveData.moves).sort((a, b) => b[1] - a[1]).slice(0, 8) : [];
+  const topItems = liveData ? Object.entries(liveData.items).sort((a, b) => b[1] - a[1]).slice(0, 5) : [];
+  const topAbilities = liveData ? Object.entries(liveData.abilities).sort((a, b) => b[1] - a[1]).slice(0, 3) : [];
+  const topTeammates = liveData ? Object.entries(liveData.teammates).sort((a, b) => b[1] - a[1]).slice(0, 8) : [];
+
+  return (
+    <div className="poke-panel">
+      {/* Header */}
+      <div className="poke-panel-header bg-gradient-to-r from-poke-red/10 to-transparent">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img
+              src={`https://play.pokemonshowdown.com/sprites/ani/${spriteId}.gif`}
+              alt={entry.name}
+              className="w-16 h-16 object-contain"
+              onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                e.currentTarget.src = `https://play.pokemonshowdown.com/sprites/dex/${spriteId}.png`;
+              }}
+            />
+            <div>
+              <h3 className="text-base font-bold text-white">{entry.name}</h3>
+              <div className="flex gap-1 mt-1">
+                {entry.types.map((t: string) => (
+                  <span key={t} className="text-[9px] px-2 py-0.5 rounded-full text-white font-bold" style={{ backgroundColor: TYPE_COLORS[t] || '#666' }}>{t}</span>
+                ))}
+                {entry.isMega && <span className="text-[9px] px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded-full font-bold">Mega</span>}
+              </div>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-white p-1">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+      </div>
+
+      <div className="p-4 space-y-4">
+        {/* Base Stats */}
+        <div>
+          <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Base Stats ({Object.values(data.baseStats).reduce((a: number, b: number) => a + b, 0)} BST)</h4>
+          <div className="space-y-1">
+            {STAT_IDS.map((s: StatID) => <StatBar key={s} stat={s} value={data.baseStats[s]} />)}
+          </div>
+        </div>
+
+        {/* Roles & Strategy */}
+        <div>
+          <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Roles</h4>
+          <div className="flex flex-wrap gap-1 mb-2">
+            {entry.roles.map((r: string) => (
+              <span key={r} className="text-[9px] px-2 py-0.5 bg-poke-surface text-slate-300 rounded-full border border-poke-border">{r}</span>
+            ))}
+          </div>
+          {entry.note && <p className="text-[10px] text-slate-400 leading-relaxed">{entry.note}</p>}
+        </div>
+
+        {/* Held Items — from live data */}
+        {topItems.length > 0 && (
+          <div>
+            <h4 className="text-[10px] font-semibold text-poke-gold uppercase tracking-wider mb-2">Optimal Held Items</h4>
+            <div className="space-y-1.5">
+              {topItems.map(([name, usage], i) => (
+                <div key={name} className="flex items-center gap-2">
+                  <span className={`text-[10px] font-bold w-4 ${i === 0 ? 'text-poke-gold' : 'text-slate-500'}`}>{i + 1}</span>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className={`text-[11px] ${i === 0 ? 'text-white font-semibold' : 'text-slate-300'}`}>{name}</span>
+                      <span className="text-[10px] text-slate-500 font-mono">{(usage * 100).toFixed(1)}%</span>
+                    </div>
+                    <div className="h-1 bg-poke-surface rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full ${i === 0 ? 'bg-poke-gold' : 'bg-slate-600'}`} style={{ width: `${usage * 100}%` }} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Moves — from live data */}
+        {topMoves.length > 0 && (
+          <div>
+            <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Move Usage</h4>
+            <div className="grid grid-cols-2 gap-1.5">
+              {topMoves.map(([name, usage]) => (
+                <div key={name} className="flex items-center justify-between px-2 py-1 bg-poke-surface rounded border border-poke-border">
+                  <span className="text-[10px] text-slate-300 truncate">{name}</span>
+                  <span className="text-[9px] text-slate-500 font-mono ml-1">{(usage * 100).toFixed(0)}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Abilities */}
+        {topAbilities.length > 0 && (
+          <div>
+            <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Abilities</h4>
+            {topAbilities.map(([name, usage]) => (
+              <div key={name} className="text-[10px] text-slate-400">{name} <span className="text-slate-600">{(usage * 100).toFixed(0)}%</span></div>
+            ))}
+          </div>
+        )}
+
+        {/* Optimal Spreads */}
+        {spreads.length > 0 && (
+          <div>
+            <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Optimal SP Spreads</h4>
+            <div className="space-y-1.5">
+              {spreads.slice(0, 3).map((s, i) => (
+                <div key={i} className="p-2 bg-poke-surface rounded-lg border border-poke-border">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-[10px] font-semibold text-white">{s.name}</span>
+                    <span className="text-[9px] text-poke-gold">{s.nature}</span>
+                  </div>
+                  <div className="text-[9px] font-mono text-amber-400/70">
+                    {Object.entries(s.sps).filter(([, v]) => v > 0).map(([k, v]) => `${v} ${STAT_LABELS[k as StatID]}`).join(' / ')}
+                  </div>
+                  <div className="text-[9px] text-slate-600 mt-0.5">{s.rationale[0]}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Teammates — from live data */}
+        {topTeammates.length > 0 && (
+          <div>
+            <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Top Teammates</h4>
+            <div className="flex flex-wrap gap-1.5">
+              {topTeammates.map(([name, usage]) => {
+                const tmId = name.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+                return (
+                  <div key={name} className="flex items-center gap-1 px-2 py-1 bg-poke-surface rounded-lg border border-poke-border">
+                    <img src={`https://play.pokemonshowdown.com/sprites/ani/${tmId}.gif`} alt="" className="w-5 h-5 object-contain" loading="lazy" onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none'; }} />
+                    <span className="text-[9px] text-slate-300">{name}</span>
+                    <span className="text-[8px] text-slate-600">{(usage * 100).toFixed(0)}%</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TierCard({ entry, onClick }: { entry: TierEntry; onClick: () => void }) {
+  const speciesName = entry.isMega ? entry.name.replace('Mega ', '') : entry.name;
+  const data = getPokemonData(speciesName);
+  const { stats: liveStats } = useLiveData();
+  const liveData = liveStats?.pokemon?.[speciesName];
+  const spriteId = speciesName.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+  const topItem = liveData ? Object.entries(liveData.items).sort((a, b) => b[1] - a[1])[0] : null;
+
+  return (
+    <div
+      className="poke-panel cursor-pointer hover:border-poke-red/30 transition-all group"
+      onClick={onClick}
+    >
+      <div className="p-3 flex items-center gap-3">
+        {/* Large sprite */}
+        <div className="w-14 h-14 shrink-0 flex items-center justify-center">
+          <img
+            src={`https://play.pokemonshowdown.com/sprites/ani/${spriteId}.gif`}
+            alt={entry.name}
+            className="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform"
+            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+              e.currentTarget.src = `https://play.pokemonshowdown.com/sprites/dex/${spriteId}.png`;
+            }}
+            loading="lazy"
+          />
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="text-sm font-bold text-white group-hover:text-poke-red-light transition-colors">{entry.name}</span>
+            {entry.isMega && <span className="text-[8px] px-1 py-0 bg-purple-500/20 text-purple-400 rounded font-bold">M</span>}
+          </div>
+          <div className="flex gap-1 mb-1.5">
+            {entry.types.map((t: string) => (
+              <span key={t} className="text-[8px] px-1.5 py-0.5 rounded-full text-white font-bold" style={{ backgroundColor: TYPE_COLORS[t] || '#666' }}>{t}</span>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {entry.roles.map((r: string) => (
+              <span key={r} className="text-[8px] px-1 py-0 bg-poke-surface text-slate-500 rounded">{r}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* Right side: item + stats peek */}
+        <div className="shrink-0 text-right space-y-1">
+          {topItem && (
+            <div className="text-[9px] text-poke-gold flex items-center gap-1 justify-end">
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+              {topItem[0]}
+            </div>
+          )}
+          {data && (
+            <div className="text-[9px] text-slate-600 font-mono">
+              {data.baseStats.atk > data.baseStats.spa
+                ? `${data.baseStats.atk} Atk / ${data.baseStats.spe} Spe`
+                : `${data.baseStats.spa} SpA / ${data.baseStats.spe} Spe`}
+            </div>
+          )}
+          {liveData && (
+            <div className="text-[8px] text-slate-600">
+              {(liveData.usage.weighted * 100).toFixed(1)}% usage
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Note tooltip on hover */}
+      {entry.note && (
+        <div className="px-3 pb-2 pt-0 hidden group-hover:block">
+          <p className="text-[9px] text-slate-500 leading-relaxed border-t border-poke-border pt-2">{entry.note}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function TierListPage() {
+  const [listType, setListType] = useState<'normal' | 'mega'>('normal');
+  const [filterTier, setFilterTier] = useState<Tier | 'all'>('all');
+  const [filterRole, setFilterRole] = useState('all');
+  const [filterType, setFilterType] = useState('all');
+  const [search, setSearch] = useState('');
+  const [selectedEntry, setSelectedEntry] = useState<TierEntry | null>(null);
+
+  const list = listType === 'mega' ? MEGA_TIER_LIST : NORMAL_TIER_LIST;
+
+  const allRoles = useMemo(() => {
+    const roles = new Set<string>();
+    list.forEach(e => e.roles.forEach(r => roles.add(r)));
+    return Array.from(roles).sort();
+  }, [list]);
+
+  const allTypes = useMemo(() => {
+    const types = new Set<string>();
+    list.forEach(e => e.types.forEach(t => types.add(t)));
+    return Array.from(types).sort();
+  }, [list]);
+
+  const filtered = useMemo(() => {
+    let results = list;
+    if (filterTier !== 'all') results = results.filter(e => e.tier === filterTier);
+    if (filterRole !== 'all') results = results.filter(e => e.roles.includes(filterRole));
+    if (filterType !== 'all') results = results.filter(e => e.types.includes(filterType as any));
+    if (search) {
+      const lower = search.toLowerCase();
+      results = results.filter(e => e.name.toLowerCase().includes(lower) || e.note?.toLowerCase().includes(lower));
+    }
+    return results;
+  }, [list, filterTier, filterRole, filterType, search]);
+
+  const groupedByTier = useMemo(() => {
+    return TIER_DEFINITIONS.map(tierDef => ({
+      ...tierDef,
+      entries: filtered.filter(e => e.tier === tierDef.tier),
+    })).filter(g => g.entries.length > 0);
+  }, [filtered]);
+
+  return (
+    <div className="min-h-screen bg-poke-darkest text-white relative z-10">
+      <header className="border-b border-poke-border bg-gradient-to-r from-poke-darker via-poke-dark to-poke-darker sticky top-0 z-40">
+        <div className="h-[3px] bg-gradient-to-r from-transparent via-poke-red to-transparent" />
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link to="/" className="flex items-center gap-2.5">
+              <div className="w-6 h-6 rounded-full border-2 border-white/80 relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-[45%] bg-poke-red" />
+                <div className="absolute bottom-0 left-0 right-0 h-[45%] bg-white/90" />
+                <div className="absolute top-1/2 left-0 right-0 h-[1.5px] bg-poke-border-light -translate-y-1/2" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full border border-poke-border-light bg-poke-dark" />
+              </div>
+              <h1 className="text-lg font-bold"><span className="text-poke-red">Champions</span> Calc</h1>
+            </Link>
+          </div>
+          <Link to="/" className="text-xs px-3 py-1.5 rounded-lg bg-poke-red/15 border border-poke-red/30 text-poke-red-light hover:bg-poke-red/25 transition-colors">
+            Calculator
+          </Link>
+        </div>
+      </header>
+
+      <main className="max-w-5xl mx-auto p-4">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Main list */}
+          <div className="flex-1">
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold text-white mb-1">VGC 2026 Tier List</h1>
+              <p className="text-sm text-slate-500">Click any Pokemon for optimal sets, items, spreads, and teammates</p>
+            </div>
+
+            {/* Filters */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              <div className="flex gap-1">
+                <button onClick={() => setListType('normal')} className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${listType === 'normal' ? 'bg-poke-red/15 border-poke-red/40 text-poke-red-light' : 'bg-poke-surface border-poke-border text-slate-400'}`}>
+                  Normal ({NORMAL_TIER_LIST.length})
+                </button>
+                <button onClick={() => setListType('mega')} className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${listType === 'mega' ? 'bg-purple-500/15 border-purple-500/40 text-purple-400' : 'bg-poke-surface border-poke-border text-slate-400'}`}>
+                  Mega ({MEGA_TIER_LIST.length})
+                </button>
+              </div>
+              <input type="text" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)}
+                className="bg-poke-surface border border-poke-border rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-poke-red/50 w-40" />
+              <select value={filterTier} onChange={e => setFilterTier(e.target.value as any)} className="bg-poke-surface border border-poke-border rounded-lg text-xs text-white px-2 py-1.5">
+                <option value="all">All Tiers</option>
+                {TIER_DEFINITIONS.map(t => <option key={t.tier} value={t.tier}>{t.tier} Tier</option>)}
+              </select>
+              <select value={filterRole} onChange={e => setFilterRole(e.target.value)} className="bg-poke-surface border border-poke-border rounded-lg text-xs text-white px-2 py-1.5">
+                <option value="all">All Roles</option>
+                {allRoles.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+              <select value={filterType} onChange={e => setFilterType(e.target.value)} className="bg-poke-surface border border-poke-border rounded-lg text-xs text-white px-2 py-1.5">
+                <option value="all">All Types</option>
+                {allTypes.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+
+            {/* Tier groups */}
+            {groupedByTier.map(group => (
+              <div key={group.tier} className="mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className={`text-lg font-black ${group.color}`}>{group.tier}</span>
+                  <span className="text-xs text-slate-600">{group.description}</span>
+                  <span className="text-[10px] text-slate-700">({group.entries.length})</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {group.entries.map((entry: TierEntry) => (
+                    <TierCard key={entry.name} entry={entry} onClick={() => setSelectedEntry(entry)} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Detail panel (sticky sidebar) */}
+          {selectedEntry && (
+            <div className="lg:w-[380px] lg:sticky lg:top-20 lg:self-start">
+              <PokemonDetailCard entry={selectedEntry} onClose={() => setSelectedEntry(null)} />
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
