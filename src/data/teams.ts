@@ -89,7 +89,7 @@ export const TEAMS: TeamComp[] = [
         item: 'Sitrus Berry',
         teraType: '',
         sps: { hp: 32, atk: 0, def: 2, spa: 0, spd: 32, spe: 0 },
-        moves: ['Flare Blitz', 'Knock Off', 'Fake Out', 'Parting Shot'],
+        moves: ['Flare Blitz', 'Snarl', 'Fake Out', 'Parting Shot'],
       },
       {
         species: 'Rillaboom',
@@ -202,7 +202,7 @@ export const TEAMS: TeamComp[] = [
         item: 'Sitrus Berry',
         teraType: '',
         sps: { hp: 32, atk: 0, def: 2, spa: 0, spd: 32, spe: 0 },
-        moves: ['Flare Blitz', 'Knock Off', 'Fake Out', 'Parting Shot'],
+        moves: ['Flare Blitz', 'Snarl', 'Fake Out', 'Parting Shot'],
       },
     ],
   },
@@ -431,7 +431,7 @@ export const TEAMS: TeamComp[] = [
         item: 'Sitrus Berry',
         teraType: '',
         sps: { hp: 32, atk: 0, def: 2, spa: 0, spd: 32, spe: 0 },
-        moves: ['Flare Blitz', 'Knock Off', 'Fake Out', 'Parting Shot'],
+        moves: ['Flare Blitz', 'Snarl', 'Fake Out', 'Parting Shot'],
       },
       {
         species: 'Sylveon',
@@ -567,7 +567,7 @@ export const TEAMS: TeamComp[] = [
         item: 'Sitrus Berry',
         teraType: '',
         sps: { hp: 32, atk: 0, def: 2, spa: 0, spd: 32, spe: 0 },
-        moves: ['Flare Blitz', 'Knock Off', 'Fake Out', 'Parting Shot'],
+        moves: ['Flare Blitz', 'Snarl', 'Fake Out', 'Parting Shot'],
       },
       {
         species: 'Garchomp',
@@ -700,7 +700,7 @@ export const TEAMS: TeamComp[] = [
         item: 'Sitrus Berry',
         teraType: '',
         sps: { hp: 32, atk: 0, def: 2, spa: 0, spd: 32, spe: 0 },
-        moves: ['Flare Blitz', 'Knock Off', 'Fake Out', 'Parting Shot'],
+        moves: ['Flare Blitz', 'Snarl', 'Fake Out', 'Parting Shot'],
       },
     ],
   },
@@ -743,7 +743,7 @@ export const TEAMS: TeamComp[] = [
         item: 'Sitrus Berry',
         teraType: '',
         sps: { hp: 32, atk: 0, def: 2, spa: 0, spd: 32, spe: 0 },
-        moves: ['Flare Blitz', 'Knock Off', 'Fake Out', 'Parting Shot'],
+        moves: ['Flare Blitz', 'Snarl', 'Fake Out', 'Parting Shot'],
       },
       {
         species: 'Meowscarada',

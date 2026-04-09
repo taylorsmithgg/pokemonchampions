@@ -168,7 +168,7 @@ export const PRESETS: PokemonPreset[] = [
     item: 'Sitrus Berry',
     teraType: '',
     sps: { hp: 32, atk: 0, def: 2, spa: 0, spd: 32, spe: 0 },
-    moves: ['Flare Blitz', 'Knock Off', 'Fake Out', 'Parting Shot'],
+    moves: ['Flare Blitz', 'Snarl', 'Fake Out', 'Parting Shot'],
     label: 'Bulky Support',
   },
 
