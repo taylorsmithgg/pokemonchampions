@@ -10,6 +10,7 @@ import { TeamAuditPanel } from './components/TeamAuditPanel';
 import { MatchupPanel } from './components/MatchupPanel';
 import { TeamOverview } from './components/TeamOverview';
 import { TeamBuilderPanel } from './components/TeamBuilderPanel';
+import { DiscoveryPanel } from './components/DiscoveryPanel';
 import { FAQPage } from './pages/FAQPage';
 import { TierListPage } from './pages/TierListPage';
 import { getPokemonData } from './data/champions';
@@ -244,6 +245,11 @@ function Calculator() {
             side="defender"
             teammateItems={[attacker.item]}
           />
+        </div>
+
+        {/* Meta Discoveries */}
+        <div className="mt-8">
+          <DiscoveryPanel onLoadPokemon={handleTierListSelect} />
         </div>
 
         {/* Bottom SEO content */}
