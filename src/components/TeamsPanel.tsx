@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { getSpriteId } from '../utils/sprites';
 import { TEAMS, TEAM_ARCHETYPES, type TeamComp, type TeamMember } from '../data/teams';
 
 interface TeamsPanelProps {
@@ -10,7 +11,7 @@ interface TeamsPanelProps {
 
 function MemberCard({ member, onLoad }: { member: TeamMember; onLoad: (side: 'attacker' | 'defender') => void }) {
   const [expanded, setExpanded] = useState(false);
-  const spriteId = member.species.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+  const spriteId = getSpriteId(member.species);
 
   // Format SP spread
   const spLabels: Record<string, string> = { hp: 'HP', atk: 'Atk', def: 'Def', spa: 'SpA', spd: 'SpD', spe: 'Spe' };
@@ -142,7 +143,7 @@ function TeamCard({ team, onLoadMember, onLoadFullTeam }: { team: TeamComp; onLo
         {/* Mini team preview */}
         <div className="flex gap-1 mt-3">
           {team.members.map((m: TeamMember) => {
-            const id = m.species.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+            const id = getSpriteId(m.species);
             return (
               <div key={m.species} className="flex flex-col items-center gap-0.5">
                 <img

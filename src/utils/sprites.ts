@@ -3,38 +3,30 @@
 
 const nameToIdCache: Record<string, string> = {};
 
-// Showdown uses specific naming for forms — handle special cases
-const SPRITE_NAME_OVERRIDES: Record<string, string> = {
-  'Charizard-Mega-X': 'charizard-megax',
-  'Charizard-Mega-Y': 'charizard-megay',
-  'Mewtwo-Mega-X': 'mewtwo-megax',
-  'Mewtwo-Mega-Y': 'mewtwo-megay',
-  'Ninetales-Alola': 'ninetales-alola',
-  'Rotom-Wash': 'rotom-wash',
-  'Rotom-Heat': 'rotom-heat',
-  'Rotom-Mow': 'rotom-mow',
-  'Rotom-Fan': 'rotom-fan',
-  'Rotom-Frost': 'rotom-frost',
-};
-
 function speciesNameToId(name: string): string {
   if (nameToIdCache[name]) return nameToIdCache[name];
 
-  // Check overrides first
-  if (SPRITE_NAME_OVERRIDES[name]) {
-    nameToIdCache[name] = SPRITE_NAME_OVERRIDES[name];
-    return SPRITE_NAME_OVERRIDES[name];
-  }
+  let id = name.toLowerCase();
 
-  // Standard conversion: lowercase, keep hyphens, remove other special chars
-  const id = name
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, '')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
+  // Showdown Mega naming: "Charizard-Mega-X" → "charizard-megax" (no hyphen before X/Y)
+  // Generic pattern: collapse "-mega-" to "-mega" for all Mega forms
+  id = id.replace(/-mega-x$/, '-megax');
+  id = id.replace(/-mega-y$/, '-megay');
+  id = id.replace(/-mega-z$/, '-megaz');
+  // For Megas without X/Y/Z suffix: "Gengar-Mega" → "gengar-mega" (already correct)
+
+  // Clean up non-alphanumeric (keep hyphens)
+  id = id.replace(/[^a-z0-9-]/g, '');
+  id = id.replace(/-+/g, '-');
+  id = id.replace(/^-|-$/g, '');
 
   nameToIdCache[name] = id;
   return id;
+}
+
+// Export the converter so inline sprite URLs can use it
+export function getSpriteId(species: string): string {
+  return speciesNameToId(species);
 }
 
 // Primary: animated GIF
@@ -47,10 +39,4 @@ export function getSpriteUrl(species: string): string {
 export function getSpriteFallbackUrl(species: string): string {
   if (!species) return '';
   return `https://play.pokemonshowdown.com/sprites/dex/${speciesNameToId(species)}.png`;
-}
-
-// Second fallback: gen5 static
-export function getGen5SpriteUrl(species: string): string {
-  if (!species) return '';
-  return `https://play.pokemonshowdown.com/sprites/gen5/${speciesNameToId(species)}.png`;
 }

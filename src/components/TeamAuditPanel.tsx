@@ -1,4 +1,6 @@
+import { getSpriteId } from '../utils/sprites';
 import { useMemo } from 'react';
+import { getSpriteId } from '../utils/sprites';
 import { auditTeam, type TeamAudit, type AuditIssue, type Severity } from '../calc/teamAudit';
 import type { PokemonState } from '../types';
 
@@ -34,7 +36,7 @@ function IssueCard({ issue, onLoadPokemon }: { issue: AuditIssue; onLoadPokemon:
           {issue.suggestedPokemon && issue.suggestedPokemon.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1.5">
               {issue.suggestedPokemon.map((name: string) => {
-                const spriteId = name.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+                const spriteId = getSpriteId(name);
                 return (
                   <button
                     key={name}

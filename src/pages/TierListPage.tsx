@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { getSpriteId } from '../utils/sprites';
 import { Link } from 'react-router-dom';
 import {
   NORMAL_TIER_LIST,
@@ -33,7 +34,7 @@ function PokemonDetailCard({ entry, onClose }: { entry: TierEntry; onClose: () =
   const { stats: liveStats } = useLiveData();
   const liveData = liveStats?.pokemon?.[speciesName];
   const spreads = useMemo(() => suggestSpreads(speciesName, 50), [speciesName]);
-  const spriteId = speciesName.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+  const spriteId = getSpriteId(speciesName);
 
   if (!data) return null;
 
@@ -168,7 +169,7 @@ function PokemonDetailCard({ entry, onClose }: { entry: TierEntry; onClose: () =
             <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Top Teammates</h4>
             <div className="flex flex-wrap gap-1.5">
               {topTeammates.map(([name, usage]) => {
-                const tmId = name.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+                const tmId = getSpriteId(name);
                 return (
                   <div key={name} className="flex items-center gap-1 px-2 py-1 bg-poke-surface rounded-lg border border-poke-border">
                     <img src={`https://play.pokemonshowdown.com/sprites/ani/${tmId}.gif`} alt="" className="w-5 h-5 object-contain" loading="lazy" onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none'; }} />
@@ -190,7 +191,7 @@ function TierCard({ entry, onClick }: { entry: TierEntry; onClick: () => void })
   const data = getPokemonData(speciesName);
   const { stats: liveStats } = useLiveData();
   const liveData = liveStats?.pokemon?.[speciesName];
-  const spriteId = speciesName.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+  const spriteId = getSpriteId(speciesName);
   const champItemSet = new Set(getAvailableItems());
   const topItem = liveData ? Object.entries(liveData.items).filter(([n]) => champItemSet.has(n)).sort((a, b) => b[1] - a[1])[0] : null;
 
