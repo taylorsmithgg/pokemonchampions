@@ -4,6 +4,7 @@ import { SearchSelect } from './SearchSelect';
 import { auditTeam, type TeamAudit } from '../calc/teamAudit';
 import { buildOptimalTeam, suggestNextPick } from '../calc/teamBuilder';
 import { PRESETS } from '../data/presets';
+import { NORMAL_TIER_LIST } from '../data/tierlist';
 import { getSpriteUrl } from '../utils/sprites';
 import {
   getAvailablePokemon,
@@ -70,7 +71,19 @@ function TeamSlot({
   onAutoFill: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const allPokemon = getAvailablePokemon();
+  const allPokemon = useMemo(() => {
+    const all = getAvailablePokemon();
+    const tierOrder: Record<string, number> = { S: 0, 'A+': 1, A: 2, B: 3, C: 4 };
+    const presetSpecies = new Set(PRESETS.map(p => p.species));
+    return [...all].sort((a, b) => {
+      const ta = NORMAL_TIER_LIST.find(e => e.name === a);
+      const tb = NORMAL_TIER_LIST.find(e => e.name === b);
+      const sa = ta ? tierOrder[ta.tier] ?? 5 : presetSpecies.has(a) ? 3 : 10;
+      const sb = tb ? tierOrder[tb.tier] ?? 5 : presetSpecies.has(b) ? 3 : 10;
+      if (sa !== sb) return sa - sb;
+      return a.localeCompare(b);
+    });
+  }, []);
   const allMoves = useMemo(() => getAvailableMoves(), []);
   const allItems = useMemo(() => getAvailableItems(), []);
   const allAbilities = useMemo(() => getAvailableAbilities(), []);
