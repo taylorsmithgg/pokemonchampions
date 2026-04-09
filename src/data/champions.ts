@@ -109,6 +109,14 @@ const EXCLUDED_POKEMON = new Set([
   'Dondozo', 'Tatsugiri', // Commander gimmick not confirmed in Champions
   'Ursaluna', 'Ursaluna-Bloodmoon', // Legends Arceus exclusive form
   'Farigiraf', 'Annihilape', 'Dudunsparce', // Paldea evolutions TBD
+  // Smogon CAP (Create-A-Pokemon) — fake Pokemon, not real
+  'Syclant', 'Syclar', 'Revenankh', 'Pyroak', 'Flarelm', 'Fidgit', 'Breezi',
+  'Stratagem', 'Privatyke', 'Arghonaut', 'Kitsunoh', 'Cyclohm', 'Colossoil',
+  'Krilowatt', 'Voodoom', 'Tomohawk', 'Necturna', 'Mollux', 'Aurumoth',
+  'Malaconda', 'Cawmodore', 'Volkraken', 'Plasmanta', 'Naviathan',
+  'Crucibelle', 'Crucibelle-Mega', 'Kerfluffle', 'Pajantom', 'Jumbao',
+  'Caribolt', 'Smokomodo', 'Snaelstrom', 'Equilibra', 'Astrolotl',
+  'Chromera', 'Saharaja', 'Hemogoblin', 'Venomicon', 'Venomicon-Epilogue',
 ]);
 
 const CHAMPIONS_POKEMON_SET = new Set<string>();
