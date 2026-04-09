@@ -64,10 +64,16 @@ body {
 .text-slate-700 { color: #5a5e78 !important; }
 
 /* ─── Form Elements ──────────────────────────────────────────────── */
-select, input[type="number"], input[type="text"], textarea {
+select, textarea {
   font-size: 14px !important;
   min-height: 36px;
   padding: 6px 10px;
+}
+/* Text/search inputs get the larger treatment, but allow inline overrides */
+input[type="text"]:not([inputmode]),
+input[type="number"] {
+  font-size: 14px !important;
+  min-height: 34px;
 }
 label {
   font-size: 13px !important;

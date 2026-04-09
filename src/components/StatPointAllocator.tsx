@@ -256,35 +256,33 @@ export function StatPointAllocator({ species, sps, baseStats, nature, level, mov
         const natureColor = natureMod > 1 ? 'text-red-400' : natureMod < 1 ? 'text-blue-400' : 'text-slate-500';
 
         return (
-          <div key={stat} className="grid grid-cols-[44px_32px_1fr_40px_50px] gap-2 items-center">
-            <div className="flex items-center gap-1">
-              <span className={`text-xs font-medium ${natureColor}`}>
-                {natureIndicator}{STAT_LABELS[stat]}
-              </span>
-            </div>
-            <span className="text-xs text-slate-600 text-right">{base}</span>
-            <div className="relative">
+          <div key={stat} className="flex items-center gap-2 mb-1">
+            <span className={`text-sm font-semibold w-10 ${natureColor}`}>
+              {natureIndicator}{STAT_LABELS[stat]}
+            </span>
+            <span className="text-sm text-slate-600 w-8 text-right">{base}</span>
+            <div className="flex-1">
               <input
                 type="range"
                 min={0}
                 max={MAX_STAT_SP}
                 value={sps[stat]}
                 onChange={e => handleChange(stat, parseInt(e.target.value))}
-                className="w-full relative z-10"
+                className="w-full"
                 style={{
                   background: `linear-gradient(to right, ${STAT_COLORS[stat]}80 0%, ${STAT_COLORS[stat]}80 ${(sps[stat] / MAX_STAT_SP) * 100}%, #334155 ${(sps[stat] / MAX_STAT_SP) * 100}%)`,
                 }}
               />
             </div>
             <input
-              type="number"
-              min={0}
-              max={MAX_STAT_SP}
+              type="text"
+              inputMode="numeric"
               value={sps[stat]}
               onChange={e => handleChange(stat, parseInt(e.target.value) || 0)}
-              className="w-10 bg-poke-surface border border-poke-border rounded text-xs text-center text-white py-0.5"
+              className="w-12 bg-poke-surface border border-poke-border rounded text-sm text-center text-white"
+              style={{ minHeight: '28px', fontSize: '14px', padding: '2px 4px' }}
             />
-            <span className="text-xs font-mono text-white text-right font-semibold">
+            <span className="text-sm font-mono text-white w-10 text-right font-bold">
               {calculated}
             </span>
           </div>
