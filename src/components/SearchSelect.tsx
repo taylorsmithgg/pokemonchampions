@@ -68,7 +68,11 @@ export function SearchSelect({ options, value, onChange, placeholder = 'Select..
       {label && <label className="block text-xs font-medium text-slate-400 mb-1">{label}</label>}
       <div
         ref={triggerRef}
-        className="flex items-center bg-poke-surface border border-poke-border rounded-lg px-3 py-1.5 cursor-pointer hover:border-poke-red/40 transition-colors"
+        className={`flex items-center border rounded-lg px-3 py-2 cursor-pointer transition-all ${
+          value
+            ? 'bg-poke-surface border-poke-border-light hover:border-poke-red/40'
+            : 'bg-poke-surface border-poke-border hover:border-poke-red/40'
+        } ${isOpen ? 'border-poke-red/60 ring-1 ring-poke-red/20' : ''}`}
         onClick={() => {
           setIsOpen(true);
           updatePosition();

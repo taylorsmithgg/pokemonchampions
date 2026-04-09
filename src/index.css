@@ -117,6 +117,37 @@ img {
   min-height: 1px;
 }
 
+/* ─── Interaction Feel ───────────────────────────────────────────── */
+/* Smooth scroll for all scroll-into-view calls */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Active/pressed state feedback */
+button:active, [role="button"]:active {
+  transform: scale(0.97);
+}
+
+/* Focus ring for keyboard navigation */
+button:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 2px solid var(--color-poke-red);
+  outline-offset: 2px;
+}
+
+/* Selected panel highlight animation */
+@keyframes panel-flash {
+  0% { box-shadow: 0 0 0 2px var(--color-poke-red); }
+  100% { box-shadow: 0 0 0 0px transparent; }
+}
+.panel-selected {
+  animation: panel-flash 0.6s ease-out;
+}
+
+/* Transition all poke-panels for smoother hover */
+.poke-panel {
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
 /* ─── Scrollbar ──────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

@@ -227,7 +227,7 @@ function Calculator() {
           />
 
           {/* Center: Results + Field */}
-          <div className="space-y-5">
+          <div id="results-column" className="space-y-5">
             <TeamOverview attacker={attacker} defender={defender} />
             {showField && (
               <FieldPanel state={field} onChange={setField} />

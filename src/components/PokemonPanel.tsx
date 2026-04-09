@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { Move } from '@smogon/calc';
 import type { StatID, StatsTable } from '@smogon/calc';
 import { SearchSelect } from './SearchSelect';
@@ -127,6 +127,7 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState('');
   const { stats: liveStats } = useLiveData();
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const pokemon = getAvailablePokemon();
   const allMoves = useMemo(() => getAvailableMoves(), []);
@@ -158,7 +159,7 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
   };
 
   return (
-    <div className="poke-panel">
+    <div ref={panelRef} className="poke-panel">
       {/* Header */}
       <div className={`px-4 py-3 poke-panel-header bg-gradient-to-r ${
         side === 'attacker' ? 'from-poke-red/10 to-transparent' : 'from-poke-blue/10 to-transparent'

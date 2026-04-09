@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import type { CalcResult } from '../calc/championsCalc';
 import { calculateAllMoves, compareSpeed } from '../calc/championsCalc';
 import { analyzePair } from '../data/synergies';
@@ -241,6 +241,22 @@ function PairAnalysisCard({ attacker, defender }: { attacker: PokemonState; defe
 
 export function ResultsPanel({ attacker, defender, field }: ResultsPanelProps) {
   const [copiedText, setCopiedText] = useState<string | null>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const prevSpeciesRef = useRef({ a: '', d: '' });
+
+  // Scroll results into view when both Pokemon are set
+  useEffect(() => {
+    const prev = prevSpeciesRef.current;
+    if (attacker.species && defender.species && (prev.a !== attacker.species || prev.d !== defender.species)) {
+      prevSpeciesRef.current = { a: attacker.species, d: defender.species };
+      // Only scroll on desktop to avoid jarring mobile behavior
+      if (window.innerWidth >= 1024) {
+        setTimeout(() => {
+          resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 100);
+      }
+    }
+  }, [attacker.species, defender.species]);
 
   const handleCopy = useCallback((text: string) => {
     navigator.clipboard.writeText(text);
@@ -286,7 +302,7 @@ export function ResultsPanel({ attacker, defender, field }: ResultsPanelProps) {
   }
 
   return (
-    <div className="space-y-3 relative">
+    <div ref={resultsRef} className="space-y-3 relative">
       {/* Copy toast */}
       {copiedText !== null && (
         <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-2 z-50 text-[10px] px-2 py-1 bg-emerald-500 text-white rounded shadow-lg animate-pulse">
