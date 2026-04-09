@@ -213,11 +213,11 @@ function findMegaAdvantages(): Discovery[] {
   // Megas that fill roles previously held by banned legendaries
   // species = actual species name for sprite/data lookup
   const megaRoleFills: { mega: string; species: string; replaces: string; role: string; why: string }[] = [
-    { mega: 'Mega Kangaskhan', species: 'Kangaskhan', replaces: 'Urshifu', role: 'Physical priority attacker', why: 'Parental Bond Fake Out + Sucker Punch fills Urshifu\'s immediate pressure role' },
-    { mega: 'Mega Gengar', species: 'Gengar', replaces: 'Flutter Mane', role: 'Fast special Ghost', why: 'Shadow Tag trapping + high SpA replaces Flutter Mane\'s offensive Ghost presence' },
-    { mega: 'Mega Charizard Y', species: 'Charizard', replaces: 'Raging Bolt + Sun', role: 'Weather-boosted special attacker', why: 'Drought + huge SpA fills the sun attacker role with no competition' },
-    { mega: 'Mega Lopunny', species: 'Lopunny', replaces: 'Urshifu-Rapid-Strike', role: 'Fast Fighting sweeper', why: 'Scrappy Close Combat hits everything including Ghosts — unique in Champions' },
-    { mega: 'Mega Gyarados', species: 'Gyarados', replaces: 'Landorus', role: 'Intimidate + physical sweeper', why: 'Pre-Mega Intimidate into Mold Breaker DD sweeper — no Lando competition' },
+    { mega: 'Mega Kangaskhan', species: 'Kangaskhan-Mega', replaces: 'Urshifu', role: 'Physical priority attacker', why: 'Parental Bond Fake Out + Sucker Punch fills Urshifu\'s immediate pressure role' },
+    { mega: 'Mega Gengar', species: 'Gengar-Mega', replaces: 'Flutter Mane', role: 'Fast special Ghost', why: 'Shadow Tag trapping + high SpA replaces Flutter Mane\'s offensive Ghost presence' },
+    { mega: 'Mega Charizard Y', species: 'Charizard-Mega-Y', replaces: 'Raging Bolt + Sun', role: 'Weather-boosted special attacker', why: 'Drought + huge SpA fills the sun attacker role with no competition' },
+    { mega: 'Mega Lopunny', species: 'Lopunny-Mega', replaces: 'Urshifu-Rapid-Strike', role: 'Fast Fighting sweeper', why: 'Scrappy Close Combat hits everything including Ghosts — unique in Champions' },
+    { mega: 'Mega Gyarados', species: 'Gyarados-Mega', replaces: 'Landorus', role: 'Intimidate + physical sweeper', why: 'Pre-Mega Intimidate into Mold Breaker DD sweeper — no Lando competition' },
   ];
 
   for (const fill of megaRoleFills) {
