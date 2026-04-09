@@ -5,23 +5,12 @@
 // 3. Optimal 4-Pokemon selection (bring list)
 // 4. Best lead pair based on matchup
 
-import { Generations, Move } from '@smogon/calc';
-import { getPokemonData } from '../data/champions';
+import { Move } from '@smogon/calc';
+import { getPokemonData, getDefensiveMultiplier } from '../data/champions';
 import type { PokemonState } from '../types';
 
-const gen9 = Generations.get(9);
 
-function getEffectiveness(atkType: string, defType: string): number {
-  const typeData = gen9.types.get(atkType.toLowerCase() as any);
-  if (!typeData) return 1;
-  return (typeData.effectiveness as any)[defType] ?? 1;
-}
 
-function getDefensiveMultiplier(atkType: string, defenderTypes: string[]): number {
-  let mult = 1;
-  for (const dt of defenderTypes) mult *= getEffectiveness(atkType, dt);
-  return mult;
-}
 
 // ─── Types ──────────────────────────────────────────────────────────
 

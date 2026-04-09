@@ -3,15 +3,13 @@
 // Analyzes: type coverage, shared weaknesses, role coverage, speed profile,
 // weather vulnerability, offensive balance, and meta preparedness
 
-import { Generations } from '@smogon/calc';
 import { Move } from '@smogon/calc';
-import { getPokemonData, getAvailablePokemon } from '../data/champions';
+import { getPokemonData, getAvailablePokemon, getTypeEffectiveness, getDefensiveMultiplier} from '../data/champions';
 import { PRESETS } from '../data/presets';
 import { NORMAL_TIER_LIST } from '../data/tierlist';
 import { getCachedUsageStats, getLiveTeammates } from '../data/liveData';
 import type { PokemonState } from '../types';
 
-const gen9 = Generations.get(9);
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -73,17 +71,7 @@ const ALL_TYPES = [
   'Rock', 'Ghost', 'Dragon', 'Dark', 'Steel', 'Fairy',
 ];
 
-function getEffectiveness(atkType: string, defType: string): number {
-  const typeData = gen9.types.get(atkType.toLowerCase() as any);
-  if (!typeData) return 1;
-  return (typeData.effectiveness as any)[defType] ?? 1;
-}
 
-function getDefensiveMultiplier(atkType: string, defenderTypes: string[]): number {
-  let mult = 1;
-  for (const dt of defenderTypes) mult *= getEffectiveness(atkType, dt);
-  return mult;
-}
 
 // ─── Role Detection ─────────────────────────────────────────────────
 
@@ -135,7 +123,7 @@ export function auditTeam(team: PokemonState[]): TeamAudit {
   for (const types of teamTypes) {
     for (const atkType of types) {
       for (const defType of ALL_TYPES) {
-        if (getEffectiveness(atkType, defType) > 1) offensiveSE.add(defType);
+        if (getTypeEffectiveness(atkType, defType) > 1) offensiveSE.add(defType);
       }
     }
   }
@@ -147,7 +135,7 @@ export function auditTeam(team: PokemonState[]): TeamAudit {
         const move = new Move(9 as any, moveName);
         if (move.category === 'Status') continue;
         for (const defType of ALL_TYPES) {
-          if (getEffectiveness(move.type, defType) > 1) offensiveSE.add(defType);
+          if (getTypeEffectiveness(move.type, defType) > 1) offensiveSE.add(defType);
         }
       } catch { /* skip */ }
     }
@@ -583,7 +571,7 @@ function findOffensiveCoverage(uncoveredTypes: string[], excludeSpecies: string[
     let hits = 0;
     for (const atkType of data.types) {
       for (const uncovered of uncoveredTypes) {
-        if (getEffectiveness(atkType as string, uncovered) > 1) hits++;
+        if (getTypeEffectiveness(atkType as string, uncovered) > 1) hits++;
       }
     }
     if (hits === 0) continue;

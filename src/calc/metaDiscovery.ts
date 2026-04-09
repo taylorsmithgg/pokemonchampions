@@ -2,18 +2,11 @@
 // Finds underexplored strategies unique to the Champions metagame
 // by analyzing the roster algorithmically — not derivative of Smogon data
 
-import { Generations } from '@smogon/calc';
-import { getAvailablePokemon, getPokemonData } from '../data/champions';
+import { getAvailablePokemon, getPokemonData, getTypeEffectiveness} from '../data/champions';
 import { NORMAL_TIER_LIST } from '../data/tierlist';
 import { PRESETS } from '../data/presets';
 
-const gen9 = Generations.get(9);
 
-function getEffectiveness(atkType: string, defType: string): number {
-  const typeData = gen9.types.get(atkType.toLowerCase() as any);
-  if (!typeData) return 1;
-  return (typeData.effectiveness as any)[defType] ?? 1;
-}
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -56,7 +49,7 @@ function findUnresistedCores(): Discovery[] {
         let canHit = false;
         for (const atkType of combinedTypes) {
           let mult = 1;
-          for (const defType of tData.types) mult *= getEffectiveness(atkType as string, defType as string);
+          for (const defType of tData.types) mult *= getTypeEffectiveness(atkType as string, defType as string);
           if (mult > 1) { canHit = true; break; }
         }
         if (!canHit) unresisted++;
@@ -113,7 +106,7 @@ function findUncheckedThreats(): Discovery[] {
       let resistsAll = true;
       for (const atkType of types) {
         let mult = 1;
-        for (const defType of tTypes) mult *= getEffectiveness(atkType, defType);
+        for (const defType of tTypes) mult *= getTypeEffectiveness(atkType, defType);
         if (mult >= 1) { resistsAll = false; break; }
       }
       if (resistsAll) wallCount++;
@@ -121,7 +114,7 @@ function findUncheckedThreats(): Discovery[] {
       // Can target hit us SE?
       for (const targetType of tTypes) {
         let mult = 1;
-        for (const myType of types) mult *= getEffectiveness(targetType, myType);
+        for (const myType of types) mult *= getTypeEffectiveness(targetType, myType);
         if (mult > 1) { checkCount++; break; }
       }
     }

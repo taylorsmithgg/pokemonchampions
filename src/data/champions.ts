@@ -7,6 +7,21 @@ import type { NatureName, TypeName } from '../types';
 
 const gen9 = Generations.get(9);
 
+// ─── Type Effectiveness (single source of truth) ────────────────────
+// Every file that needs type effectiveness MUST import this function.
+// Do NOT create your own gen9.types.get() calls.
+export function getTypeEffectiveness(atkType: string, defType: string): number {
+  const typeData = gen9.types.get(atkType.toLowerCase() as any);
+  if (!typeData) return 1;
+  return (typeData.effectiveness as any)[defType] ?? 1;
+}
+
+export function getDefensiveMultiplier(atkType: string, defenderTypes: string[]): number {
+  let mult = 1;
+  for (const dt of defenderTypes) mult *= getTypeEffectiveness(atkType, dt);
+  return mult;
+}
+
 // ─── Stat Point System ─────────────────────────────────────────────
 // Champions replaces EVs/IVs with Stat Points (SP)
 // 66 total SP, max 32 per stat, 1 SP = +1 stat at Lv50

@@ -2,12 +2,10 @@
 // All analysis is algorithmic — derived from @smogon/calc type chart, stats, and ability data
 // No hardcoded pairings
 
-import { Generations } from '@smogon/calc';
-import { getAvailablePokemon, getPokemonData } from './champions';
+import { getAvailablePokemon, getPokemonData, getTypeEffectiveness, getDefensiveMultiplier } from './champions';
 import { PRESETS, type PokemonPreset } from './presets';
 import { NORMAL_TIER_LIST } from './tierlist';
 
-const gen9 = Generations.get(9);
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -19,19 +17,7 @@ const ALL_TYPES = [
 // Types used from ALL_TYPES for iteration
 
 // Build type chart from @smogon/calc data
-function getEffectiveness(attackType: string, defenseType: string): number {
-  const typeData = gen9.types.get(attackType.toLowerCase() as any);
-  if (!typeData) return 1;
-  return (typeData.effectiveness as any)[defenseType] ?? 1;
-}
-
-function getDefensiveMultiplier(attackType: string, defenderTypes: string[]): number {
-  let mult = 1;
-  for (const dt of defenderTypes) {
-    mult *= getEffectiveness(attackType, dt);
-  }
-  return mult;
-}
+// Type effectiveness imported from champions.ts
 
 // ─── Ability Classification ─────────────────────────────────────────
 // Categorize abilities by effect — derived from ability names/known mechanics
@@ -260,12 +246,12 @@ function scoreOffensiveSynergy(a: AnalyzedPokemon, b: AnalyzedPokemon): SynergyR
   const bHitsSE = new Set<string>();
   for (const aType of a.types) {
     for (const defType of ALL_TYPES) {
-      if (getEffectiveness(aType, defType) > 1) aHitsSE.add(defType);
+      if (getTypeEffectiveness(aType, defType) > 1) aHitsSE.add(defType);
     }
   }
   for (const bType of b.types) {
     for (const defType of ALL_TYPES) {
-      if (getEffectiveness(bType, defType) > 1) bHitsSE.add(defType);
+      if (getTypeEffectiveness(bType, defType) > 1) bHitsSE.add(defType);
     }
   }
 
@@ -572,12 +558,12 @@ export function analyzePair(speciesA: string, speciesB: string): PairAnalysis | 
   const combinedSE = new Set<string>();
   for (const aType of a.types) {
     for (const defType of ALL_TYPES) {
-      if (getEffectiveness(aType, defType) > 1) combinedSE.add(defType);
+      if (getTypeEffectiveness(aType, defType) > 1) combinedSE.add(defType);
     }
   }
   for (const bType of b.types) {
     for (const defType of ALL_TYPES) {
-      if (getEffectiveness(bType, defType) > 1) combinedSE.add(defType);
+      if (getTypeEffectiveness(bType, defType) > 1) combinedSE.add(defType);
     }
   }
   const offensivePressure = Math.min(10, Math.round((combinedSE.size / 18) * 10));

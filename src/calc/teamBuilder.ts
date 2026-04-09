@@ -2,20 +2,14 @@
 // Builds a competitive team one slot at a time, each pick optimizing
 // for what the team is missing: coverage, roles, speed tiers, synergy
 
-import { Generations, Move } from '@smogon/calc';
-import { getAvailablePokemon, getPokemonData } from '../data/champions';
+import { Move } from '@smogon/calc';
+import { getAvailablePokemon, getPokemonData, getTypeEffectiveness} from '../data/champions';
 import { PRESETS } from '../data/presets';
 import { NORMAL_TIER_LIST } from '../data/tierlist';
 import type { PokemonState } from '../types';
 import { createDefaultPokemonState } from '../types';
 
-const gen9 = Generations.get(9);
 
-function getEffectiveness(atkType: string, defType: string): number {
-  const typeData = gen9.types.get(atkType.toLowerCase() as any);
-  if (!typeData) return 1;
-  return (typeData.effectiveness as any)[defType] ?? 1;
-}
 
 const ALL_TYPES = [
   'Normal', 'Fire', 'Water', 'Electric', 'Grass', 'Ice',
@@ -67,7 +61,7 @@ function scoreCandidateForTeam(
     if (!mData) continue;
     for (const mType of mData.types) {
       for (const defType of ALL_TYPES) {
-        if (getEffectiveness(mType as string, defType) > 1) teamHitsSE.add(defType);
+        if (getTypeEffectiveness(mType as string, defType) > 1) teamHitsSE.add(defType);
       }
     }
     // Also check moves
@@ -78,7 +72,7 @@ function scoreCandidateForTeam(
         const move = new Move(9, moveName);
         if (move.category !== 'Status') {
           for (const defType of ALL_TYPES) {
-            if (getEffectiveness(move.type, defType) > 1) teamHitsSE.add(defType);
+            if (getTypeEffectiveness(move.type, defType) > 1) teamHitsSE.add(defType);
           }
         }
       } catch { /* skip */ }
@@ -89,7 +83,7 @@ function scoreCandidateForTeam(
   let coverageFills = 0;
   for (const myType of types) {
     for (const defType of ALL_TYPES) {
-      if (!teamHitsSE.has(defType) && getEffectiveness(myType, defType) > 1) {
+      if (!teamHitsSE.has(defType) && getTypeEffectiveness(myType, defType) > 1) {
         coverageFills++;
       }
     }
@@ -162,7 +156,7 @@ function scoreCandidateForTeam(
   // ─── 6. Shared weakness penalty ───────────────────────────────
   for (const atkType of ALL_TYPES) {
     let myMult = 1;
-    for (const t of types) myMult *= getEffectiveness(atkType, t);
+    for (const t of types) myMult *= getTypeEffectiveness(atkType, t);
     if (myMult > 1) {
       // I'm weak to this type — how many teammates are also weak?
       let sharedCount = 0;
@@ -170,7 +164,7 @@ function scoreCandidateForTeam(
         const mData = getPokemonData(member.species);
         if (!mData) continue;
         let memberMult = 1;
-        for (const mt of mData.types) memberMult *= getEffectiveness(atkType, mt as string);
+        for (const mt of mData.types) memberMult *= getTypeEffectiveness(atkType, mt as string);
         if (memberMult > 1) sharedCount++;
       }
       if (sharedCount >= 2) {

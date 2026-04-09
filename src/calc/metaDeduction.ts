@@ -9,19 +9,11 @@
 // 4. Factor in Mega Evolution access (unique to Champions)
 // 5. Compute adjusted tier rankings
 
-import { Generations } from '@smogon/calc';
-import { getAvailablePokemon, getPokemonData } from '../data/champions';
+import { getAvailablePokemon, getPokemonData, getTypeEffectiveness} from '../data/champions';
 import type { UsageStats } from '../data/liveData';
 
-const gen9 = Generations.get(9);
 
-// Type effectiveness used via gen9.types
 
-function getEffectiveness(atkType: string, defType: string): number {
-  const typeData = gen9.types.get(atkType.toLowerCase() as any);
-  if (!typeData) return 1;
-  return (typeData.effectiveness as any)[defType] ?? 1;
-}
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -92,7 +84,7 @@ export function deduceChampionsMeta(rawStats: UsageStats | null): DeducedTierEnt
       let wasChecked = false;
       for (const removedType of removed.types) {
         for (const myType of types) {
-          if (getEffectiveness(removedType, myType) > 1) {
+          if (getTypeEffectiveness(removedType, myType) > 1) {
             wasChecked = true;
             break;
           }
@@ -123,7 +115,7 @@ export function deduceChampionsMeta(rawStats: UsageStats | null): DeducedTierEnt
       // making counters to THOSE Pokemon more valuable
       for (const myType of types) {
         for (const removedType of removed.types) {
-          if (getEffectiveness(myType, removedType) > 1) {
+          if (getTypeEffectiveness(myType, removedType) > 1) {
             // We hit the removed threat SE — but it's gone, so this is less valuable
             score -= 1;
           }
@@ -143,7 +135,7 @@ export function deduceChampionsMeta(rawStats: UsageStats | null): DeducedTierEnt
       // Offensive coverage
       for (const myType of types) {
         let mult = 1;
-        for (const tt of targetTypes) mult *= getEffectiveness(myType, tt);
+        for (const tt of targetTypes) mult *= getTypeEffectiveness(myType, tt);
         if (mult > 1) { threatenCount++; break; }
       }
 
@@ -151,7 +143,7 @@ export function deduceChampionsMeta(rawStats: UsageStats | null): DeducedTierEnt
       let isResistant = true;
       for (const targetType of targetTypes) {
         let mult = 1;
-        for (const mt of types) mult *= getEffectiveness(targetType, mt);
+        for (const mt of types) mult *= getTypeEffectiveness(targetType, mt);
         if (mult > 1) { isResistant = false; break; }
       }
       if (isResistant) resistCount++;
