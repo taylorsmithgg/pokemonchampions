@@ -125,17 +125,17 @@ function pickMovesForArchetype(archetype: string, allMoves: [string, number][]):
 
   switch (archetype) {
     case 'Speed Sweeper': case 'Offensive':
-      for (const m of offMoves) { if (moves.length >= 3) break; moves.push(m); }
+      for (const m of offMoves) { if (moves.length >= 3) break; if (!moves.includes(m)) moves.push(m); }
       if (statusMoves.includes('Protect') && !moves.includes('Protect')) moves.push('Protect');
       break;
     case 'Bulky Attacker':
-      for (const m of offMoves) { if (moves.length >= 2) break; moves.push(m); }
-      if (statusMoves.includes('Protect')) moves.push('Protect');
+      for (const m of offMoves) { if (moves.length >= 2) break; if (!moves.includes(m)) moves.push(m); }
+      if (statusMoves.includes('Protect') && !moves.includes('Protect')) moves.push('Protect');
       for (const m of offMoves) { if (moves.length >= 4) break; if (!moves.includes(m)) moves.push(m); }
       break;
     case 'Trick Room Attacker': case 'Trick Room Tank':
-      for (const m of offMoves) { if (moves.length >= 2) break; moves.push(m); }
-      if (statusMoves.includes('Trick Room')) moves.push('Trick Room');
+      for (const m of offMoves) { if (moves.length >= 2) break; if (!moves.includes(m)) moves.push(m); }
+      if (statusMoves.includes('Trick Room') && !moves.includes('Trick Room')) moves.push('Trick Room');
       if (statusMoves.includes('Protect') && !moves.includes('Protect')) moves.push('Protect');
       break;
     case 'Defensive Wall': case 'Support': case 'Bulky Pivot':
@@ -143,7 +143,7 @@ function pickMovesForArchetype(archetype: string, allMoves: [string, number][]):
       for (const m of statusMoves) { if (moves.length >= 4) break; if (!moves.includes(m)) moves.push(m); }
       break;
     default:
-      for (const m of offMoves) { if (moves.length >= 3) break; moves.push(m); }
+      for (const m of offMoves) { if (moves.length >= 3) break; if (!moves.includes(m)) moves.push(m); }
       if (statusMoves.includes('Protect') && !moves.includes('Protect')) moves.push('Protect');
   }
   while (moves.length < 4) {
