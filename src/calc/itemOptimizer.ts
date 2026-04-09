@@ -56,7 +56,6 @@ export function suggestItems(
   const isBulky = bulkIndex > 12000;
   const isFrail = bulkIndex < 7000;
   const isFast = bs.spe >= 100;
-  const isSlow = bs.spe <= 60;
 
   // Detect moves
   const hasFakeOut = pokemon.moves.some(m => m?.toLowerCase() === 'fake out');
@@ -181,14 +180,7 @@ export function suggestItems(
     Ghost: 'Kasib Berry', Dragon: 'Haban Berry', Dark: 'Colbur Berry',
     Steel: 'Babiri Berry', Fairy: 'Roseli Berry',
   };
-  // Find 4x weaknesses
-  for (const [weakType, berry] of Object.entries(weaknessMap)) {
-    let mult = 1;
-    for (const t of types) {
-      // Simple check - would need type chart for accuracy
-      // Just suggest common ones for now
-    }
-  }
+  // Weakness berries could be suggested here based on type chart analysis
 
   // ─── Priority 6: General utility ──────────────────────────────
   if (!suggestions.some(s => s.item === 'Lum Berry')) {
