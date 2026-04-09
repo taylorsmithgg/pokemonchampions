@@ -112,6 +112,11 @@ body::before {
   background-size: 60px 60px;
 }
 
+/* ─── Broken Image Handling ──────────────────────────────────────── */
+img {
+  min-height: 1px;
+}
+
 /* ─── Scrollbar ──────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

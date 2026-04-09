@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { getSpriteUrl, getSpriteFallbackUrl } from '../utils/sprites';
+import { Sprite } from './Sprite';
 import { getPokemonData, TYPE_COLORS } from '../data/champions';
 import { getTierForPokemon, TIER_DEFINITIONS } from '../data/tierlist';
 import { suggestItems, findDuplicateItems } from '../calc/itemOptimizer';
@@ -28,16 +28,7 @@ function MiniPokemonCard({ pokemon, otherItem }: { pokemon: PokemonState; otherI
   return (
     <div className="flex items-start gap-3 p-3 rounded-lg" style={{ backgroundColor: '#12121F' }}>
       {/* Sprite */}
-      <div className="w-16 h-16 shrink-0 flex items-center justify-center">
-        <img
-          src={getSpriteUrl(pokemon.species)}
-          alt={pokemon.species}
-          className="max-w-full max-h-full object-contain"
-          onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-            e.currentTarget.src = getSpriteFallbackUrl(pokemon.species);
-          }}
-        />
-      </div>
+<Sprite species={pokemon.species} size="lg" className="shrink-0" />
 
       {/* Info */}
       <div className="flex-1 min-w-0">

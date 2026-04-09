@@ -5,6 +5,7 @@ import { auditTeam, type TeamAudit } from '../calc/teamAudit';
 import { buildOptimalTeam, suggestNextPick } from '../calc/teamBuilder';
 import { PRESETS } from '../data/presets';
 import { NORMAL_TIER_LIST } from '../data/tierlist';
+import { Sprite } from './Sprite';
 import { getSpriteUrl } from '../utils/sprites';
 import {
   getAvailablePokemon,
@@ -139,13 +140,7 @@ function TeamSlot({
         <div className="flex items-center gap-3 mb-3">
           <span className="text-sm font-bold text-poke-gold w-5">{index + 1}</span>
           {pokemon.species && (
-            <img
-              src={getSpriteUrl(pokemon.species)}
-              alt=""
-              className="w-12 h-12 object-contain shrink-0"
-              loading="lazy"
-              onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none'; }}
-            />
+<Sprite species={pokemon.species} size="lg" className="shrink-0" />
           )}
           <div className="flex-1 min-w-0">
             <SearchSelect

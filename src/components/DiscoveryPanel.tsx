@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { discoverStrategies, type Discovery } from '../calc/metaDiscovery';
-import { getSpriteUrl } from '../utils/sprites';
+import { Sprite } from './Sprite';
 
 const CATEGORY_STYLES: Record<string, { color: string; bg: string; label: string }> = {
   core: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', label: 'Core' },
@@ -24,13 +24,7 @@ function DiscoveryCard({ discovery, onLoadPokemon }: {
           {/* Pokemon sprites */}
           <div className="flex -space-x-2 shrink-0">
             {discovery.pokemon.slice(0, 3).map(species => (
-              <img
-                key={species}
-                src={getSpriteUrl(species)}
-                alt={species}
-                className="w-12 h-12 object-contain"
-                loading="lazy"
-              />
+<Sprite key={species} species={species} size="lg" />
             ))}
           </div>
 

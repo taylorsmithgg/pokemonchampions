@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { getSpriteUrl } from '../utils/sprites';
+import { Sprite } from './Sprite';
 import { TEAMS, TEAM_ARCHETYPES, type TeamComp, type TeamMember } from '../data/teams';
 
 interface TeamsPanelProps {
@@ -25,13 +25,7 @@ function MemberCard({ member, onLoad }: { member: TeamMember; onLoad: (side: 'at
         className="flex items-center gap-2 p-2 cursor-pointer hover:bg-slate-700/30 transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
-        <img
-          src={getSpriteUrl(member.species)}
-          alt={member.species}
-          className="w-10 h-10 object-contain"
-          loading="lazy"
-          onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-        />
+<Sprite species={member.species} size="md" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-semibold text-white">{member.species}</span>
@@ -144,13 +138,7 @@ function TeamCard({ team, onLoadMember, onLoadFullTeam }: { team: TeamComp; onLo
           {team.members.map((m: TeamMember) => {
             return (
               <div key={m.species} className="flex flex-col items-center gap-0.5">
-                <img
-                  src={getSpriteUrl(m.species)}
-                  alt={m.species}
-                  className="w-8 h-8 object-contain"
-                  loading="lazy"
-                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                />
+<Sprite species={m.species} size="sm" />
                 <span className="text-[8px] text-slate-600 truncate max-w-[48px]">{m.species}</span>
               </div>
             );

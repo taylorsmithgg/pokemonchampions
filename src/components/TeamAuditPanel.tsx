@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { getSpriteUrl } from '../utils/sprites';
+import { Sprite } from './Sprite';
 import { auditTeam, type TeamAudit, type AuditIssue, type Severity } from '../calc/teamAudit';
 import type { PokemonState } from '../types';
 
@@ -42,13 +42,7 @@ function IssueCard({ issue, onLoadPokemon }: { issue: AuditIssue; onLoadPokemon:
                     onClick={() => onLoadPokemon(name, 'attacker')}
                     title={`Load ${name}`}
                   >
-                    <img
-                      src={getSpriteUrl(name)}
-                      alt=""
-                      className="w-6 h-6 object-contain"
-                      loading="lazy"
-                      onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none'; }}
-                    />
+<Sprite species={name} size="sm" />
                     {name}
                   </button>
                 );

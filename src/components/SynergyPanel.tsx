@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { getSpriteUrl } from '../utils/sprites';
+import { Sprite } from './Sprite';
 import { getRecommendations, type SynergyRecommendation, type SynergyReason } from '../data/synergies';
 import { suggestLeadPartners, type LeadScore } from '../calc/openerAnalysis';
 import type { PokemonState } from '../types';
@@ -51,13 +51,7 @@ function RecommendationCard({
       onClick={() => setExpanded(!expanded)}
     >
       <div className="flex items-center gap-2 p-2">
-        <img
-          src={getSpriteUrl(rec.species)}
-          alt={rec.species}
-          className="w-12 h-12 object-contain shrink-0"
-          loading="lazy"
-          onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none'; }}
-        />
+<Sprite species={rec.species} size="lg" className="shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-semibold text-white truncate">{rec.species}</span>
@@ -225,13 +219,7 @@ export function SynergyPanel({ attacker, defender, onLoadPokemon }: SynergyPanel
               return (
                 <div key={i} className="bg-slate-800/40 rounded-lg border border-poke-border/40 p-2.5 space-y-1.5">
                   <div className="flex items-center gap-2">
-                    <img
-                      src={getSpriteUrl(partner)}
-                      alt={partner}
-                      className="w-12 h-12 object-contain"
-                      loading="lazy"
-                      onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none'; }}
-                    />
+<Sprite species={partner} size="lg" />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-semibold text-white">{activeSpecies} + {partner}</span>
