@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { Move } from '@smogon/calc';
 import type { StatID, StatsTable } from '@smogon/calc';
 import { SearchSelect } from './SearchSelect';
 import { StatPointAllocator } from './StatPointAllocator';
@@ -25,6 +26,14 @@ import { suggestItems } from '../calc/itemOptimizer';
 import { getArchetypes } from '../calc/archetypes';
 import type { PokemonState, NatureName } from '../types';
 import { createDefaultPokemonState } from '../types';
+
+function getMoveInfo(moveName: string): { type: string; category: string; bp: number } | null {
+  if (!moveName) return null;
+  try {
+    const move = new Move(9 as any, moveName);
+    return { type: move.type, category: move.category, bp: move.bp };
+  } catch { return null; }
+}
 
 interface PokemonPanelProps {
   state: PokemonState;
@@ -488,9 +497,13 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
         {/* Moves */}
         <div>
           <label className="block text-xs font-medium text-slate-400 mb-1.5">Moves</label>
-          <div className="space-y-1.5">
-            {[0, 1, 2, 3].map(i => (
-              <div key={i} className="flex gap-1.5 items-center">
+          <div className="space-y-2">
+            {[0, 1, 2, 3].map(i => {
+              const moveInfo = getMoveInfo(state.moves[i]);
+              return (
+              <div key={i} className="flex gap-2 items-center">
+                {/* Type indicator */}
+                <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: moveInfo ? (TYPE_COLORS[moveInfo.type] || '#666') : '#2A2B45' }} title={moveInfo?.type || ''} />
                 <div className="flex-1">
                   <SearchSelect
                     options={allMoves}
@@ -501,8 +514,36 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
                       set({ moves });
                     }}
                     placeholder={`Move ${i + 1}...`}
+                    renderOption={(name) => {
+                      const info = getMoveInfo(name);
+                      return (
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: info ? (TYPE_COLORS[info.type] || '#666') : '#444' }} />
+                          <span className="flex-1 truncate">{name}</span>
+                          {info && info.category !== 'Status' && (
+                            <span className="text-xs text-slate-500 shrink-0">{info.bp} BP</span>
+                          )}
+                          {info && (
+                            <span className="text-xs shrink-0" style={{ color: info.category === 'Physical' ? '#F5AC78' : info.category === 'Special' ? '#9DB7F5' : '#A7DB8D' }}>
+                              {info.category === 'Physical' ? 'Phys' : info.category === 'Special' ? 'Spec' : 'Stat'}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    }}
                   />
                 </div>
+                {/* Move info badges */}
+                {moveInfo && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span className="text-xs px-1.5 py-0.5 rounded font-semibold" style={{ backgroundColor: TYPE_COLORS[moveInfo.type] + '25', color: TYPE_COLORS[moveInfo.type] }}>
+                      {moveInfo.type}
+                    </span>
+                    {moveInfo.category !== 'Status' && (
+                      <span className="text-xs text-slate-500">{moveInfo.bp}</span>
+                    )}
+                  </div>
+                )}
                 {state.moves[i] && (
                   <button
                     onClick={() => set({
@@ -511,7 +552,7 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
                         [i]: { ...state.moveOptions[i], isCrit: !state.moveOptions[i]?.isCrit },
                       },
                     })}
-                    className={`text-[10px] px-1.5 py-1.5 rounded border transition-colors shrink-0 ${
+                    className={`text-xs px-1.5 py-1 rounded border transition-colors shrink-0 ${
                       state.moveOptions[i]?.isCrit
                         ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
                         : 'bg-poke-surface border-poke-border text-slate-500 hover:text-slate-400'
@@ -522,7 +563,8 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
                   </button>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
