@@ -24,7 +24,7 @@ function MiniSprite({ species }: { species: string }) {
 
   const spriteId = getSpriteId(species);
   const src = useFallback
-    ? `https://play.pokemonshowdown.com/sprites/ani/${spriteId}.png`
+    ? `https://play.pokemonshowdown.com/sprites/dex/${spriteId}.png`
     : `https://play.pokemonshowdown.com/sprites/ani/${spriteId}.gif`;
 
   return (
