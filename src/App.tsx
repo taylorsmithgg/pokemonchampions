@@ -111,7 +111,7 @@ function Calculator() {
       <header className="border-b border-poke-border bg-gradient-to-r from-poke-darker via-poke-dark to-poke-darker backdrop-blur-sm sticky top-0 z-40">
         {/* Top red accent line */}
         <div className="h-[3px] bg-gradient-to-r from-transparent via-poke-red to-transparent" />
-        <div className="max-w-[1440px] mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-[1920px] mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link to="/" className="flex items-center gap-2.5 group">
               {/* Pokeball icon */}
@@ -199,8 +199,8 @@ function Calculator() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-[1440px] mx-auto p-4 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px_1fr] gap-4">
+      <main className="max-w-[1920px] mx-auto px-6 py-6 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_480px_1fr] xl:grid-cols-[1fr_540px_1fr] gap-6">
           {/* Attacker */}
           <PokemonPanel
             state={attacker}
@@ -209,7 +209,7 @@ function Calculator() {
           />
 
           {/* Center: Results + Field */}
-          <div className="space-y-4">
+          <div className="space-y-5">
             {showField && (
               <FieldPanel state={field} onChange={setField} />
             )}

@@ -27,60 +27,68 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: var(--color-poke-darkest);
-  color: #d0d2d8;
+  color: #d4d6dc;
 }
 
-/* ─── Global minimum font sizes ──────────────────────────────────── */
-/* Override Tailwind's tiny arbitrary sizes with readable minimums   */
-/* This catches text-[8px], text-[9px], text-[10px], text-[11px]    */
-*  {
-  min-font-size: 11px; /* fallback concept — actual override below */
-}
+/* ─── AGGRESSIVE font size floors ────────────────────────────────── */
+/* Every text utility gets bumped to be readable                      */
 .text-\[8px\], .text-\[9px\] {
-  font-size: 11px !important;
-  line-height: 1.4 !important;
-}
-.text-\[10px\], .text-\[11px\] {
-  font-size: 12px !important;
-  line-height: 1.4 !important;
-}
-.text-xs {
   font-size: 13px !important;
   line-height: 1.5 !important;
 }
-.text-sm {
+.text-\[10px\], .text-\[11px\] {
   font-size: 14px !important;
+  line-height: 1.5 !important;
+}
+.text-xs {
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+}
+.text-sm {
+  font-size: 15px !important;
   line-height: 1.5 !important;
 }
 .text-base {
   font-size: 16px !important;
 }
+.text-lg {
+  font-size: 20px !important;
+}
 
-/* Improve text contrast globally */
-.text-slate-300 { color: #c8ccd4 !important; }
-.text-slate-400 { color: #a8acb8 !important; }
-.text-slate-500 { color: #8e92a4 !important; }
-.text-slate-600 { color: #747890 !important; }
-.text-slate-700 { color: #5a5e78 !important; }
+/* On large screens, bump everything up another notch */
+@media (min-width: 1440px) {
+  .text-\[8px\], .text-\[9px\] { font-size: 14px !important; }
+  .text-\[10px\], .text-\[11px\] { font-size: 15px !important; }
+  .text-xs { font-size: 15px !important; }
+  .text-sm { font-size: 16px !important; }
+  .text-base { font-size: 17px !important; }
+  .text-lg { font-size: 22px !important; }
+}
+
+/* Improve text contrast */
+.text-slate-300 { color: #cdd1d9 !important; }
+.text-slate-400 { color: #b0b4c0 !important; }
+.text-slate-500 { color: #9498a8 !important; }
+.text-slate-600 { color: #7c8094 !important; }
+.text-slate-700 { color: #646880 !important; }
 
 /* ─── Form Elements ──────────────────────────────────────────────── */
 select, textarea {
-  font-size: 14px !important;
-  min-height: 36px;
-  padding: 6px 10px;
+  font-size: 15px !important;
+  min-height: 40px;
+  padding: 8px 12px;
 }
-/* Text/search inputs get the larger treatment, but allow inline overrides */
 input[type="text"]:not([inputmode]),
 input[type="number"] {
-  font-size: 14px !important;
-  min-height: 34px;
+  font-size: 15px !important;
+  min-height: 38px;
 }
 label {
-  font-size: 13px !important;
+  font-size: 14px !important;
   font-weight: 500;
 }
 
-/* ─── Panel Spacing ──────────────────────────────────────────────── */
+/* ─── Panel Styles ───────────────────────────────────────────────── */
 .poke-panel {
   background: var(--color-poke-panel);
   border: 1px solid var(--color-poke-border);
@@ -88,22 +96,10 @@ label {
 }
 .poke-panel-header {
   border-bottom: 1px solid var(--color-poke-border);
-  padding: 12px 16px;
+  padding: 14px 20px;
 }
 
-/* Scale panels on large screens */
-@media (min-width: 1024px) {
-  .poke-panel {
-    font-size: 14px;
-  }
-}
-
-/* ─── Dropdown fix ────────────────────────────────────────────────── */
-.absolute.z-\[100\] {
-  background-color: #1E1F36 !important;
-}
-
-/* ─── Subtle background pattern ──────────────────────────────────── */
+/* ─── Background Pattern ─────────────────────────────────────────── */
 body::before {
   content: '';
   position: fixed;
@@ -132,9 +128,8 @@ input[type="range"] {
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  appearance: none;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: var(--color-poke-red);
   cursor: pointer;
@@ -142,8 +137,8 @@ input[type="range"]::-webkit-slider-thumb {
   box-shadow: 0 1px 4px rgba(0,0,0,0.4);
 }
 input[type="range"]::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: var(--color-poke-red);
   cursor: pointer;
@@ -175,9 +170,9 @@ input[type="range"]::-moz-range-thumb {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 10px;
+  padding: 4px 12px;
   border-radius: 9999px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   border: 1px solid;
 }

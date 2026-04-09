@@ -205,7 +205,7 @@ export function PokemonPanel({ state, onChange, side }: PokemonPanelProps) {
         </div>
       )}
 
-      <div className="p-4 space-y-4">
+      <div className="p-5 space-y-5">
         {/* Species + Sprite + Optimize */}
         <div className="flex gap-4">
           <PokemonSprite species={state.species} />
