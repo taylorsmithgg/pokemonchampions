@@ -112,16 +112,16 @@ function buildOptimizedState(
     }
   }
 
-  // Step 2: Pick the best item using the item optimizer (based on actual moves)
-  if (moves.some(Boolean)) {
-    const tempState = { ...base, species, ability: abilityName, item, moves } as PokemonState;
+  // Step 2: If no item was set by preset/live data, use the item optimizer
+  if (!item && moves.some(Boolean)) {
+    const tempState = { ...base, species, ability: abilityName, item: '', moves } as PokemonState;
     const itemSuggestions = suggestItems(tempState, new Set());
-    if (itemSuggestions.length > 0) {
-      // Check if preset item is a Mega Stone — keep it if so
-      const isMegaStone = item.endsWith('ite') || item.endsWith('ite X') || item.endsWith('ite Y');
-      if (!isMegaStone) {
-        item = itemSuggestions[0].item;
-      }
+    // Skip Mega Stones in auto-optimization — user should choose Mega consciously
+    const nonMega = itemSuggestions.filter(s => !s.item.endsWith('ite') && !s.item.endsWith('ite X') && !s.item.endsWith('ite Y'));
+    if (nonMega.length > 0) {
+      item = nonMega[0].item;
+    } else if (itemSuggestions.length > 0) {
+      item = itemSuggestions[0].item;
     }
   }
 
