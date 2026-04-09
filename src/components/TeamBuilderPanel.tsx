@@ -123,20 +123,20 @@ function TeamSlot({
 
   return (
     <div className={`poke-panel ${!pokemon.species ? 'opacity-60' : ''}`}>
-      <div className="p-3">
+      <div className="p-4">
         {/* Species row */}
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-[10px] font-bold text-poke-gold w-4">{index + 1}</span>
+        <div className="flex items-center gap-3 mb-3">
+          <span className="text-sm font-bold text-poke-gold w-5">{index + 1}</span>
           {pokemon.species && (
             <img
               src={`https://play.pokemonshowdown.com/sprites/ani/${spriteId}.gif`}
               alt=""
-              className="w-8 h-8 object-contain"
+              className="w-12 h-12 object-contain shrink-0"
               loading="lazy"
               onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none'; }}
             />
           )}
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <SearchSelect
               options={allPokemon}
               value={pokemon.species}
@@ -190,47 +190,51 @@ function TeamSlot({
 
         {/* Expanded form */}
         {pokemon.species && expanded && (
-          <div className="space-y-2 mt-2 border-t border-poke-border pt-2">
-            <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-4 mt-3 border-t border-poke-border pt-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[9px] text-slate-500 mb-0.5">Nature</label>
-                <select value={pokemon.nature} onChange={e => update('nature', e.target.value as NatureName)} className="w-full bg-poke-surface border border-poke-border rounded px-1.5 py-1 text-[10px] text-white">
+                <label className="block text-xs text-slate-400 mb-1">Nature</label>
+                <select value={pokemon.nature} onChange={e => update('nature', e.target.value as NatureName)} className="w-full bg-poke-surface border border-poke-border rounded-lg px-3 py-2 text-sm text-white">
                   {NATURES.map(n => <option key={n.name} value={n.name}>{getNatureLabel(n.name)}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-[9px] text-slate-500 mb-0.5">Item</label>
+                <label className="block text-xs text-slate-400 mb-1">Item</label>
                 <SearchSelect options={allItems} value={pokemon.item} onChange={v => update('item', v)} placeholder="Item..." />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[9px] text-slate-500 mb-0.5">Ability</label>
+                <label className="block text-xs text-slate-400 mb-1">Ability</label>
                 <SearchSelect options={allAbilities} value={pokemon.ability} onChange={v => update('ability', v)} placeholder="Ability..." />
               </div>
               <div>
-                <label className="block text-[9px] text-slate-500 mb-0.5">Level</label>
-                <input type="number" min={1} max={100} value={pokemon.level} onChange={e => update('level', Math.max(1, Math.min(100, parseInt(e.target.value) || 50)))} className="w-full bg-poke-surface border border-poke-border rounded px-1.5 py-1 text-[10px] text-white text-center" />
+                <label className="block text-xs text-slate-400 mb-1">Tera Type</label>
+                <select value={pokemon.teraType || ''} onChange={e => update('teraType', e.target.value)} className="w-full bg-poke-surface border border-poke-border rounded-lg px-3 py-2 text-sm text-white">
+                  <option value="">None</option>
+                  {['Normal','Fire','Water','Electric','Grass','Ice','Fighting','Poison','Ground','Flying','Psychic','Bug','Rock','Ghost','Dragon','Dark','Steel','Fairy'].map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
               </div>
             </div>
 
             {/* SP allocation */}
             <div>
-              <div className="flex justify-between items-center mb-1">
-                <label className="text-[9px] text-slate-500">Stat Points</label>
-                <span className={`text-[9px] font-bold ${totalSP === MAX_TOTAL_SP ? 'text-emerald-400' : 'text-amber-400'}`}>{totalSP}/{MAX_TOTAL_SP}</span>
+              <div className="flex justify-between items-center mb-2">
+                <label className="text-xs text-slate-400 font-medium">Stat Points</label>
+                <span className={`text-sm font-bold ${totalSP === MAX_TOTAL_SP ? 'text-emerald-400' : 'text-amber-400'}`}>{totalSP} used / {MAX_TOTAL_SP - totalSP} free</span>
               </div>
-              <div className="grid grid-cols-6 gap-1">
+              <div className="grid grid-cols-6 gap-2">
                 {STAT_IDS.map(stat => (
                   <div key={stat} className="text-center">
                     <label className="block text-[8px] text-slate-600">{STAT_LABELS[stat]}</label>
                     <input
-                      type="number" min={0} max={MAX_STAT_SP} value={pokemon.sps[stat]}
+                      type="text" inputMode="numeric" value={pokemon.sps[stat]}
                       onChange={e => {
                         const v = Math.min(MAX_STAT_SP, Math.max(0, parseInt(e.target.value) || 0));
                         update('sps', { ...pokemon.sps, [stat]: v });
                       }}
-                      className="w-full bg-poke-surface border border-poke-border rounded text-[10px] text-center text-white py-0.5"
+                      className="w-full bg-poke-surface border border-poke-border rounded text-sm text-center text-white"
+                      style={{ minHeight: '30px', padding: '4px' }}
                     />
                   </div>
                 ))}
@@ -239,8 +243,8 @@ function TeamSlot({
 
             {/* Moves */}
             <div>
-              <label className="block text-[9px] text-slate-500 mb-0.5">Moves</label>
-              <div className="grid grid-cols-2 gap-1">
+              <label className="block text-xs text-slate-400 mb-1">Moves</label>
+              <div className="grid grid-cols-2 gap-2">
                 {[0, 1, 2, 3].map(i => (
                   <SearchSelect
                     key={i}
@@ -339,7 +343,7 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
     <div className="fixed inset-0 z-50 flex">
       <div className="absolute inset-0 bg-black/80" onClick={onClose} />
 
-      <div className="relative ml-auto w-full max-w-3xl border-l border-poke-border overflow-y-auto shadow-2xl" style={{ backgroundColor: '#0A0A15' }}>
+      <div className="relative ml-auto w-full max-w-5xl border-l border-poke-border overflow-y-auto shadow-2xl" style={{ backgroundColor: '#0A0A15' }}>
         {/* Header */}
         <div className="sticky top-0 z-20 border-b border-poke-border" style={{ backgroundColor: '#0A0A15' }}>
           <div className="h-[3px] bg-gradient-to-r from-poke-red via-poke-gold to-poke-blue" />
