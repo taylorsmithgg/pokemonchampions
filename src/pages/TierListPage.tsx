@@ -7,7 +7,7 @@ import {
   type TierEntry,
   type Tier,
 } from '../data/tierlist';
-import { TYPE_COLORS, STAT_IDS, STAT_LABELS, STAT_COLORS, getPokemonData } from '../data/champions';
+import { TYPE_COLORS, STAT_IDS, STAT_LABELS, STAT_COLORS, getPokemonData, getAvailableItems } from '../data/champions';
 import { useLiveData } from '../hooks/useLiveData';
 import { suggestSpreads } from '../calc/spOptimizer';
 import type { StatID } from '@smogon/calc';
@@ -38,7 +38,8 @@ function PokemonDetailCard({ entry, onClose }: { entry: TierEntry; onClose: () =
   if (!data) return null;
 
   const topMoves = liveData ? Object.entries(liveData.moves).sort((a, b) => b[1] - a[1]).slice(0, 8) : [];
-  const topItems = liveData ? Object.entries(liveData.items).sort((a, b) => b[1] - a[1]).slice(0, 5) : [];
+  const championsItemSet = new Set(getAvailableItems());
+  const topItems = liveData ? Object.entries(liveData.items).filter(([n]) => championsItemSet.has(n)).sort((a, b) => b[1] - a[1]).slice(0, 5) : [];
   const topAbilities = liveData ? Object.entries(liveData.abilities).sort((a, b) => b[1] - a[1]).slice(0, 3) : [];
   const topTeammates = liveData ? Object.entries(liveData.teammates).sort((a, b) => b[1] - a[1]).slice(0, 8) : [];
 
@@ -190,7 +191,8 @@ function TierCard({ entry, onClick }: { entry: TierEntry; onClick: () => void })
   const { stats: liveStats } = useLiveData();
   const liveData = liveStats?.pokemon?.[speciesName];
   const spriteId = speciesName.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
-  const topItem = liveData ? Object.entries(liveData.items).sort((a, b) => b[1] - a[1])[0] : null;
+  const champItemSet = new Set(getAvailableItems());
+  const topItem = liveData ? Object.entries(liveData.items).filter(([n]) => champItemSet.has(n)).sort((a, b) => b[1] - a[1])[0] : null;
 
   return (
     <div

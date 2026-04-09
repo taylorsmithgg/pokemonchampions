@@ -161,7 +161,8 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
           const tier = getTierForPokemon(state.species);
           const tierDef = tier ? TIER_DEFINITIONS.find(d => d.tier === tier.tier) : null;
           const liveData = liveStats?.pokemon?.[state.species];
-          const topItem = liveData ? Object.entries(liveData.items).sort((a: any, b: any) => b[1] - a[1])[0] : null;
+          const champItemSet = new Set(getAvailableItems());
+          const topItem = liveData ? Object.entries(liveData.items).filter(([n]: any) => champItemSet.has(n)).sort((a: any, b: any) => b[1] - a[1])[0] : null;
           return (
             <div className="flex items-center gap-2 flex-wrap">
               {speciesData.types.map((t: string) => <TypeBadge key={t} type={t} />)}

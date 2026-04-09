@@ -4,7 +4,7 @@
 
 import type { StatsTable } from '@smogon/calc';
 import type { NatureName } from '../types';
-import { getAvailablePokemon } from './champions';
+import { getAvailablePokemon, getAvailableItems } from './champions';
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -147,7 +147,9 @@ export function buildLiveTierList(stats: UsageStats): LiveTierEntry[] {
       .slice(0, 6)
       .map(([name, usage]) => ({ name, usage }));
 
+    const champItems = new Set(getAvailableItems());
     const topItems = Object.entries(data.items)
+      .filter(([n]) => champItems.has(n))
       .sort((a, b) => b[1] - a[1])
       .slice(0, 4)
       .map(([name, usage]) => ({ name, usage }));
@@ -222,7 +224,8 @@ export function getLiveSet(stats: UsageStats, species: string): LivePokemonSet |
     .map(([name]) => name);
 
   const topAbility = Object.entries(data.abilities).sort((a, b) => b[1] - a[1])[0];
-  const topItem = Object.entries(data.items).sort((a, b) => b[1] - a[1])[0];
+  const champItemsSet = new Set(getAvailableItems());
+  const topItem = Object.entries(data.items).filter(([n]) => champItemsSet.has(n)).sort((a, b) => b[1] - a[1])[0];
   return {
     species,
     nature: parsed.nature,

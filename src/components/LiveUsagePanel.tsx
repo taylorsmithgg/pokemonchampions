@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { UsageStats } from '../data/liveData';
 import { usageToTier } from '../data/liveData';
-import { getAvailablePokemon } from '../data/champions';
+import { getAvailablePokemon, getAvailableItems } from '../data/champions';
 import type { NatureName } from '../types';
 import type { StatsTable } from '@smogon/calc';
 
@@ -56,7 +56,8 @@ export function LiveUsagePanel({ species, stats, onLoadSet }: LiveUsagePanelProp
   };
 
   const topMoves = Object.entries(data.moves).sort((a, b) => b[1] - a[1]).slice(0, 6);
-  const topItems = Object.entries(data.items).sort((a, b) => b[1] - a[1]).slice(0, 4);
+  const championsItems = new Set(getAvailableItems());
+  const topItems = Object.entries(data.items).filter(([n]) => championsItems.has(n)).sort((a, b) => b[1] - a[1]).slice(0, 4);
   const topAbilities = Object.entries(data.abilities).sort((a, b) => b[1] - a[1]).slice(0, 3);
   const championsPool = new Set(getAvailablePokemon());
   const topTeammates = Object.entries(data.teammates).filter(([n]) => championsPool.has(n)).sort((a, b) => b[1] - a[1]).slice(0, 6);
