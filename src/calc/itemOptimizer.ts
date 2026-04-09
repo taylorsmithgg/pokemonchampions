@@ -172,14 +172,6 @@ export function suggestItems(
 
   // ─── Priority 5: Defensive berries ────────────────────────────
   // Suggest resist berry for worst weakness
-  const weaknessMap: Record<string, string> = {
-    Fire: 'Occa Berry', Water: 'Passho Berry', Electric: 'Wacan Berry',
-    Grass: 'Rindo Berry', Ice: 'Yache Berry', Fighting: 'Chople Berry',
-    Poison: 'Kebia Berry', Ground: 'Shuca Berry', Flying: 'Coba Berry',
-    Psychic: 'Payapa Berry', Bug: 'Tanga Berry', Rock: 'Charti Berry',
-    Ghost: 'Kasib Berry', Dragon: 'Haban Berry', Dark: 'Colbur Berry',
-    Steel: 'Babiri Berry', Fairy: 'Roseli Berry',
-  };
   // Weakness berries could be suggested here based on type chart analysis
 
   // ─── Priority 6: General utility ──────────────────────────────
