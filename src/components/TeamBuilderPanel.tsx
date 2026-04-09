@@ -167,17 +167,10 @@ function TeamSlot({
               </button>
               <button
                 onClick={() => onLoadToCalc('attacker')}
-                className="text-xs px-2.5 py-1 bg-poke-red/15 text-poke-red-light border border-poke-red/30 rounded-lg hover:bg-poke-red/25 transition-colors font-semibold"
-                title="Set as Attacker in calculator"
+                className="text-xs px-2 py-1 bg-poke-red/15 text-poke-red-light border border-poke-red/30 rounded-lg hover:bg-poke-red/25 transition-colors"
+                title="Use in calculator as Attacker"
               >
-                Attacker
-              </button>
-              <button
-                onClick={() => onLoadToCalc('defender')}
-                className="text-xs px-2.5 py-1 bg-poke-blue/15 text-poke-blue-light border border-poke-blue/30 rounded-lg hover:bg-poke-blue/25 transition-colors font-semibold"
-                title="Set as Defender in calculator"
-              >
-                Defender
+                → Calc
               </button>
               <button onClick={() => setExpanded(!expanded)} className="text-sm px-2 py-1 text-slate-500 hover:text-white transition-colors">
                 {expanded ? '▲' : '▼'}
@@ -208,6 +201,21 @@ function TeamSlot({
               {STAT_IDS.map(s => (
                 <MiniStatBar key={s} stat={s} base={data.baseStats[s]} sp={pokemon.sps[s]} nature={pokemon.nature} level={pokemon.level} />
               ))}
+            </div>
+            {/* Use in Calculator */}
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={() => onLoadToCalc('attacker')}
+                className="flex-1 text-xs py-1.5 bg-poke-red/10 text-poke-red-light border border-poke-red/20 rounded-lg hover:bg-poke-red/20 transition-colors text-center"
+              >
+                Use as Attacker
+              </button>
+              <button
+                onClick={() => onLoadToCalc('defender')}
+                className="flex-1 text-xs py-1.5 bg-poke-blue/10 text-poke-blue-light border border-poke-blue/20 rounded-lg hover:bg-poke-blue/20 transition-colors text-center"
+              >
+                Use as Defender
+              </button>
             </div>
           </div>
         )}
