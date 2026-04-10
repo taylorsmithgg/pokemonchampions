@@ -45,10 +45,10 @@ function RecommendationCard({ rec }: { rec: SynergyRecommendation }) {
       onClick={() => setExpanded(!expanded)}
     >
       <div className="flex items-center gap-2 p-2">
-<Sprite species={rec.species} size="lg" className="shrink-0" />
+        <Sprite species={rec.species} size="lg" className="shrink-0" />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-semibold text-white truncate">{rec.species}</span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs font-semibold text-white">{rec.species}</span>
             <StrengthDots strength={Math.min(topReason.strength, 3)} />
           </div>
           <div className="flex items-center gap-1 mt-0.5">

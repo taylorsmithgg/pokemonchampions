@@ -13,7 +13,10 @@ import { useLiveData } from '../hooks/useLiveData';
 import { suggestSpreads } from '../calc/spOptimizer';
 import { discoverStrategies, type Discovery } from '../calc/metaDiscovery';
 import { MetaRadarPanel } from '../components/MetaRadarPanel';
-import { DoublesProjectionPanel } from '../components/DoublesProjectionPanel';
+import { MetaProjectionPanel } from '../components/MetaProjectionPanel';
+import { ProjectedTierListPanel } from '../components/ProjectedTierListPanel';
+import { FormatSelector } from '../components/FormatSelector';
+import { DEFAULT_FORMAT, type FormatId } from '../calc/lineupAnalysis';
 import { QuickAdd } from '../components/QuickAdd';
 import { GenBadge } from '../components/GenBadge';
 import type { StatID } from '@smogon/calc';
@@ -350,7 +353,8 @@ function MetaDiscoveriesSection() {
 }
 
 export function TierListPage() {
-  const [view, setView] = useState<'projection' | 'radar' | 'static'>('projection');
+  const [view, setView] = useState<'tiers' | 'projection' | 'radar' | 'static'>('tiers');
+  const [format, setFormat] = useState<FormatId>(DEFAULT_FORMAT.id);
   const [listType, setListType] = useState<'normal' | 'mega'>('normal');
   const [filterTier, setFilterTier] = useState<Tier | 'all'>('all');
   const [filterRole, setFilterRole] = useState('all');
@@ -434,18 +438,35 @@ export function TierListPage() {
         {/* Meta Discoveries */}
         <MetaDiscoveriesSection />
 
-        {/* View tabs */}
+        {/* Format selector — drives both the projected tier list and
+            the projection panel below. Singles vs Doubles meta is a
+            context-defining switch. */}
+        <div className="mb-4">
+          <FormatSelector value={format} onChange={(f) => setFormat(f.id)} />
+        </div>
+
+        {/* View tabs — all views are now format-aware except the
+            live Meta Radar (which still uses its own scoring) and
+            the static consensus tier list (which is reference only). */}
         <div className="flex gap-2 mb-6 flex-wrap">
+          <button
+            onClick={() => setView('tiers')}
+            className={`text-sm px-4 py-2 rounded-lg border font-semibold transition-colors ${
+              view === 'tiers' ? 'bg-poke-red/15 border-poke-red/40 text-poke-red-light' : 'bg-poke-surface border-poke-border text-slate-400 hover:text-white'
+            }`}
+          >
+            Projected Tiers
+            <span className="text-[9px] px-1.5 py-0 bg-poke-gold/20 text-poke-gold rounded-full font-bold ml-2 uppercase tracking-wider">
+              Original
+            </span>
+          </button>
           <button
             onClick={() => setView('projection')}
             className={`text-sm px-4 py-2 rounded-lg border font-semibold transition-colors ${
               view === 'projection' ? 'bg-poke-red/15 border-poke-red/40 text-poke-red-light' : 'bg-poke-surface border-poke-border text-slate-400 hover:text-white'
             }`}
           >
-            Doubles Projection
-            <span className="text-[9px] px-1.5 py-0 bg-poke-gold/20 text-poke-gold rounded-full font-bold ml-2 uppercase tracking-wider">
-              Original
-            </span>
+            Deep Analysis
           </button>
           <button
             onClick={() => setView('radar')}
@@ -461,13 +482,19 @@ export function TierListPage() {
               view === 'static' ? 'bg-poke-red/15 border-poke-red/40 text-poke-red-light' : 'bg-poke-surface border-poke-border text-slate-400 hover:text-white'
             }`}
           >
-            Static Tier List
+            Community Reference
           </button>
         </div>
 
-        {/* Doubles Projection — first-principles meta analysis */}
+        {/* Projected tier list — primary default view */}
+        {view === 'tiers' && (
+          <ProjectedTierListPanel format={format} />
+        )}
+
+        {/* Full projection panel — deeper analysis with cores,
+            dark horses, role leaders, per-mon breakdown bars */}
         {view === 'projection' && (
-          <DoublesProjectionPanel />
+          <MetaProjectionPanel format={format} />
         )}
 
         {/* Meta Radar View */}

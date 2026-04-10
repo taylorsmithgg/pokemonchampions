@@ -338,7 +338,7 @@ function TeamSlot({
                           <span className="text-sm font-bold text-white">{pick.species}</span>
                           <span className="text-xs text-poke-gold font-mono">+{pick.score}</span>
                         </div>
-                        <div className="text-xs text-slate-500 leading-snug truncate">
+                        <div className="text-xs text-slate-500 leading-snug line-clamp-2">
                           {pick.reasons.slice(0, 2).join(' · ')}
                         </div>
                       </div>
@@ -711,17 +711,17 @@ function LineupFlexibilitySection({
             : 'text-slate-500';
           return (
             <div key={i} className="p-2 rounded-lg border border-poke-border bg-poke-surface">
-              <div className="flex items-center gap-2 mb-1">
-                <span className={`text-[10px] font-bold ${rankColor} w-4`}>#{i + 1}</span>
-                <div className="flex gap-1 flex-1 min-w-0">
+              <div className="flex items-start gap-2 mb-1">
+                <span className={`text-[10px] font-bold ${rankColor} w-4 shrink-0 pt-0.5`}>#{i + 1}</span>
+                <div className="flex gap-1 flex-1 min-w-0 flex-wrap">
                   {lineup.members.map(species => (
-                    <div key={species} className="flex items-center gap-1 px-1.5 py-0.5 bg-poke-panel rounded text-[10px] text-white">
+                    <div key={species} className="flex items-center gap-1 px-1.5 py-0.5 bg-poke-panel rounded text-[10px] text-white whitespace-nowrap">
                       <Sprite species={species} size="sm" />
-                      <span className="truncate max-w-[80px]">{species}</span>
+                      <span>{species}</span>
                     </div>
                   ))}
                 </div>
-                <span className="text-[10px] text-poke-gold font-mono shrink-0">{lineup.total}</span>
+                <span className="text-[10px] text-poke-gold font-mono shrink-0 pt-0.5">{lineup.total}</span>
               </div>
               {lineup.commentary.length > 0 && (
                 <p className="text-[9px] text-slate-500 leading-snug ml-5">{lineup.commentary[0]}</p>
@@ -754,11 +754,11 @@ function LineupFlexibilitySection({
           {report.loadBearing.length > 0 && (
             <div>
               <div className="text-[10px] font-bold text-poke-gold uppercase tracking-wider mb-1">Load-bearing</div>
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-2">
                 {report.loadBearing.map(lb => (
-                  <div key={lb.species} className="flex items-center gap-1 text-[10px] text-white">
+                  <div key={lb.species} className="flex items-center gap-1 text-[10px] text-white whitespace-nowrap">
                     <Sprite species={lb.species} size="sm" />
-                    <span className="truncate max-w-[60px]">{lb.species}</span>
+                    <span>{lb.species}</span>
                     <span className="text-slate-500">×{lb.appearances}</span>
                   </div>
                 ))}
@@ -768,11 +768,11 @@ function LineupFlexibilitySection({
           {report.underused.length > 0 && (
             <div>
               <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Rarely picked</div>
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-2">
                 {report.underused.map(u => (
-                  <div key={u.species} className="flex items-center gap-1 text-[10px] text-slate-400">
+                  <div key={u.species} className="flex items-center gap-1 text-[10px] text-slate-400 whitespace-nowrap">
                     <Sprite species={u.species} size="sm" />
-                    <span className="truncate max-w-[60px]">{u.species}</span>
+                    <span>{u.species}</span>
                   </div>
                 ))}
               </div>

@@ -36,18 +36,18 @@ function RankingCard({ score }: { score: MetaScore }) {
   return (
     <div className="poke-panel cursor-pointer hover:border-poke-red/20 transition-colors" onClick={() => setExpanded(!expanded)}>
       <div className="p-3 flex items-center gap-3">
-        <Sprite species={score.species} size="md" />
+        <div className="shrink-0"><Sprite species={score.species} size="md" /></div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-            <span className="text-sm font-bold text-white">{score.species}</span>
+          <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+            <span className="text-sm font-bold text-white whitespace-nowrap">{score.species}</span>
             <GenBadge species={score.species} />
-            <span className={`text-xs font-black px-1.5 py-0.5 rounded border ${tierStyle}`}>{score.tier}</span>
+            <span className={`text-xs font-black px-1.5 py-0.5 rounded border whitespace-nowrap ${tierStyle}`}>{score.tier}</span>
             <span className={`text-sm font-bold ${trend.color}`}>{trend.icon}</span>
-            <span className="text-xs text-slate-600 ml-auto">{score.score} pts</span>
+            <span className="text-xs text-slate-600 ml-auto whitespace-nowrap">{score.score} pts</span>
           </div>
-          {score.insight && <p className="text-xs text-slate-500 truncate">{score.insight}</p>}
+          {score.insight && <p className="text-xs text-slate-500 line-clamp-2 leading-snug">{score.insight}</p>}
         </div>
-        <QuickAdd species={score.species} />
+        <div className="shrink-0 self-center"><QuickAdd species={score.species} /></div>
       </div>
       {expanded && (
         <div className="px-3 pb-3 border-t border-poke-border pt-2 space-y-2">
@@ -146,8 +146,8 @@ export function MetaRadarPanel() {
                 <div className="space-y-1">
                   {report.risingThreats.slice(0, 3).map(s => (
                     <div key={s.species} className="flex items-center gap-2 p-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
-                      <Sprite species={s.species} size="sm" />
-                      <span className="text-sm text-white flex-1 truncate">{s.species}</span>
+                      <div className="shrink-0"><Sprite species={s.species} size="sm" /></div>
+                      <span className="text-sm text-white flex-1 min-w-0">{s.species}</span>
                       <span className="text-xs text-emerald-400">+{s.score}</span>
                       <QuickAdd species={s.species} />
                     </div>
@@ -161,8 +161,8 @@ export function MetaRadarPanel() {
                 <div className="space-y-1">
                   {report.fallingPicks.slice(0, 3).map(s => (
                     <div key={s.species} className="flex items-center gap-2 p-2 rounded-lg border border-red-500/20 bg-red-500/5">
-                      <Sprite species={s.species} size="sm" />
-                      <span className="text-sm text-white flex-1 truncate">{s.species}</span>
+                      <div className="shrink-0"><Sprite species={s.species} size="sm" /></div>
+                      <span className="text-sm text-white flex-1 min-w-0">{s.species}</span>
                       <span className="text-xs text-red-400">{s.score}</span>
                       <QuickAdd species={s.species} />
                     </div>
@@ -179,15 +179,17 @@ export function MetaRadarPanel() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {report.emergingCores.slice(0, 4).map((core, i) => (
                   <div key={i} className="p-2 rounded-lg border border-poke-gold/20 bg-poke-gold/5">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <Sprite species={core.pokemon[0]} size="sm" />
-                      <span className="text-xs text-slate-500">+</span>
-                      <Sprite species={core.pokemon[1]} size="sm" />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs text-white font-semibold truncate">{core.pokemon.join(' + ')}</div>
-                        <div className="text-xs text-slate-500 truncate">{core.winCondition} · {core.coverage}% coverage</div>
+                    <div className="flex items-start gap-2 mb-1.5">
+                      <div className="shrink-0 flex items-center gap-1">
+                        <Sprite species={core.pokemon[0]} size="sm" />
+                        <span className="text-xs text-slate-500">+</span>
+                        <Sprite species={core.pokemon[1]} size="sm" />
                       </div>
-                      <span className="text-xs text-poke-gold font-mono">{core.pairing}%</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs text-white font-semibold leading-tight">{core.pokemon.join(' + ')}</div>
+                        <div className="text-[10px] text-slate-500 line-clamp-2 leading-snug mt-0.5">{core.winCondition} · {core.coverage}% coverage</div>
+                      </div>
+                      <span className="text-xs text-poke-gold font-mono shrink-0">{core.pairing}%</span>
                     </div>
                     <div className="flex items-center gap-2 justify-between">
                       <QuickAdd species={core.pokemon[0]} actions={['attacker', 'team']} />

@@ -14,6 +14,7 @@ interface TeamsPanelProps {
 }
 
 function MemberCard({ member, onLoad }: { member: TeamMember; onLoad: (side: 'attacker' | 'defender') => void }) {
+  void onLoad;
   const [expanded, setExpanded] = useState(false);
 
   // Format SP spread
@@ -29,16 +30,18 @@ function MemberCard({ member, onLoad }: { member: TeamMember; onLoad: (side: 'at
         className="flex items-center gap-2 p-2 cursor-pointer hover:bg-slate-700/30 transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
-<Sprite species={member.species} size="md" />
+        <Sprite species={member.species} size="md" />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-baseline gap-1.5 flex-wrap">
             <span className="text-xs font-semibold text-white">{member.species}</span>
-            <span className="text-[9px] text-slate-500">@ {member.item}</span>
+            {member.item && (
+              <span className="text-[9px] text-slate-500 truncate">@ {member.item}</span>
+            )}
           </div>
-          <span className="text-[10px] text-indigo-400">{member.role}</span>
+          <span className="text-[10px] text-indigo-400 block truncate">{member.role}</span>
         </div>
-        <QuickAdd species={member.species} className="opacity-0 group-hover:opacity-100" />
-        <svg className={`w-4 h-4 text-slate-600 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <QuickAdd species={member.species} className="shrink-0" />
+        <svg className={`w-4 h-4 text-slate-600 transition-transform shrink-0 ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </div>
@@ -86,6 +89,9 @@ function TeamCard({ team, onLoadMember, onLoadFullTeam }: { team: TeamComp; onLo
   const [expanded, setExpanded] = useState(false);
   const archetype = TEAM_ARCHETYPES.find(a => a.id === team.archetype);
 
+  const isGenerated = (team as GeneratedTeam).generated;
+  const flexScore = isGenerated ? (team as GeneratedTeam).flexScore : undefined;
+
   return (
     <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
       {/* Header */}
@@ -93,46 +99,18 @@ function TeamCard({ team, onLoadMember, onLoadFullTeam }: { team: TeamComp; onLo
         className="p-4 cursor-pointer hover:bg-slate-800/30 transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-bold text-white">{team.name}</h3>
-            {(team as GeneratedTeam).generated && (
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-poke-gold/15 text-poke-gold border border-poke-gold/30 font-bold uppercase tracking-wider">
-                Projected
-              </span>
-            )}
-            <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${archetype?.bg} ${archetype?.color} font-semibold`}>
-              {archetype?.label}
-            </span>
-            <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${
-              team.gimmick === 'Mega' ? 'bg-purple-500/10 text-purple-400' : 'bg-cyan-500/10 text-cyan-400'
-            } font-semibold`}>
-              {team.gimmick}
-            </span>
-            {team.format ? (
-              <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
-                team.format === 'doubles'
-                  ? 'bg-poke-red/10 text-poke-red-light'
-                  : 'bg-sky-500/10 text-sky-400'
-              }`}>
-                {team.format === 'doubles' ? 'Doubles · pick 4' : 'Singles · pick 3'}
-              </span>
-            ) : (
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-500/10 text-slate-400 font-semibold">
-                Legacy · untagged
-              </span>
-            )}
-            {(team as GeneratedTeam).generated && (
-              <span className="text-[9px] text-slate-500 font-mono ml-auto">
-                flex {(team as GeneratedTeam).flexScore}/100
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
+        {/* Row 1: Title + primary action. Flex-1 on the title so the
+            Load Team button stays pinned to the right without fighting
+            the badge row. */}
+        <div className="flex items-start gap-3 mb-2">
+          <h3 className="text-sm font-bold text-white flex-1 min-w-0 leading-tight">
+            {team.name}
+          </h3>
+          <div className="flex items-center gap-2 shrink-0">
             {onLoadFullTeam && (
               <button
                 onClick={(e) => { e.stopPropagation(); onLoadFullTeam(team); }}
-                className="text-xs px-3 py-1.5 bg-gradient-to-r from-poke-red to-poke-red-dark text-white rounded-lg font-bold hover:from-poke-red-light hover:to-poke-red transition-all"
+                className="text-xs px-3 py-1.5 bg-gradient-to-r from-poke-red to-poke-red-dark text-white rounded-lg font-bold hover:from-poke-red-light hover:to-poke-red transition-all whitespace-nowrap"
               >
                 Load Team
               </button>
@@ -143,18 +121,58 @@ function TeamCard({ team, onLoadMember, onLoadFullTeam }: { team: TeamComp; onLo
           </div>
         </div>
 
+        {/* Row 2: Badges (wrap freely) + flex score on the right. */}
+        <div className="flex items-center gap-1.5 flex-wrap mb-3">
+          {isGenerated && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-poke-gold/15 text-poke-gold border border-poke-gold/30 font-bold uppercase tracking-wider whitespace-nowrap">
+              Projected
+            </span>
+          )}
+          <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${archetype?.bg} ${archetype?.color} font-semibold whitespace-nowrap`}>
+            {archetype?.label}
+          </span>
+          <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold whitespace-nowrap ${
+            team.gimmick === 'Mega' ? 'bg-purple-500/10 text-purple-400' : 'bg-cyan-500/10 text-cyan-400'
+          }`}>
+            {team.gimmick}
+          </span>
+          {team.format ? (
+            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold whitespace-nowrap ${
+              team.format === 'doubles'
+                ? 'bg-poke-red/10 text-poke-red-light'
+                : 'bg-sky-500/10 text-sky-400'
+            }`}>
+              {team.format === 'doubles' ? 'Doubles · pick 4' : 'Singles · pick 3'}
+            </span>
+          ) : (
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-500/10 text-slate-400 font-semibold whitespace-nowrap">
+              Legacy · untagged
+            </span>
+          )}
+          {flexScore !== undefined && (
+            <span className="text-[9px] text-slate-500 font-mono ml-auto whitespace-nowrap">
+              flex {flexScore}/100
+            </span>
+          )}
+        </div>
+
         <p className="text-xs text-slate-400 leading-relaxed">{team.description}</p>
 
-        {/* Mini team preview */}
-        <div className="flex gap-1 mt-3">
-          {team.members.map((m: TeamMember) => {
-            return (
-              <div key={m.species} className="flex flex-col items-center gap-0.5">
-<Sprite species={m.species} size="sm" />
-                <span className="text-[8px] text-slate-600 truncate max-w-[48px]">{m.species}</span>
-              </div>
-            );
-          })}
+        {/* Mini team preview — bigger sprites, full names on hover via
+            tooltip, no awkward truncation labels. */}
+        <div className="flex gap-2 mt-3 flex-wrap">
+          {team.members.map((m: TeamMember) => (
+            <div
+              key={m.species}
+              className="flex flex-col items-center gap-0.5 px-1.5 py-1 rounded bg-slate-800/40 border border-slate-700/40 hover:border-slate-600 transition-colors"
+              title={m.species}
+            >
+              <Sprite species={m.species} size="md" />
+              <span className="text-[9px] text-slate-400 font-medium leading-tight max-w-[72px] text-center truncate">
+                {m.species}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
 

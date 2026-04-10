@@ -52,7 +52,7 @@ function DiscoveryCard({ discovery }: { discovery: Discovery }) {
                 const calcName = discovery.calcPokemon?.[idx] || species;
                 return (
                   <div key={species} className="flex items-center gap-2">
-                    <span className="text-xs text-slate-400 flex-1 truncate">{species}</span>
+                    <span className="text-xs text-slate-400 flex-1 min-w-0">{species}</span>
                     <QuickAdd species={calcName} />
                   </div>
                 );

@@ -36,8 +36,8 @@ function IssueCard({ issue }: { issue: AuditIssue }) {
             <div className="space-y-1 mt-1.5">
               {issue.suggestedPokemon.map((name: string) => (
                 <div key={name} className="flex items-center gap-2">
-                  <Sprite species={name} size="sm" />
-                  <span className="text-[10px] text-slate-300 flex-1 truncate">{name}</span>
+                  <div className="shrink-0"><Sprite species={name} size="sm" /></div>
+                  <span className="text-[10px] text-slate-300 flex-1 min-w-0">{name}</span>
                   <QuickAdd species={name} />
                 </div>
               ))}
