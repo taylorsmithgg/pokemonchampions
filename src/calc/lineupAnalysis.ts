@@ -65,9 +65,17 @@ export const DOUBLES_FORMAT: BattleFormat = {
   description: 'Bring 6, pick 4. Two Pokemon active — Fake Out, redirection, spread moves, and speed control define the meta. This is the VGC 2026 format.',
 };
 
-export const ALL_FORMATS: readonly BattleFormat[] = [DOUBLES_FORMAT, SINGLES_FORMAT];
+export const ALL_FORMATS: readonly BattleFormat[] = [SINGLES_FORMAT, DOUBLES_FORMAT];
 
-/** Default format for the app. VGC is the main competitive scene. */
+/**
+ * Default format for calc-side functions (auditTeam, buildOptimalTeam,
+ * scoreLeadPair, etc.). Doubles is kept as the calc default because
+ * VGC is where the calculator is most heavily used for damage math.
+ *
+ * UI pages like the Tier List and Team Comps browser set their own
+ * view default to Singles instead — that's the ladder most players
+ * see first when they open the Ranked screen in-game.
+ */
 export const DEFAULT_FORMAT = DOUBLES_FORMAT;
 
 /** Legacy constant — prefer DEFAULT_FORMAT for new code. */

@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Sprite } from './Sprite';
 import { QuickAdd } from './QuickAdd';
 import { TEAMS, LEGACY_TEAMS, TEAM_ARCHETYPES, type TeamComp, type TeamMember } from '../data/teams';
-import { DEFAULT_FORMAT, type FormatId } from '../calc/lineupAnalysis';
+import { SINGLES_FORMAT, type FormatId } from '../calc/lineupAnalysis';
 import { FormatSelector } from './FormatSelector';
 import { generateDoublesTeams, generateSinglesTeams, type GeneratedTeam } from '../calc/teamCompGenerator';
 
@@ -247,7 +247,10 @@ function TeamCard({ team, onLoadMember, onLoadFullTeam }: { team: TeamComp; onLo
 export function TeamsPanel({ onLoadMember, onLoadFullTeam, isOpen, onClose }: TeamsPanelProps) {
   const [filterArchetype, setFilterArchetype] = useState<string>('all');
   const [filterGimmick, setFilterGimmick] = useState<string>('all');
-  const [filterFormat, setFilterFormat] = useState<FormatId>(DEFAULT_FORMAT.id);
+  // Default the team comps browser to Singles — the Tier List and
+  // Team Comps are browse-focused and Singles is the broader ranked
+  // ladder most players see first.
+  const [filterFormat, setFilterFormat] = useState<FormatId>(SINGLES_FORMAT.id);
 
   // Generated comps built from the first-principles projection
   // engines — one per format. These are the PRIMARY content of the

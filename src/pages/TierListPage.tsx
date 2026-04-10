@@ -16,7 +16,7 @@ import { MetaRadarPanel } from '../components/MetaRadarPanel';
 import { MetaProjectionPanel } from '../components/MetaProjectionPanel';
 import { ProjectedTierListPanel } from '../components/ProjectedTierListPanel';
 import { FormatSelector } from '../components/FormatSelector';
-import { DEFAULT_FORMAT, type FormatId } from '../calc/lineupAnalysis';
+import { SINGLES_FORMAT, type FormatId } from '../calc/lineupAnalysis';
 import { QuickAdd } from '../components/QuickAdd';
 import { GenBadge } from '../components/GenBadge';
 import type { StatID } from '@smogon/calc';
@@ -354,7 +354,9 @@ function MetaDiscoveriesSection() {
 
 export function TierListPage() {
   const [view, setView] = useState<'tiers' | 'projection' | 'radar' | 'static'>('tiers');
-  const [format, setFormat] = useState<FormatId>(DEFAULT_FORMAT.id);
+  // Default the tier list view to Singles — that's the ladder most
+  // players queue into first. Doubles is one click away.
+  const [format, setFormat] = useState<FormatId>(SINGLES_FORMAT.id);
   const [listType, setListType] = useState<'normal' | 'mega'>('normal');
   const [filterTier, setFilterTier] = useState<Tier | 'all'>('all');
   const [filterRole, setFilterRole] = useState('all');

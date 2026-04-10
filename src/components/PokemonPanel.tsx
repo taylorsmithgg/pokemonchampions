@@ -522,17 +522,30 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
           </div>
         </details>
 
-        {/* Moves */}
+        {/* Moves — CSS grid with fixed column widths so the type
+            indicator, move name, type pill, BP, and Crit button all
+            line up cleanly across every row. Empty cells preserve
+            alignment regardless of which moves are populated. */}
         <div>
           <label className="block text-xs font-medium text-slate-400 mb-1.5">Moves</label>
           <div className="space-y-2">
             {[0, 1, 2, 3].map(i => {
               const moveInfo = getMoveInfo(state.moves[i]);
+              const hasMove = !!state.moves[i];
               return (
-              <div key={i} className="flex gap-2 items-center">
-                {/* Type indicator */}
-                <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: moveInfo ? (TYPE_COLORS[moveInfo.type] || '#666') : '#2A2B45' }} title={moveInfo?.type || ''} />
-                <div className="flex-1">
+                <div
+                  key={i}
+                  className="grid items-center gap-2"
+                  style={{ gridTemplateColumns: '12px minmax(0, 1fr) 62px 32px 44px' }}
+                >
+                  {/* Type indicator dot */}
+                  <div
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: moveInfo ? (TYPE_COLORS[moveInfo.type] || '#666') : '#2A2B45' }}
+                    title={moveInfo?.type || ''}
+                  />
+
+                  {/* Move picker */}
                   <SearchSelect
                     options={allMoves}
                     value={state.moves[i]}
@@ -560,37 +573,50 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
                       );
                     }}
                   />
-                </div>
-                {/* Move info badges */}
-                {moveInfo && (
-                  <div className="flex items-center gap-1 shrink-0">
-                    <span className="text-xs px-1.5 py-0.5 rounded font-semibold" style={{ backgroundColor: TYPE_COLORS[moveInfo.type] + '25', color: TYPE_COLORS[moveInfo.type] }}>
-                      {moveInfo.type}
-                    </span>
-                    {moveInfo.category !== 'Status' && (
-                      <span className="text-xs text-slate-500">{moveInfo.bp}</span>
-                    )}
+
+                  {/* Type pill (fixed 62px column) */}
+                  <div className="flex justify-center">
+                    {moveInfo ? (
+                      <span
+                        className="text-[10px] px-1.5 py-0.5 rounded font-semibold w-full text-center"
+                        style={{
+                          backgroundColor: TYPE_COLORS[moveInfo.type] + '25',
+                          color: TYPE_COLORS[moveInfo.type],
+                        }}
+                      >
+                        {moveInfo.type}
+                      </span>
+                    ) : null}
                   </div>
-                )}
-                {state.moves[i] && (
-                  <button
-                    onClick={() => set({
-                      moveOptions: {
-                        ...state.moveOptions,
-                        [i]: { ...state.moveOptions[i], isCrit: !state.moveOptions[i]?.isCrit },
-                      },
-                    })}
-                    className={`text-xs px-1.5 py-1 rounded border transition-colors shrink-0 ${
-                      state.moveOptions[i]?.isCrit
-                        ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
-                        : 'bg-poke-surface border-poke-border text-slate-500 hover:text-slate-400'
-                    }`}
-                    title="Critical Hit"
-                  >
-                    Crit
-                  </button>
-                )}
-              </div>
+
+                  {/* Base power (fixed 32px column, right-aligned) */}
+                  <div className="text-xs text-slate-500 font-mono text-right tabular-nums">
+                    {moveInfo && moveInfo.category !== 'Status' ? moveInfo.bp : ''}
+                  </div>
+
+                  {/* Crit toggle (fixed 44px column) */}
+                  <div>
+                    {hasMove ? (
+                      <button
+                        onClick={() => set({
+                          moveOptions: {
+                            ...state.moveOptions,
+                            [i]: { ...state.moveOptions[i], isCrit: !state.moveOptions[i]?.isCrit },
+                          },
+                        })}
+                        className={`text-[10px] w-full px-1 py-1 rounded border font-bold transition-colors ${
+                          state.moveOptions[i]?.isCrit
+                            ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
+                            : 'bg-poke-surface border-poke-border text-slate-500 hover:text-slate-300'
+                        }`}
+                        title="Toggle critical hit"
+                        aria-pressed={state.moveOptions[i]?.isCrit ?? false}
+                      >
+                        Crit
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
               );
             })}
           </div>
