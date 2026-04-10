@@ -3,6 +3,7 @@
 
 import { getPokemonData } from '../data/champions';
 import { getCachedUsageStats } from '../data/liveData';
+import { getPresetsBySpecies } from '../data/presets';
 import type { StatsTable } from '@smogon/calc';
 import type { NatureName } from '../types';
 
@@ -19,9 +20,21 @@ export interface Archetype {
 export function detectArchetype(species: string, sps: StatsTable, nature: NatureName): string {
   const data = getPokemonData(species);
   if (!data) return 'Unknown';
-  const isPhys = data.baseStats.atk > data.baseStats.spa;
+  const bs = data.baseStats;
+  const isPhys = bs.atk > bs.spa;
   const mainOff = isPhys ? sps.atk : sps.spa;
+  const maxBaseOff = Math.max(bs.atk, bs.spa);
   const isMinSpeed = sps.spe === 0 && ['Brave', 'Quiet', 'Relaxed', 'Sassy'].includes(nature);
+
+  // Species with weak offense and high bulk should never be called a
+  // Trick Room Attacker or Bulky Attacker — they're walls no matter
+  // what spread the user picks.
+  const isInherentlyDefensive = maxBaseOff < 80 && bs.hp + Math.max(bs.def, bs.spd) > 200;
+  if (isInherentlyDefensive) {
+    if (sps.hp >= 20 && sps.def >= sps.spd) return 'Physical Wall';
+    if (sps.hp >= 20 && sps.spd > sps.def) return 'Special Wall';
+    return 'Defensive Wall';
+  }
 
   if (isMinSpeed && mainOff >= 20) return 'Trick Room Attacker';
   if (isMinSpeed && sps.hp >= 20) return 'Trick Room Tank';
@@ -39,9 +52,24 @@ export function getArchetypes(species: string): Archetype[] {
   if (!data) return [];
   const bs = data.baseStats;
   const isPhys = bs.atk > bs.spa;
+  const maxOff = Math.max(bs.atk, bs.spa);
+  const bulk = bs.hp + Math.max(bs.def, bs.spd);
   const archetypes: Archetype[] = [];
   const stats = getCachedUsageStats();
   const liveData = stats?.pokemon?.[species];
+
+  // Preset fallback — used to fill moves/items when live data is
+  // missing or when a preset captures a build the archetype engine
+  // can't derive (e.g., purely defensive walls with no VGC 2026
+  // presence in the usage stats).
+  const presets = getPresetsBySpecies(species);
+  const presetMoves = presets.length > 0 ? [...presets[0].moves] : [];
+  const presetItem = presets[0]?.item || '';
+
+  // A species is "inherently defensive" if it lacks offensive stats
+  // but has real bulk. For these, Trick Room / Bulky Attacker are
+  // never meaningful archetypes — we always want Defensive Wall.
+  const isInherentlyDefensive = maxOff < 80 && bulk > 180;
 
   if (liveData) {
     const spreadEntries = Object.entries(liveData.spreads)
@@ -70,12 +98,23 @@ export function getArchetypes(species: string): Archetype[] {
       while (total > 66) { const e = Object.entries(sps).filter(([,v])=>v>0).sort((a,b)=>a[1]-b[1]); if(!e.length) break; (sps as any)[e[0][0]]--; total--; }
       while (total < 66) { const e = Object.entries(sps).sort((a,b)=>b[1]-a[1]); const t = e.find(([,v])=>v<32); if(!t) break; (sps as any)[t[0]]++; total++; }
 
-      const archName = detectArchetype(species, sps, natureName as NatureName);
+      // Skip offensive archetypes the species physically can't run.
+      // Example: Avalugg has no offensive presence — any live-data
+      // spread that gets classified as "Bulky Attacker" should be
+      // rerouted to a wall role to match the projection engine.
+      let archName = detectArchetype(species, sps, natureName as NatureName);
+      if (isInherentlyDefensive && (archName.includes('Attacker') || archName === 'Speed Sweeper' || archName === 'Offensive')) {
+        archName = bs.def >= bs.spd ? 'Physical Wall' : 'Special Wall';
+      }
       if (seenArchetypes.has(archName)) continue;
       seenArchetypes.add(archName);
 
-      const moves = pickMovesForArchetype(archName, topMoves);
-      const item = pickItemForArchetype(archName, bs);
+      const liveMoves = pickMovesForArchetype(archName, topMoves);
+      // If the usage data didn't yield any moves (thin profiles for
+      // lower-tier Pokemon), borrow from the preset library so the
+      // Optimize button produces a usable set.
+      const moves = liveMoves.filter(Boolean).length > 0 ? liveMoves : presetMoves;
+      const item = pickItemForArchetype(archName, bs) || presetItem;
 
       archetypes.push({
         name: archName,
@@ -90,28 +129,65 @@ export function getArchetypes(species: string): Archetype[] {
   }
 
   if (archetypes.length === 0) {
-    // Fallback defaults
-    if (bs.spe >= 70) {
+    // Data-aware fallback. This runs for species with no VGC 2026
+    // usage data (e.g., lower-tier walls, Z-A exclusives). The
+    // classification keys off base stats so we don't propose
+    // "Bulky Attacker" for a species with 46 base Attack.
+    if (isInherentlyDefensive) {
+      const defNature: NatureName = bs.def >= bs.spd ? 'Impish' : 'Careful';
+      const defName = bs.def >= bs.spd ? 'Physical Wall' : 'Special Wall';
       archetypes.push({
-        name: 'Speed Sweeper', description: `Fast offensive ${species}`,
-        nature: isPhys ? 'Jolly' : 'Timid',
-        sps: { hp: 2, atk: isPhys?32:0, def: 0, spa: isPhys?0:32, spd: 0, spe: 32 },
-        moves: [], item: 'Focus Sash', tags: ['offensive', 'fast'],
+        name: defName,
+        description: `Defensive ${species} — ${defNature} nature`,
+        nature: defNature,
+        sps: {
+          hp: 32,
+          atk: 0,
+          def: bs.def >= bs.spd ? 32 : 2,
+          spa: 0,
+          spd: bs.def >= bs.spd ? 2 : 32,
+          spe: 0,
+        },
+        moves: presetMoves,
+        item: presetItem || 'Leftovers',
+        tags: ['defensive', 'wall'],
       });
-    }
-    archetypes.push({
-      name: 'Bulky Attacker', description: `Bulky offensive ${species}`,
-      nature: isPhys ? 'Adamant' : 'Modest',
-      sps: { hp: 32, atk: isPhys?32:0, def: 2, spa: isPhys?0:32, spd: 0, spe: 0 },
-      moves: [], item: 'Sitrus Berry', tags: ['bulky', 'offensive'],
-    });
-    if (bs.spe <= 60) {
-      archetypes.push({
-        name: 'Trick Room', description: `Trick Room ${species}`,
-        nature: isPhys ? 'Brave' : 'Quiet',
-        sps: { hp: 32, atk: isPhys?32:0, def: 2, spa: isPhys?0:32, spd: 0, spe: 0 },
-        moves: [], item: 'Sitrus Berry', tags: ['trick', 'room'],
-      });
+    } else {
+      if (bs.spe >= 70 && maxOff >= 80) {
+        archetypes.push({
+          name: 'Speed Sweeper', description: `Fast offensive ${species}`,
+          nature: isPhys ? 'Jolly' : 'Timid',
+          sps: { hp: 2, atk: isPhys?32:0, def: 0, spa: isPhys?0:32, spd: 0, spe: 32 },
+          moves: presetMoves, item: presetItem || 'Focus Sash', tags: ['offensive', 'fast'],
+        });
+      }
+      if (maxOff >= 80) {
+        archetypes.push({
+          name: 'Bulky Attacker', description: `Bulky offensive ${species}`,
+          nature: isPhys ? 'Adamant' : 'Modest',
+          sps: { hp: 32, atk: isPhys?32:0, def: 2, spa: isPhys?0:32, spd: 0, spe: 0 },
+          moves: presetMoves, item: presetItem || 'Sitrus Berry', tags: ['bulky', 'offensive'],
+        });
+      }
+      if (bs.spe <= 60 && maxOff >= 80) {
+        archetypes.push({
+          name: 'Trick Room Attacker', description: `Trick Room ${species}`,
+          nature: isPhys ? 'Brave' : 'Quiet',
+          sps: { hp: 32, atk: isPhys?32:0, def: 2, spa: isPhys?0:32, spd: 0, spe: 0 },
+          moves: presetMoves, item: presetItem || 'Sitrus Berry', tags: ['trick', 'room'],
+        });
+      }
+      // Absolute last resort — species has no live data, no preset,
+      // and doesn't cleanly fit any offensive profile. Propose a
+      // flexible bulky spread so the button still does something.
+      if (archetypes.length === 0) {
+        archetypes.push({
+          name: 'Bulky Pivot', description: `Flexible ${species}`,
+          nature: isPhys ? 'Adamant' : 'Modest',
+          sps: { hp: 24, atk: isPhys?24:0, def: 6, spa: isPhys?0:24, spd: 6, spe: 6 },
+          moves: presetMoves, item: presetItem || 'Sitrus Berry', tags: ['flexible'],
+        });
+      }
     }
   }
 
@@ -138,7 +214,8 @@ function pickMovesForArchetype(archetype: string, allMoves: [string, number][]):
       if (statusMoves.includes('Trick Room') && !moves.includes('Trick Room')) moves.push('Trick Room');
       if (statusMoves.includes('Protect') && !moves.includes('Protect')) moves.push('Protect');
       break;
-    case 'Defensive Wall': case 'Support': case 'Bulky Pivot':
+    case 'Defensive Wall': case 'Physical Wall': case 'Special Wall':
+    case 'Support': case 'Bulky Pivot':
       if (offMoves.length > 0) moves.push(offMoves[0]);
       for (const m of statusMoves) { if (moves.length >= 4) break; if (!moves.includes(m)) moves.push(m); }
       break;
@@ -162,7 +239,8 @@ function pickItemForArchetype(
       return bs.hp + bs.def + bs.spd < 230 ? 'Focus Sash' : 'Choice Scarf';
     case 'Bulky Attacker': return 'Sitrus Berry';
     case 'Trick Room Attacker': case 'Trick Room Tank': return 'Sitrus Berry';
-    case 'Defensive Wall': return 'Leftovers';
+    case 'Defensive Wall': case 'Physical Wall': case 'Special Wall':
+      return 'Leftovers';
     default: return 'Sitrus Berry';
   }
 }

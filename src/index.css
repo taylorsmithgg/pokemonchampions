@@ -197,34 +197,38 @@ input[type="range"]::-moz-range-thumb {
 
 .wiki-body {
   color: #d4d6dc;
-  font-size: 16px;
-  line-height: 1.7;
+  font-size: 15px;
+  line-height: 1.65;
 }
+.wiki-body > *:first-child { margin-top: 0; }
 .wiki-body h2 {
-  font-size: 24px !important;
+  font-size: 22px !important;
   font-weight: 700;
   color: #fff;
-  margin: 32px 0 12px;
-  padding-bottom: 6px;
+  margin: 36px 0 14px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--color-poke-border);
   scroll-margin-top: 96px;
 }
 .wiki-body h3 {
-  font-size: 19px !important;
+  font-size: 17px !important;
   font-weight: 600;
   color: #e6e8ee;
-  margin: 24px 0 10px;
+  margin: 28px 0 10px;
   scroll-margin-top: 96px;
 }
 .wiki-body h4 {
-  font-size: 16px !important;
-  font-weight: 600;
-  color: #cdd1d9;
-  margin: 18px 0 8px;
+  font-size: 14px !important;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #FF9070;
+  margin: 20px 0 6px;
 }
 .wiki-body p {
-  margin: 0 0 14px;
+  margin: 0 0 12px;
   color: #cdd1d9;
+  max-width: 72ch;
 }
 .wiki-body strong {
   color: #fff;
@@ -307,6 +311,125 @@ input[type="range"]::-moz-range-thumb {
 
 .wiki-lead {
   font-family: 'Inter', Georgia, serif;
+}
+
+/* ─── Reusable content components ────────────────────────────────── */
+
+/* At-a-glance summary card — used at the top of archetype deep dives
+   to give readers the 10-second summary before the body text. */
+.wiki-body .at-a-glance {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0;
+  margin: 0 0 28px;
+  padding: 0;
+  background: var(--color-poke-panel);
+  border: 1px solid var(--color-poke-border);
+  border-left: 3px solid var(--color-poke-red);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.wiki-body .at-a-glance > div {
+  padding: 12px 16px;
+  border-right: 1px solid var(--color-poke-border);
+}
+.wiki-body .at-a-glance > div:last-child { border-right: none; }
+.wiki-body .at-a-glance .label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8a8fa0;
+  margin-bottom: 4px;
+}
+.wiki-body .at-a-glance .value {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.35;
+}
+
+/* Callout box — for tips, warnings, and "key insight" flags. */
+.wiki-body .callout {
+  padding: 12px 16px;
+  margin: 16px 0;
+  background: var(--color-poke-surface);
+  border: 1px solid var(--color-poke-border);
+  border-left: 3px solid var(--color-poke-red);
+  border-radius: 4px;
+  font-size: 14px;
+}
+.wiki-body .callout.tip { border-left-color: #4ade80; }
+.wiki-body .callout.warn { border-left-color: #f59e0b; }
+.wiki-body .callout p { margin: 0; }
+.wiki-body .callout .tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-poke-red-light);
+  margin-right: 8px;
+}
+.wiki-body .callout.tip .tag { color: #4ade80; }
+.wiki-body .callout.warn .tag { color: #f59e0b; }
+
+/* Preformatted blocks (team exports) — monospace, dark card. */
+.wiki-body pre {
+  margin: 16px 0;
+  padding: 14px 16px;
+  background: #0f1020;
+  border: 1px solid var(--color-poke-border);
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #cdd1d9;
+  overflow-x: auto;
+}
+
+/* "Role card" grid — used where multiple Pokémon are listed with short
+   role summaries instead of a long prose dump. */
+.wiki-body .role-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+  margin: 16px 0 20px;
+}
+.wiki-body .role-grid .role-card {
+  padding: 12px 14px;
+  background: var(--color-poke-surface);
+  border: 1px solid var(--color-poke-border);
+  border-radius: 6px;
+}
+.wiki-body .role-grid .role-card .name {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 2px;
+}
+.wiki-body .role-grid .role-card .meta {
+  display: block;
+  font-size: 11px;
+  color: #8a8fa0;
+  margin-bottom: 6px;
+  font-family: 'JetBrains Mono', Menlo, monospace;
+}
+.wiki-body .role-grid .role-card p {
+  margin: 0;
+  font-size: 13px;
+  color: #b0b4c0;
+  line-height: 1.5;
+}
+
+/* Tight paragraph variant — use inside sections that should read
+   quickly, like short game-plan recaps. */
+.wiki-body p.tight {
+  margin-bottom: 8px;
+  max-width: 66ch;
 }
 
 /* Anchor-link affordance on hover (wiki-style § icon) */
