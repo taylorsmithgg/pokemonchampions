@@ -96,7 +96,7 @@ function TeamCard({ team, onLoadMember, onLoadFullTeam }: { team: TeamComp; onLo
     <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
       {/* Header */}
       <div
-        className="p-4 cursor-pointer hover:bg-slate-800/30 transition-colors"
+        className="p-3 sm:p-4 cursor-pointer hover:bg-slate-800/30 transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
         {/* Row 1: Title + primary action. Flex-1 on the title so the
@@ -295,9 +295,9 @@ export function TeamsPanel({ onLoadMember, onLoadFullTeam, isOpen, onClose }: Te
     <div className="fixed inset-0 z-50 flex">
       <div className="absolute inset-0 bg-black/80" onClick={onClose} />
 
-      <div className="relative ml-auto w-full max-w-2xl border-l border-poke-border overflow-y-auto shadow-2xl" style={{ backgroundColor: '#0A0A15' }}>
+      <div className="relative ml-auto w-full max-w-2xl sm:border-l border-poke-border overflow-y-auto shadow-2xl" style={{ backgroundColor: '#0A0A15' }}>
         {/* Header */}
-        <div className="sticky top-0 z-20 border-b border-poke-border p-4" style={{ backgroundColor: '#0A0A15' }}>
+        <div className="sticky top-0 z-20 border-b border-poke-border p-3 sm:p-4" style={{ backgroundColor: '#0A0A15' }}>
           <div className="flex items-center justify-between mb-3">
             <div>
               <h2 className="text-lg font-bold text-white">Meta Team Comps</h2>
@@ -348,7 +348,7 @@ export function TeamsPanel({ onLoadMember, onLoadFullTeam, isOpen, onClose }: Te
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-4">
+        <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
           {/* Format-filtered pool — projection-generated + any
               explicitly-tagged curated teams */}
           {filtered.length > 0 && (

@@ -418,73 +418,72 @@ export function TierListPage() {
     <div className="min-h-screen bg-poke-darkest text-white relative z-10">
       <header className="border-b border-poke-border bg-gradient-to-r from-poke-darker via-poke-dark to-poke-darker sticky top-0 z-40">
         <div className="h-[3px] bg-gradient-to-r from-transparent via-poke-red to-transparent" />
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link to="/" className="flex items-center gap-2.5">
-              <div className="w-6 h-6 rounded-full border-2 border-white/80 relative overflow-hidden">
+        <div className="max-w-5xl mx-auto px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Link to="/" className="flex items-center gap-2 shrink-0">
+              <div className="w-6 h-6 rounded-full border-2 border-white/80 relative overflow-hidden shrink-0">
                 <div className="absolute top-0 left-0 right-0 h-[45%] bg-poke-red" />
                 <div className="absolute bottom-0 left-0 right-0 h-[45%] bg-white/90" />
                 <div className="absolute top-1/2 left-0 right-0 h-[1.5px] bg-poke-border-light -translate-y-1/2" />
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full border border-poke-border-light bg-poke-dark" />
               </div>
-              <h1 className="text-lg font-bold"><span className="text-poke-red">Champions</span> Calc</h1>
+              <h1 className="text-base sm:text-lg font-bold whitespace-nowrap"><span className="text-poke-red">Champions</span> <span className="hidden xs:inline">Calc</span></h1>
             </Link>
           </div>
-          <Link to="/" className="text-xs px-3 py-1.5 rounded-lg bg-poke-red/15 border border-poke-red/30 text-poke-red-light hover:bg-poke-red/25 transition-colors">
+          <Link to="/" className="text-xs px-3 py-1.5 rounded-lg bg-poke-red/15 border border-poke-red/30 text-poke-red-light hover:bg-poke-red/25 transition-colors shrink-0">
             Calculator
           </Link>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto p-4">
+      <main className="max-w-5xl mx-auto p-3 sm:p-4">
         {/* Meta Discoveries */}
         <MetaDiscoveriesSection />
 
         {/* Format selector — drives both the projected tier list and
             the projection panel below. Singles vs Doubles meta is a
             context-defining switch. */}
-        <div className="mb-4">
+        <div className="mb-3 sm:mb-4">
           <FormatSelector value={format} onChange={(f) => setFormat(f.id)} />
         </div>
 
-        {/* View tabs — all views are now format-aware except the
-            live Meta Radar (which still uses its own scoring) and
-            the static consensus tier list (which is reference only). */}
-        <div className="flex gap-2 mb-6 flex-wrap">
+        {/* View tabs — horizontally scrollable on mobile so they
+            don't wrap into multiple rows and crowd the screen. */}
+        <div className="flex gap-1.5 sm:gap-2 mb-4 sm:mb-6 overflow-x-auto pb-1 -mx-3 px-3 sm:mx-0 sm:px-0 sm:flex-wrap">
           <button
             onClick={() => setView('tiers')}
-            className={`text-sm px-4 py-2 rounded-lg border font-semibold transition-colors ${
+            className={`text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border font-semibold transition-colors whitespace-nowrap shrink-0 ${
               view === 'tiers' ? 'bg-poke-red/15 border-poke-red/40 text-poke-red-light' : 'bg-poke-surface border-poke-border text-slate-400 hover:text-white'
             }`}
           >
             Projected Tiers
-            <span className="text-[9px] px-1.5 py-0 bg-poke-gold/20 text-poke-gold rounded-full font-bold ml-2 uppercase tracking-wider">
+            <span className="hidden sm:inline text-[9px] px-1.5 py-0 bg-poke-gold/20 text-poke-gold rounded-full font-bold ml-2 uppercase tracking-wider">
               Original
             </span>
           </button>
           <button
             onClick={() => setView('projection')}
-            className={`text-sm px-4 py-2 rounded-lg border font-semibold transition-colors ${
+            className={`text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border font-semibold transition-colors whitespace-nowrap shrink-0 ${
               view === 'projection' ? 'bg-poke-red/15 border-poke-red/40 text-poke-red-light' : 'bg-poke-surface border-poke-border text-slate-400 hover:text-white'
             }`}
           >
-            Deep Analysis
+            <span className="hidden sm:inline">Deep </span>Analysis
           </button>
           <button
             onClick={() => setView('radar')}
-            className={`text-sm px-4 py-2 rounded-lg border font-semibold transition-colors ${
+            className={`text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border font-semibold transition-colors whitespace-nowrap shrink-0 ${
               view === 'radar' ? 'bg-poke-red/15 border-poke-red/40 text-poke-red-light' : 'bg-poke-surface border-poke-border text-slate-400 hover:text-white'
             }`}
           >
-            Meta Radar (Live)
+            <span className="sm:hidden">Radar</span><span className="hidden sm:inline">Meta Radar (Live)</span>
           </button>
           <button
             onClick={() => setView('static')}
-            className={`text-sm px-4 py-2 rounded-lg border font-semibold transition-colors ${
+            className={`text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border font-semibold transition-colors whitespace-nowrap shrink-0 ${
               view === 'static' ? 'bg-poke-red/15 border-poke-red/40 text-poke-red-light' : 'bg-poke-surface border-poke-border text-slate-400 hover:text-white'
             }`}
           >
-            Community Reference
+            <span className="sm:hidden">Community</span><span className="hidden sm:inline">Community Reference</span>
           </button>
         </div>
 

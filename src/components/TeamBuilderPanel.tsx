@@ -431,17 +431,17 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
     <div className="fixed inset-0 z-50 flex">
       <div className="absolute inset-0 bg-black/80" onClick={onClose} />
 
-      <div className="relative ml-auto w-full max-w-5xl border-l border-poke-border overflow-y-auto shadow-2xl" style={{ backgroundColor: '#0A0A15' }}>
+      <div className="relative ml-auto w-full max-w-5xl sm:border-l border-poke-border overflow-y-auto shadow-2xl" style={{ backgroundColor: '#0A0A15' }}>
         {/* Header */}
         <div className="sticky top-0 z-20 border-b border-poke-border" style={{ backgroundColor: '#0A0A15' }}>
           <div className="h-[3px] bg-gradient-to-r from-poke-red via-poke-gold to-poke-blue" />
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h2 className="text-lg font-bold text-white">Team Builder</h2>
-                <p className="text-[10px] text-slate-500">Configure all 6 slots. Auto-fill from live tournament data. Audit analyzes gaps in real time.</p>
+          <div className="p-3 sm:p-4">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="min-w-0">
+                <h2 className="text-base sm:text-lg font-bold text-white">Team Builder</h2>
+                <p className="text-[10px] text-slate-500 hidden sm:block">Configure all 6 slots. Auto-fill from live tournament data. Audit analyzes gaps in real time.</p>
               </div>
-              <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors p-1">
+              <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors p-1 shrink-0" aria-label="Close">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
@@ -497,7 +497,7 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
           )}
         </div>
 
-        <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3" style={{ overflow: 'visible' }}>
+        <div className="p-3 sm:p-4 grid grid-cols-1 md:grid-cols-2 gap-3" style={{ overflow: 'visible' }}>
           {/* Team slots */}
           {team.map((pokemon, i) => (
             <TeamSlot

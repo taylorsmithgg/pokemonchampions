@@ -97,16 +97,11 @@ function FullSelector({
   className,
 }: { value: FormatId; onChange: (f: BattleFormat) => void; counts?: Partial<Record<FormatId, number>>; className?: string }) {
   return (
-    <div className={`grid grid-cols-2 gap-3 ${className}`}>
+    <div className={`grid grid-cols-2 gap-2 sm:gap-3 ${className}`}>
       {ALL_FORMATS.map(f => {
         const isActive = f.id === value;
         const theme = FORMAT_THEMES[f.id];
         const count = counts?.[f.id];
-        // Zero-count formats used to be disabled, but that made the
-        // selector feel broken — users clicked Singles and nothing
-        // happened. We now always allow the switch so the caller can
-        // render an empty state (and so Doubles stays clickable even
-        // if its count is briefly 0 during loading).
         const isEmpty = count === 0;
 
         return (
@@ -114,7 +109,7 @@ function FullSelector({
             key={f.id}
             onClick={() => onChange(f)}
             aria-pressed={isActive}
-            className={`group relative overflow-hidden rounded-xl border-2 p-4 text-left transition-all duration-200 ${
+            className={`group relative overflow-hidden rounded-xl border-2 p-3 sm:p-4 text-left transition-all duration-200 ${
               isActive
                 ? `${theme.activeBg} ${theme.activeBorder} ${theme.activeGlow}`
                 : isEmpty
@@ -122,55 +117,50 @@ function FullSelector({
                   : 'border-poke-border bg-poke-surface hover:border-poke-border-light hover:bg-poke-panel'
             }`}
           >
-            {/* Accent stripe on the left when active */}
             {isActive && (
               <div className={`absolute left-0 top-0 bottom-0 w-1 ${theme.accent}`} />
             )}
 
-            <div className="flex items-start gap-3">
-              {/* Icon */}
-              <div className={`shrink-0 w-12 h-6 mt-1 transition-colors ${
+            <div className="flex items-start gap-2 sm:gap-3">
+              {/* Icon — smaller on mobile */}
+              <div className={`shrink-0 w-8 h-4 sm:w-12 sm:h-6 mt-0.5 sm:mt-1 transition-colors ${
                 isActive ? theme.iconColor : 'text-slate-500 group-hover:text-slate-300'
               }`}>
                 <IconForFormat format={f.id} className="w-full h-full" />
               </div>
 
-              {/* Label stack */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <h3 className={`text-base font-bold tracking-tight transition-colors ${
+                <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                  <h3 className={`text-sm sm:text-base font-bold tracking-tight transition-colors ${
                     isActive ? 'text-white' : 'text-slate-300'
                   }`}>
                     {f.label}
                   </h3>
                   {isActive && (
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${theme.activeText} bg-white/5 border border-current`}>
+                    <span className={`text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider whitespace-nowrap ${theme.activeText} bg-white/5 border border-current`}>
                       Active
                     </span>
                   )}
                 </div>
 
-                {/* Pick count + active slots — the thing that actually matters */}
-                <div className={`flex items-center gap-2 text-xs font-mono mb-2 transition-colors ${
+                {/* Stats line — condensed on mobile */}
+                <div className={`flex items-center gap-1 sm:gap-2 text-[10px] sm:text-xs font-mono mb-1 sm:mb-2 transition-colors ${
                   isActive ? theme.activeText : 'text-slate-500'
                 }`}>
-                  <span>bring {f.rosterSize}</span>
-                  <span className="opacity-40">·</span>
                   <span className="font-bold">pick {f.battleSize}</span>
                   <span className="opacity-40">·</span>
                   <span>{f.activeSlots}v{f.activeSlots}</span>
                 </div>
 
-                {/* Description */}
-                <p className={`text-[11px] leading-snug transition-colors ${
+                {/* Description — hidden on mobile, shown at sm+ */}
+                <p className={`hidden sm:block text-[11px] leading-snug transition-colors ${
                   isActive ? 'text-slate-300' : 'text-slate-500'
                 }`}>
                   {f.description.split('. ')[0]}.
                 </p>
 
-                {/* Optional count */}
                 {typeof count === 'number' && (
-                  <div className={`mt-2 text-[10px] ${count === 0 ? 'text-slate-600' : 'text-slate-400'}`}>
+                  <div className={`mt-1 sm:mt-2 text-[9px] sm:text-[10px] ${count === 0 ? 'text-slate-600' : 'text-slate-400'}`}>
                     {count === 0 ? 'No teams yet' : `${count} ${count === 1 ? 'team' : 'teams'}`}
                   </div>
                 )}

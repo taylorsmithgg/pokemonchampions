@@ -145,64 +145,67 @@ function Calculator() {
       <header className="border-b border-poke-border bg-gradient-to-r from-poke-darker via-poke-dark to-poke-darker backdrop-blur-sm sticky top-0 z-40">
         {/* Top red accent line */}
         <div className="h-[3px] bg-gradient-to-r from-transparent via-poke-red to-transparent" />
-        <div className="max-w-[1920px] mx-auto px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link to="/" className="flex items-center gap-2.5 group">
+        <div className="max-w-[1920px] mx-auto px-3 sm:px-6 py-2 sm:py-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <Link to="/" className="flex items-center gap-2 group shrink-0">
               {/* Pokeball icon */}
-              <div className="w-7 h-7 rounded-full border-2 border-white/80 relative overflow-hidden group-hover:border-poke-gold transition-colors">
+              <div className="w-7 h-7 rounded-full border-2 border-white/80 relative overflow-hidden group-hover:border-poke-gold transition-colors shrink-0">
                 <div className="absolute top-0 left-0 right-0 h-[45%] bg-poke-red" />
                 <div className="absolute bottom-0 left-0 right-0 h-[45%] bg-white/90" />
                 <div className="absolute top-1/2 left-0 right-0 h-[2px] bg-poke-border-light -translate-y-1/2" />
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full border-[1.5px] border-poke-border-light bg-poke-dark" />
               </div>
-              <h1 className="text-lg font-bold tracking-tight">
+              <h1 className="text-base sm:text-lg font-bold tracking-tight whitespace-nowrap">
                 <span className="text-poke-red">Champions</span>{' '}
-                <span className="text-white/90">Calc</span>
+                <span className="text-white/90 hidden xs:inline">Calc</span>
               </h1>
             </Link>
-            <span className="text-[10px] px-2 py-0.5 bg-poke-gold/15 text-poke-gold border border-poke-gold/30 rounded-full font-bold tracking-wide">
+            <span className="hidden md:inline text-[10px] px-2 py-0.5 bg-poke-gold/15 text-poke-gold border border-poke-gold/30 rounded-full font-bold tracking-wide shrink-0">
               VGC 2026
             </span>
           </div>
-          <div className="flex items-center gap-1.5">
+          <nav className="flex items-center gap-1 shrink-0">
             <Link
               to="/tier-list"
-              className="text-xs px-3 py-1.5 rounded-lg bg-poke-surface border border-poke-border text-slate-400 hover:border-poke-gold/50 hover:text-poke-gold transition-colors flex items-center gap-1.5"
+              className="p-2 sm:px-3 sm:py-1.5 rounded-lg bg-poke-surface border border-poke-border text-slate-400 hover:border-poke-gold/50 hover:text-poke-gold transition-colors flex items-center gap-1.5"
+              title="Tier List"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
-              Tier List
+              <span className="text-xs hidden sm:inline">Tiers</span>
             </Link>
             <button
               onClick={() => setShowTeams(true)}
-              className="text-xs px-3 py-1.5 rounded-lg bg-poke-surface border border-poke-border text-slate-400 hover:border-poke-blue-light/50 hover:text-poke-blue-light transition-colors flex items-center gap-1.5"
+              className="p-2 sm:px-3 sm:py-1.5 rounded-lg bg-poke-surface border border-poke-border text-slate-400 hover:border-poke-blue-light/50 hover:text-poke-blue-light transition-colors flex items-center gap-1.5"
+              title="Teams"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
-              Teams
+              <span className="text-xs hidden sm:inline">Teams</span>
             </button>
             <button
               onClick={() => setShowTeamBuilder(true)}
-              className="text-xs px-3 py-1.5 rounded-lg bg-poke-surface border border-poke-border text-slate-400 hover:border-poke-red/40 hover:text-poke-red-light transition-colors flex items-center gap-1.5"
+              className="p-2 sm:px-3 sm:py-1.5 rounded-lg bg-poke-surface border border-poke-border text-slate-400 hover:border-poke-red/40 hover:text-poke-red-light transition-colors flex items-center gap-1.5"
+              title="Team Builder"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
               </svg>
-              Builder
+              <span className="text-xs hidden sm:inline">Builder</span>
             </button>
             <Link
               to="/faq"
-              className="text-xs px-3 py-1.5 rounded-lg bg-poke-surface border border-poke-border text-slate-400 hover:border-white/30 hover:text-white transition-colors"
+              className="hidden sm:flex text-xs px-3 py-1.5 rounded-lg bg-poke-surface border border-poke-border text-slate-400 hover:border-white/30 hover:text-white transition-colors items-center"
             >
               FAQ
             </Link>
-            <div className="w-px h-5 bg-poke-border mx-1" />
+            <div className="hidden md:block w-px h-5 bg-poke-border mx-1" />
             <button
               onClick={() => setShowField(!showField)}
-              className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+              className={`hidden md:flex text-xs px-3 py-1.5 rounded-lg border transition-colors items-center ${
                 showField
                   ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
                   : 'bg-poke-surface border-poke-border text-slate-400 hover:border-emerald-500/30'
@@ -212,8 +215,9 @@ function Calculator() {
             </button>
             <button
               onClick={handleSwap}
-              className="text-xs p-1.5 rounded-lg bg-poke-surface border border-poke-border text-slate-400 hover:border-poke-red/40 hover:text-poke-red transition-colors"
+              className="p-2 rounded-lg bg-poke-surface border border-poke-border text-slate-400 hover:border-poke-red/40 hover:text-poke-red transition-colors"
               title="Swap attacker and defender"
+              aria-label="Swap attacker and defender"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
@@ -221,20 +225,21 @@ function Calculator() {
             </button>
             <button
               onClick={handleReset}
-              className="text-xs p-1.5 rounded-lg bg-poke-surface border border-poke-border text-slate-400 hover:border-poke-red/40 hover:text-poke-red transition-colors"
+              className="hidden sm:block p-2 rounded-lg bg-poke-surface border border-poke-border text-slate-400 hover:border-poke-red/40 hover:text-poke-red transition-colors"
               title="Reset all"
+              aria-label="Reset all"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             </button>
-          </div>
+          </nav>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-[1920px] mx-auto px-6 py-6 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_480px_1fr] xl:grid-cols-[1fr_540px_1fr] gap-6">
+      <main className="max-w-[1920px] mx-auto px-3 sm:px-6 py-4 sm:py-6 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_480px_1fr] xl:grid-cols-[1fr_540px_1fr] gap-4 sm:gap-6">
           {/* Attacker */}
           <PokemonPanel
             state={attacker}

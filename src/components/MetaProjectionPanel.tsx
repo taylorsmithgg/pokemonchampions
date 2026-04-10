@@ -9,7 +9,7 @@
 // no Smogon usage data, no mainline VGC rehash, just Champions
 // mechanics + new Z-A Mega abilities + roster reality.
 
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { generateDoublesProjection, type DoublesProjection, type DoublesRole } from '../calc/doublesMetaProjection';
 import { generateSinglesProjection, type SinglesProjection, type SinglesRole } from '../calc/singlesMetaProjection';
 import type { FormatId } from '../calc/lineupAnalysis';
@@ -399,33 +399,45 @@ export function MetaProjectionPanel({ format }: MetaProjectionPanelProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
         {filtered.slice(0, showCount).map((entry, i) => (
           <ProjectionRow key={entry.species} entry={entry} rank={i + 1} />
         ))}
       </div>
 
-      {/* Role Leaders quick-reference */}
+      {/* Role Leaders quick-reference.
+          CSS grid with two columns — the role-badge column sizes to
+          the widest label so every row's leader list starts at the
+          same horizontal position. Each role is a React fragment
+          emitting exactly two grid cells to keep the two columns in
+          lockstep. */}
       <div className="poke-panel">
         <div className="poke-panel-header">
           <h3 className="text-sm font-bold text-white">Role Leaders</h3>
           <p className="text-[10px] text-slate-500">Top picks by {formatLabel} role — quick reference for team slot planning</p>
         </div>
-        <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2">
+        <div
+          className="p-4 grid gap-x-4 gap-y-2 text-xs items-center"
+          style={{ gridTemplateColumns: 'auto minmax(0, 1fr)' }}
+        >
           {report.roleLeaders.map(({ role, leaders }) => (
-            <div key={role} className="flex items-start gap-2 text-xs py-1">
-              <div className="shrink-0 pt-0.5">
+            <Fragment key={role}>
+              <div className="py-0.5">
                 <RoleBadge role={role} />
               </div>
-              <div className="flex gap-2 flex-wrap flex-1 min-w-0">
+              <div className="flex gap-x-3 gap-y-1 flex-wrap min-w-0">
                 {leaders.slice(0, 4).map(s => (
-                  <div key={s} className="flex items-center gap-1 whitespace-nowrap" title={s}>
+                  <div
+                    key={s}
+                    className="flex items-center gap-1 whitespace-nowrap"
+                    title={s}
+                  >
                     <Sprite species={s} size="sm" />
                     <span className="text-slate-300">{s}</span>
                   </div>
                 ))}
               </div>
-            </div>
+            </Fragment>
           ))}
         </div>
       </div>

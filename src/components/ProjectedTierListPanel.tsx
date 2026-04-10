@@ -152,61 +152,70 @@ function TierRow({ entry }: { entry: ProjectedTierEntry }) {
   const tierStyle = TIER_COLORS[entry.projectedTier];
   const trendStyle = TREND_ICONS[entry.trend];
 
+  // Fixed-width columns so every row lines up the same way —
+  //   sprite | title+meta | tier pill | trend arrow | score | quickadd
+  //
+  // The title block wraps its own sub-rows (name line, role line)
+  // but the right-side columns stay pinned at predictable widths,
+  // which gives the whole tier list a table-like feel instead of
+  // a jagged flex layout.
   return (
-    <div className="flex items-start gap-2 p-2 rounded-lg border border-poke-border bg-poke-surface hover:border-poke-red/30 transition-colors">
-      <div className="shrink-0">
-        <Sprite species={entry.species} size="md" />
-      </div>
-      <div className="flex-1 min-w-0">
-        {/* Row 1: name + gen + mega marker + tier/trend/score on the right */}
-        <div className="flex items-center gap-1.5 flex-wrap mb-1">
+    <div
+      className="grid items-center gap-1.5 sm:gap-2 p-2 rounded-lg border border-poke-border bg-poke-surface hover:border-poke-red/30 transition-colors"
+      style={{ gridTemplateColumns: '40px minmax(0, 1fr) 32px 16px 28px auto' }}
+    >
+      {/* Sprite */}
+      <Sprite species={entry.species} size="md" />
+
+      {/* Name + meta block */}
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-sm font-bold text-white whitespace-nowrap">{entry.species}</span>
           <GenBadge species={entry.species} />
           {entry.hasMega && (
             <span className="text-[8px] px-1 py-0 bg-purple-500/20 text-purple-300 rounded font-bold whitespace-nowrap">M</span>
           )}
-          <div className="ml-auto flex items-center gap-1.5 shrink-0">
+          {entry.staticTier && entry.staticTier !== entry.projectedTier && (
             <span
-              className={`text-[11px] font-black px-1.5 py-0 rounded border whitespace-nowrap ${tierStyle.bg} ${tierStyle.border} ${tierStyle.text}`}
-              title={`Projected tier: ${entry.projectedTier}`}
+              className="text-[9px] text-slate-600 font-mono whitespace-nowrap"
+              title={`Community consensus: ${entry.staticTier}`}
             >
-              {entry.projectedTier}
+              was {entry.staticTier}
             </span>
-            {entry.staticTier && entry.staticTier !== entry.projectedTier && (
-              <span
-                className="text-[10px] text-slate-500 font-mono whitespace-nowrap"
-                title={`Community consensus: ${entry.staticTier}`}
-              >
-                ({entry.staticTier})
-              </span>
-            )}
-            <span
-              className={`text-sm font-bold ${trendStyle.color}`}
-              title={`${trendStyle.label}${entry.delta !== 0 ? ` (${entry.delta > 0 ? '+' : ''}${entry.delta} tiers)` : ''}`}
-            >
-              {trendStyle.icon}
-            </span>
-            {entry.score > 0 && (
-              <span className="text-[10px] text-slate-600 font-mono">{entry.score}</span>
-            )}
-          </div>
+          )}
         </div>
-        {/* Row 2: roles (comma-separated to avoid per-chip wrapping) */}
         {entry.roles.length > 0 && (
-          <div className="text-[10px] text-slate-500 mb-0.5 leading-tight">
+          <div className="text-[10px] text-slate-500 leading-tight truncate mt-0.5">
             {entry.roles.slice(0, 3).join(' · ')}
           </div>
         )}
-        {/* Row 3: top reason, clamped to 2 lines */}
-        {entry.topReason && (
-          <p className="text-[10px] text-slate-500 leading-snug line-clamp-2">{entry.topReason}</p>
-        )}
       </div>
-      {entry.trend !== 'cut' && (
-        <div className="shrink-0 self-center">
-          <QuickAdd species={entry.species} />
-        </div>
-      )}
+
+      {/* Tier pill — fixed 36px column, centered */}
+      <div
+        className={`text-[11px] font-black h-5 flex items-center justify-center rounded border ${tierStyle.bg} ${tierStyle.border} ${tierStyle.text}`}
+        title={`Projected tier: ${entry.projectedTier}`}
+      >
+        {entry.projectedTier}
+      </div>
+
+      {/* Trend arrow — fixed 20px column */}
+      <div
+        className={`text-sm font-bold text-center ${trendStyle.color}`}
+        title={`${trendStyle.label}${entry.delta !== 0 ? ` (${entry.delta > 0 ? '+' : ''}${entry.delta} tiers)` : ''}`}
+      >
+        {trendStyle.icon}
+      </div>
+
+      {/* Score — fixed 32px column, right-aligned tabular */}
+      <div className="text-[10px] text-slate-500 font-mono text-right tabular-nums">
+        {entry.score > 0 ? entry.score : ''}
+      </div>
+
+      {/* Quick-add actions — consistent width per-row */}
+      <div className="justify-self-end">
+        {entry.trend !== 'cut' ? <QuickAdd species={entry.species} /> : <div className="w-[92px]" />}
+      </div>
     </div>
   );
 }
@@ -298,14 +307,23 @@ export function ProjectedTierListPanel({ format }: ProjectedTierListPanelProps) 
         return (
           <div key={tier} className="poke-panel">
             <div className="poke-panel-header flex items-center gap-3">
-              <span className={`text-2xl font-black ${style.text}`}>{tier}</span>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-bold text-white">{tier} Tier</div>
-                <div className="text-[10px] text-slate-500">{TIER_DESCRIPTIONS[tier]}</div>
+              {/* Tier letter — fixed-width badge keeps headers aligned
+                  across groups regardless of 1/2/3-char tier labels */}
+              <div
+                className={`w-10 h-10 flex items-center justify-center rounded-lg border-2 ${style.bg} ${style.border}`}
+              >
+                <span className={`text-xl font-black leading-none ${style.text}`}>{tier}</span>
               </div>
-              <span className="text-xs text-slate-600 font-mono">{group.length}</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold text-white leading-tight">{tier} Tier</div>
+                <div className="text-[10px] text-slate-500 leading-snug">{TIER_DESCRIPTIONS[tier]}</div>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="text-sm font-bold text-slate-300 font-mono tabular-nums">{group.length}</div>
+                <div className="text-[9px] text-slate-600 uppercase tracking-wider">picks</div>
+              </div>
             </div>
-            <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+            <div className="p-2 sm:p-3 grid grid-cols-1 lg:grid-cols-2 gap-2">
               {group.map(entry => (
                 <TierRow key={entry.species} entry={entry} />
               ))}
@@ -338,14 +356,14 @@ function TrendPill({
   return (
     <button
       onClick={onClick}
-      className={`text-xs px-2.5 py-1 rounded border transition-colors ${
+      className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border transition-colors whitespace-nowrap ${
         active
           ? 'bg-poke-red/15 border-poke-red/40 text-white'
           : 'bg-poke-surface border-poke-border text-slate-400 hover:text-white'
       }`}
     >
       <span className={color ?? ''}>{label}</span>
-      <span className="text-[10px] text-slate-500 ml-1 font-mono">{count}</span>
+      <span className="text-[10px] text-slate-600 font-mono tabular-nums">{count}</span>
     </button>
   );
 }
