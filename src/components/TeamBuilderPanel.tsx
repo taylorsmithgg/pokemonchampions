@@ -6,7 +6,8 @@ import { auditTeam, type TeamAudit } from '../calc/teamAudit';
 import { buildOptimalTeam, suggestNextPick, suggestReplacementsForSlot } from '../calc/teamBuilder';
 import { DEFAULT_FORMAT, type BattleFormat } from '../calc/lineupAnalysis';
 import { FormatSelector } from './FormatSelector';
-import { PRESETS } from '../data/presets';
+import { PRESETS, getPresetsBySpecies } from '../data/presets';
+import { MEGA_STONE_MAP } from '../data/championsRoster';
 import { NORMAL_TIER_LIST } from '../data/tierlist';
 import { Sprite } from './Sprite';
 import { GenBadge } from './GenBadge';
@@ -413,17 +414,93 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
     setImportText('');
   }, [importText, team, onChange]);
 
-  // Build a full optimal team from scratch (fills empty slots)
+  // Build a full optimal team from scratch (fills empty slots).
   const handleBuildTeam = useCallback(() => {
     const built = buildOptimalTeam(team, 6, format);
     onChange(built);
   }, [team, onChange, format]);
 
-  // Fill all empty slots with next best picks
-  const handleFillEmpty = useCallback(() => {
-    const built = buildOptimalTeam(team, 6, format);
-    onChange(built);
-  }, [team, onChange, format]);
+  // Optimize EVERY slot in one pass — fills empty slots with best
+  // picks AND re-applies optimal sets to existing filled slots. The
+  // single-slot Optimize button (the gold sparkle icon) only touches
+  // one member; this button is for "I just loaded a team, now make
+  // every slot competitive."
+  const handleOptimizeAll = useCallback(() => {
+    // Step 1: fill empty slots with best picks for the current team
+    const filled = buildOptimalTeam(team, 6, format);
+
+    // Step 2: re-apply the optimal set (live data → preset fallback)
+    // to each filled slot, mirroring handleAutoFill's single-slot
+    // logic but across the full team in one state update.
+    const isMegaStone = (item: string): boolean => {
+      if (!item) return false;
+      for (const stones of Object.values(MEGA_STONE_MAP)) {
+        if (stones.includes(item)) return true;
+      }
+      return false;
+    };
+
+    const optimized: PokemonState[] = filled.map(slot => {
+      if (!slot.species) return slot;
+
+      // Try live VGC data first — most accurate real-world set
+      if (liveStats) {
+        const liveSet = getLiveSet(liveStats, slot.species);
+        if (liveSet) {
+          return {
+            ...slot,
+            nature: liveSet.nature,
+            sps: liveSet.sps,
+            ability: liveSet.ability,
+            item: liveSet.item,
+            teraType: '',
+            moves: [...liveSet.moves, '', '', '', ''].slice(0, 4),
+          };
+        }
+      }
+
+      // Fall back to the curated preset library
+      const presets = getPresetsBySpecies(slot.species);
+      if (presets.length > 0) {
+        const p = presets[0];
+        return {
+          ...slot,
+          nature: p.nature,
+          ability: p.ability,
+          item: p.item,
+          sps: { ...p.sps },
+          moves: [...p.moves, '', '', '', ''].slice(0, 4),
+        };
+      }
+
+      // No preset either — leave the slot as-is
+      return slot;
+    });
+
+    // Step 3: enforce one-Mega-per-team. Both live data and presets
+    // can hand out Mega Stones independently, so we might end up
+    // with multiple Mega holders after the mass re-optimize. Keep
+    // the first one (highest-priority slot wins) and strip the rest.
+    const usedItems = new Set<string>();
+    let hasMega = false;
+    for (let i = 0; i < optimized.length; i++) {
+      const slot = optimized[i];
+      if (!slot.species) continue;
+      if (isMegaStone(slot.item)) {
+        if (hasMega) {
+          // Downgrade to a safe utility item
+          const fallback = ['Sitrus Berry', 'Leftovers', 'Focus Sash', 'Lum Berry', 'Mental Herb', 'Shell Bell', 'Scope Lens']
+            .find(x => !usedItems.has(x)) ?? '';
+          optimized[i] = { ...slot, item: fallback };
+        } else {
+          hasMega = true;
+        }
+      }
+      if (optimized[i].item) usedItems.add(optimized[i].item);
+    }
+
+    onChange(optimized);
+  }, [team, format, liveStats, onChange]);
 
   // Get suggestions for next pick
   const nextPicks = useMemo(() => {
@@ -472,11 +549,17 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
               <button
                 onClick={handleBuildTeam}
                 className="text-sm px-4 py-1.5 bg-gradient-to-r from-poke-red to-poke-red-dark text-white rounded-lg font-bold hover:from-poke-red-light hover:to-poke-red transition-all shadow-lg shadow-poke-red/20"
+                title="Fill any empty slots with the best candidates for the current team"
               >
-                Build Optimal {format.label} Team
+                Build Team
               </button>
-              <button onClick={handleFillEmpty} className="text-xs px-3 py-1.5 bg-poke-gold/10 border border-poke-gold/30 text-poke-gold rounded-lg hover:bg-poke-gold/20 transition-colors">
-                Fill Empty Slots
+              <button
+                onClick={handleOptimizeAll}
+                className="text-sm px-4 py-1.5 bg-poke-gold/15 border border-poke-gold/40 text-poke-gold rounded-lg font-bold hover:bg-poke-gold/25 transition-colors flex items-center gap-1.5"
+                title="Re-optimize every slot — fills empty ones and refreshes filled ones with the best available set"
+              >
+                <OptimizeIcon className="w-4 h-4" />
+                Optimize All
               </button>
               <button onClick={() => setShowImport(!showImport)} className="text-xs px-3 py-1.5 bg-poke-surface border border-poke-border text-slate-400 rounded-lg hover:text-white transition-colors">
                 Import
