@@ -11,6 +11,8 @@ import { NORMAL_TIER_LIST } from '../data/tierlist';
 import type { PokemonState } from '../types';
 import { createDefaultPokemonState } from '../types';
 import { analyzeTeamLineups, DEFAULT_FORMAT, type BattleFormat } from './lineupAnalysis';
+import { generateDoublesProjection, type DoublesRole } from './doublesMetaProjection';
+import { generateSinglesProjection, type SinglesRole } from './singlesMetaProjection';
 
 
 
@@ -293,4 +295,145 @@ export function suggestNextPick(
   const scores = viable.map(name => scoreCandidateForTeam(name, currentTeam, format));
   scores.sort((a, b) => b.score - a.score);
   return scores.filter(s => s.score > 0).slice(0, count);
+}
+
+// ─── Role-aware replacement suggestions ────────────────────────────
+//
+// When a user asks for replacements for a specific slot (e.g., their
+// Tailwind setter in a Tailwind comp, or their Hazard Lead in a
+// Hyper Offense team), we want suggestions that fill the SAME role,
+// not just generic "best next pick" candidates.
+//
+// Roles are detected from two sources and unioned:
+//   1. The projection engine's role classification (authoritative)
+//   2. Move/ability heuristics on the current slot (catches sets
+//      the projection doesn't profile, like a custom Stealth Rock
+//      Aerodactyl)
+
+type AnyRole = DoublesRole | SinglesRole | 'Fake Out User' | 'Intimidate' | 'Setup Sweeper' | 'Hazard Setter' | 'Tailwind Setter' | 'Trick Room Setter' | 'Redirector';
+
+const MOVE_ROLE_MAP: Array<{ moves: string[]; role: AnyRole }> = [
+  { moves: ['Fake Out'], role: 'Fake Out User' },
+  { moves: ['Stealth Rock', 'Spikes', 'Toxic Spikes', 'Sticky Web'], role: 'Hazard Setter' },
+  { moves: ['Tailwind'], role: 'Tailwind Setter' },
+  { moves: ['Trick Room'], role: 'Trick Room Setter' },
+  { moves: ['Rage Powder', 'Follow Me', 'Ally Switch'], role: 'Redirector' },
+  { moves: ['Swords Dance', 'Dragon Dance', 'Nasty Plot', 'Calm Mind', 'Quiver Dance', 'Shell Smash', 'Bulk Up', 'Coil'], role: 'Setup Sweeper' },
+];
+
+function detectSlotRoles(pokemon: PokemonState, format: BattleFormat): Set<AnyRole> {
+  const roles = new Set<AnyRole>();
+
+  // 1. Projection engine roles
+  if (pokemon.species) {
+    const projection = format.id === 'doubles'
+      ? generateDoublesProjection().rankings
+      : generateSinglesProjection().rankings;
+    const entry = projection.find(r => r.species === pokemon.species);
+    if (entry) {
+      for (const role of entry.roles) roles.add(role as AnyRole);
+    }
+  }
+
+  // 2. Move-based detection
+  const moveSet = new Set(pokemon.moves.filter(Boolean));
+  for (const { moves, role } of MOVE_ROLE_MAP) {
+    if (moves.some(m => moveSet.has(m))) roles.add(role);
+  }
+
+  // 3. Ability-based detection
+  if (pokemon.ability.toLowerCase() === 'intimidate') roles.add('Intimidate');
+
+  return roles;
+}
+
+/**
+ * Return candidate species for replacing a specific team slot,
+ * prioritizing candidates whose detected roles overlap with the
+ * current slot's roles. This makes replacement suggestions feel
+ * like "find me another Tailwind setter" instead of "find me any
+ * high-tier mon".
+ */
+export function suggestReplacementsForSlot(
+  team: PokemonState[],
+  slotIndex: number,
+  count: number = 5,
+  format: BattleFormat = DEFAULT_FORMAT,
+): Array<CandidateScore & { matchedRoles: string[] }> {
+  const currentSlot = team[slotIndex];
+  if (!currentSlot || !currentSlot.species) {
+    // No species in this slot — fall back to generic suggestions
+    const teamWithout = team.map((p, i) => i === slotIndex ? createDefaultPokemonState() : p);
+    return suggestNextPick(teamWithout, count, format).map(s => ({ ...s, matchedRoles: [] }));
+  }
+
+  const targetRoles = detectSlotRoles(currentSlot, format);
+  const teamWithout = team.map((p, i) => i === slotIndex ? createDefaultPokemonState() : p);
+
+  // Generate base candidates with generic team-fit scoring
+  const allPokemon = getAvailablePokemon();
+  const viable = allPokemon.filter(name =>
+    name !== currentSlot.species && (
+      PRESETS.some(p => p.species === name) || NORMAL_TIER_LIST.some(e => e.name === name)
+    )
+  );
+
+  // Build a projection lookup for role matching
+  const projection = format.id === 'doubles'
+    ? generateDoublesProjection().rankings
+    : generateSinglesProjection().rankings;
+  const projectionByName = new Map(projection.map(r => [r.species, r]));
+
+  const scored: Array<CandidateScore & { matchedRoles: string[] }> = [];
+
+  for (const name of viable) {
+    const base = scoreCandidateForTeam(name, teamWithout, format);
+    if (base.score <= 0) continue;
+
+    // Compute role overlap
+    const candRoles = new Set<string>();
+    const candProj = projectionByName.get(name);
+    if (candProj) {
+      for (const r of candProj.roles) candRoles.add(r);
+    }
+    // Also detect move-based roles from the preset (if any)
+    const preset = PRESETS.find(p => p.species === name);
+    if (preset) {
+      const moveSet = new Set(preset.moves);
+      for (const { moves, role } of MOVE_ROLE_MAP) {
+        if (moves.some(m => moveSet.has(m))) candRoles.add(role);
+      }
+      const data = getPokemonData(name);
+      const ability = (data?.abilities?.[0] || '') as string;
+      if (ability === 'Intimidate') candRoles.add('Intimidate');
+    }
+
+    const matchedRoles = [...targetRoles].filter(r => candRoles.has(r));
+
+    // Heavily weight role matches — a 1-role-match candidate should
+    // outrank a generically strong pick with no matching role.
+    let boost = 0;
+    if (targetRoles.size > 0) {
+      if (matchedRoles.length === 0) {
+        // No overlap — demote significantly so role-matched
+        // candidates rise to the top
+        boost = -20;
+      } else {
+        // Each matched role is worth a significant bonus
+        boost = matchedRoles.length * 15;
+      }
+    }
+
+    scored.push({
+      ...base,
+      score: base.score + boost,
+      reasons: matchedRoles.length > 0
+        ? [`Same role${matchedRoles.length > 1 ? 's' : ''}: ${matchedRoles.join(', ')}`, ...base.reasons]
+        : base.reasons,
+      matchedRoles,
+    });
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.filter(s => s.score > 0).slice(0, count);
 }

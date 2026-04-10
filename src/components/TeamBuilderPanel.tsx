@@ -3,7 +3,7 @@ import type { StatID } from '@smogon/calc';
 import { SearchSelect } from './SearchSelect';
 import { SwordIcon, ShieldIcon, OptimizeIcon } from './QuickAdd';
 import { auditTeam, type TeamAudit } from '../calc/teamAudit';
-import { buildOptimalTeam, suggestNextPick } from '../calc/teamBuilder';
+import { buildOptimalTeam, suggestNextPick, suggestReplacementsForSlot } from '../calc/teamBuilder';
 import { DEFAULT_FORMAT, type BattleFormat } from '../calc/lineupAnalysis';
 import { FormatSelector } from './FormatSelector';
 import { PRESETS } from '../data/presets';
@@ -66,6 +66,7 @@ function TeamSlot({
   index,
   pokemon,
   team,
+  format,
   onChange,
   onLoadToCalc,
   onAutoFill,
@@ -74,6 +75,7 @@ function TeamSlot({
   index: number;
   pokemon: PokemonState;
   team: PokemonState[];
+  format: BattleFormat;
   onReplace: (species: string) => void;
   onChange: (state: PokemonState) => void;
   onLoadToCalc: (side: 'attacker' | 'defender') => void;
@@ -84,7 +86,7 @@ function TeamSlot({
   const allPokemon = useMemo(() => {
     const all = getAvailablePokemon();
     // Get scores from team builder for contextual ordering
-    const picks = suggestNextPick(team, 50);
+    const picks = suggestNextPick(team, 50, format);
     const scoreMap = new Map(picks.map(p => [p.species, p.score]));
 
     const tierOrder: Record<string, number> = { S: 5, 'A+': 4, A: 3, B: 2, C: 1 };
@@ -105,16 +107,16 @@ function TeamSlot({
       if (tierA !== tierB) return tierB - tierA;
       return a.localeCompare(b);
     });
-  }, [team]);
+  }, [team, format]);
 
-  // Replacement suggestions — what would fit better in this slot?
+  // Role-aware replacement suggestions — if this slot has a clear
+  // role (Fake Out, Hazard Setter, Tailwind, Setup Sweeper, etc.),
+  // prioritize replacements that fill the same role.
   const [showReplacements, setShowReplacements] = useState(false);
   const replacements = useMemo(() => {
     if (!pokemon.species || !showReplacements) return [];
-    // Remove this slot from the team temporarily
-    const teamWithout = team.map((p, i) => i === index ? createDefaultPokemonState() : p);
-    return suggestNextPick(teamWithout, 4);
-  }, [pokemon.species, team, index, showReplacements]);
+    return suggestReplacementsForSlot(team, index, 5, format);
+  }, [pokemon.species, team, index, showReplacements, format]);
 
   const allMoves = useMemo(() => getAvailableMoves(), []);
   const allItems = useMemo(() => getAvailableItems(), []);
@@ -302,7 +304,7 @@ function TeamSlot({
           </div>
         )}
 
-        {/* Replacement suggestions */}
+        {/* Role-aware replacement suggestions */}
         {pokemon.species && (
           <div className="mt-3 pt-3 border-t border-poke-border">
             <button
@@ -334,11 +336,21 @@ function TeamSlot({
                         loading="lazy"
                       />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-bold text-white">{pick.species}</span>
-                          <span className="text-xs text-poke-gold font-mono">+{pick.score}</span>
+                          {pick.matchedRoles.length > 0 && (
+                            <span className="text-[9px] px-1.5 py-0 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-full font-bold uppercase tracking-wider whitespace-nowrap">
+                              Same role
+                            </span>
+                          )}
+                          <span className="text-xs text-poke-gold font-mono ml-auto">+{pick.score}</span>
                         </div>
-                        <div className="text-xs text-slate-500 leading-snug line-clamp-2">
+                        {pick.matchedRoles.length > 0 && (
+                          <div className="text-[10px] text-emerald-400/80 leading-snug mt-0.5">
+                            Fills: {pick.matchedRoles.join(', ')}
+                          </div>
+                        )}
+                        <div className="text-xs text-slate-500 leading-snug line-clamp-2 mt-0.5">
                           {pick.reasons.slice(0, 2).join(' · ')}
                         </div>
                       </div>
@@ -505,6 +517,7 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
               index={i}
               pokemon={pokemon}
               team={team}
+              format={format}
               onChange={state => updateSlot(i, state)}
               onLoadToCalc={side => onLoadToCalc(pokemon, side)}
               onAutoFill={() => handleAutoFill(i)}
