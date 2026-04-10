@@ -817,55 +817,76 @@ export const FAQS: FAQ[] = [
   <li><a href="/#/faq/pokemon-champions-singles-stall-archetype-guide">Singles Stall</a></li>
 </ul>
 
-<h3>Sun</h3>
-<p>Champions has two sun enablers, and they work very differently:</p>
-<ul>
-  <li><strong>Mega Charizard Y</strong> — sets real Sun via Drought on Mega Evolution. Enables Chlorophyll abusers and boosts Solar Beam</li>
-  <li><strong>Mega Meganium</strong> — uses the new ability Mega Sol: moves calculate as if Sun were active regardless of actual weather. Doesn't set weather but can't be disrupted by rain either</li>
-</ul>
-<p><strong>Core partners:</strong> Venusaur (Chlorophyll), Torkoal, Torterra, Victreebel. Without Amoonguss, redirection falls to Clefable or Whimsicott's Prankster support.</p>
+<h3>Archetype quick reference</h3>
+<p>Each card links to the full deep dive. <strong>Important:</strong> archetypes flagged "Both formats" have separate Doubles and Singles team rosters in their deep-dive article — the lineups are meaningfully different and not interchangeable.</p>
 
-<h3>Sand</h3>
-<p>The cleanest archetype to build in Champions because both anchors are present and untouched.</p>
-<ul>
-  <li><strong>Hippowdon</strong> — Sand Stream + Slack Off + Stealth Rock. Durable and self-sustaining</li>
-  <li><strong>Tyranitar</strong> — secondary Sand Stream option with Mega Tyranitar as a backup</li>
-</ul>
-<p><strong>Core partners:</strong> Garchomp, Excadrill (Sand Rush), Mega Aerodactyl, Rhyperior.</p>
-
-<h3>Snow</h3>
-<p>Snow is newly viable thanks to Mega Froslass, which gets Snow Warning on Mega Evolution.</p>
-<ul>
-  <li><strong>Mega Froslass</strong> — instant Snow + Aurora Veil enabler</li>
-  <li><strong>Abomasnow</strong> — secondary Snow Warning if you can't spare the Mega slot</li>
-</ul>
-<p><strong>Core partners:</strong> Weavile, Mamoswine, Glaceon, Beartic (Slush Rush), Avalugg.</p>
-
-<h3>Trick Room</h3>
-<p>Slow, hard-hitting teams that reverse the speed tier for five turns. Champions has strong TR setters.</p>
-<ul>
-  <li><strong>Hatterene</strong> — bulky TR setter with Psychic/Fairy offense</li>
-  <li><strong>Mimikyu</strong> — Disguise guarantees one free turn for TR setup</li>
-  <li><strong>Reuniclus</strong> — slower TR setter with Magic Guard</li>
-</ul>
-<p><strong>Core abusers:</strong> Rhyperior, Conkeldurr, Mega Kangaskhan (ironically decent under TR because of Parental Bond double hits), Torkoal. Without Ursaluna, the slow physical slot goes to Rhyperior or Mamoswine.</p>
-
-<h3>Tailwind</h3>
-<p>The opposite of TR: double your speed tier for four turns. Fast Prankster setters are king.</p>
-<ul>
-  <li><strong>Whimsicott</strong> — Prankster Tailwind is the gold-standard enabler</li>
-  <li><strong>Talonflame</strong> — Gale Wings priority + Tailwind</li>
-  <li><strong>Pelipper</strong> — rain + Tailwind pivot</li>
-</ul>
-
-<h3>Hyper Offense</h3>
-<p>Pure attacking pressure with minimal support. Champions' hyper offense revolves around the strongest Megas.</p>
-<ul>
-  <li><strong>Mega Delphox</strong> — insane SpA and Speed</li>
-  <li><strong>Mega Greninja</strong> — Protean STAB flexibility at elite Speed</li>
-  <li><strong>Mega Gengar</strong> — Shadow Tag trapping + Perish Song or Will-O-Wisp</li>
-</ul>
-<p><strong>Typical support:</strong> Incineroar (Intimidate + Fake Out), Whimsicott (Tailwind), a dedicated priority user like Sneasler or a Choice Scarf cleaner like Garchomp.</p>
+<div class="role-grid">
+  <div class="role-card">
+    <span class="name"><a href="/#/faq/pokemon-champions-sun-archetype-guide">Sun</a></span>
+    <span class="meta">Both formats · Mega Charizard Y / Meganium</span>
+    <p>Drought or Mega Sol boosts Fire STAB and skips Solar Beam\'s charge turn. Doubles runs Whimsicott + Incineroar support; Singles runs Hippowdon hazard lead + SD sweepers.</p>
+  </div>
+  <div class="role-card">
+    <span class="name"><a href="/#/faq/pokemon-champions-sand-archetype-guide">Sand</a></span>
+    <span class="meta">Both formats · Hippowdon / Tyranitar</span>
+    <p>Sand Rush Excadrill is the win condition in both formats, but Doubles uses Protect-based support builds and Singles swaps to SD + hazard lead with Tyranitar.</p>
+  </div>
+  <div class="role-card">
+    <span class="name"><a href="/#/faq/pokemon-champions-snow-archetype-guide">Snow</a></span>
+    <span class="meta">Both formats · very different rosters</span>
+    <p>Doubles is Mega Froslass + Aurora Veil; Singles drops the Mega entirely for Spikes suicide Froslass + Choice Band Slush Rush Beartic.</p>
+  </div>
+  <div class="role-card">
+    <span class="name"><a href="/#/faq/pokemon-champions-rain-archetype-guide">Rain</a></span>
+    <span class="meta">Both formats · Pelipper Drizzle</span>
+    <p>Doubles abuses Swift Swim Kingdra + Mega Greninja; Singles runs DD physical Kingdra + Archaludon Electro Shot + Glimmora hazards.</p>
+  </div>
+  <div class="role-card">
+    <span class="name"><a href="/#/faq/pokemon-champions-trick-room-archetype-guide">Trick Room</a></span>
+    <span class="meta">Both formats · Hatterene / Reuniclus</span>
+    <p>Doubles uses two setters + Torkoal spread; Singles leans on Reuniclus Magic Guard lead + Bulk Up Conkeldurr.</p>
+  </div>
+  <div class="role-card">
+    <span class="name"><a href="/#/faq/pokemon-champions-tailwind-archetype-guide">Tailwind</a></span>
+    <span class="meta">Doubles only</span>
+    <p>Whimsicott Prankster Tailwind + mid-speed Mega abusers. Not viable in Singles because 4 turns is too short 1v1 — Singles uses Choice Scarf instead.</p>
+  </div>
+  <div class="role-card">
+    <span class="name"><a href="/#/faq/pokemon-champions-hyper-offense-archetype-guide">Doubles Hyper Offense</a></span>
+    <span class="meta">Doubles only</span>
+    <p>Mega Delphox / Greninja / Gengar nukes behind Whimsicott Tailwind and Incineroar Fake Out glue.</p>
+  </div>
+  <div class="role-card">
+    <span class="name"><a href="/#/faq/pokemon-champions-intimidate-balance-archetype-guide">Intimidate Balance</a></span>
+    <span class="meta">Doubles only</span>
+    <p>Goodstuff team with Incineroar + Mega Venusaur + Whimsicott. No hard matchups, no crushing ones.</p>
+  </div>
+  <div class="role-card">
+    <span class="name"><a href="/#/faq/pokemon-champions-shadow-tag-perish-trap-archetype-guide">Shadow Tag Perish Trap</a></span>
+    <span class="meta">Doubles only</span>
+    <p>Mega Gengar traps a target while Alcremie clicks Perish Song — forces KOs through the 3-turn counter.</p>
+  </div>
+  <div class="role-card">
+    <span class="name"><a href="/#/faq/pokemon-champions-singles-hyper-offense-archetype-guide">Singles Hyper Offense</a></span>
+    <span class="meta">Singles only</span>
+    <p>Hazard lead (Glimmora) + setup sweepers (SD Garchomp, DD Dragonite, Quiver Volcarona) + Kingambit closer.</p>
+  </div>
+  <div class="role-card">
+    <span class="name"><a href="/#/faq/pokemon-champions-singles-balance-archetype-guide">Singles Balance</a></span>
+    <span class="meta">Singles only</span>
+    <p>Four pillars: hazard setter + Regenerator pivot + setup sweeper + bulky wall. Highest ladder win rate.</p>
+  </div>
+  <div class="role-card">
+    <span class="name"><a href="/#/faq/pokemon-champions-singles-volt-turn-archetype-guide">Singles Volt-Turn</a></span>
+    <span class="meta">Singles only</span>
+    <p>Rotom-W + Corviknight + Scizor pivot chain. Momentum-based hazard grind into a Dragonite close.</p>
+  </div>
+  <div class="role-card">
+    <span class="name"><a href="/#/faq/pokemon-champions-singles-stall-archetype-guide">Singles Stall</a></span>
+    <span class="meta">Singles only</span>
+    <p>Full walls, reliable recovery, Toxic attrition. Highest skill ceiling, longest games in the format.</p>
+  </div>
+</div>
 
 <h3>What's Missing That Mainline VGC Players Expect</h3>
 <ul>
@@ -999,60 +1020,106 @@ export const FAQS: FAQ[] = [
 <h2>Champions Meta at a Glance</h2>
 <p>The Champions meta is still forming — the game launched in April 2026 and tournament data is thin. What we know comes from first-principles analysis: taking the 186-mon roster, applying Champions-specific rule changes (Fake Out switch-in nerf, status condition nerfs, Intimidate simultaneous trigger), and projecting what each archetype looks like under those constraints.</p>
 
-<h3>The six major archetypes</h3>
+<h3>Archetype summary table</h3>
 
-<h4>1. <a href="/#/faq/pokemon-champions-hyper-offense-archetype-guide">Hyper Offense</a></h4>
-<p><strong>Game plan:</strong> Set hazards turn 1, force switches, setup sweep through weakened switch-ins. Every slot is an offensive threat — no dead weight, no passive pivots. See the <a href="/#/faq/pokemon-champions-hyper-offense-archetype-guide">Hyper Offense deep dive</a> (Doubles) or the <a href="/#/faq/pokemon-champions-singles-hyper-offense-archetype-guide">Singles Hyper Offense guide</a> for full team lists and matchups.</p>
+<p>This article gives you the format-aware overview. Click through to each deep dive for the full 6-slot roster, builds, and game plans — Doubles and Singles rosters are <strong>different teams</strong>, not shared lineups.</p>
+
+<table>
+  <tr><th>Archetype</th><th>Formats</th><th>Doubles lead</th><th>Singles lead</th></tr>
+  <tr>
+    <td><a href="/#/faq/pokemon-champions-hyper-offense-archetype-guide">Hyper Offense</a></td>
+    <td>Both (separate guides)</td>
+    <td>Mega Delphox + Whimsicott Tailwind</td>
+    <td>Glimmora + SD sweepers</td>
+  </tr>
+  <tr>
+    <td><a href="/#/faq/pokemon-champions-intimidate-balance-archetype-guide">Balance</a></td>
+    <td>Both (separate guides)</td>
+    <td>Incineroar + Mega Venusaur goodstuff</td>
+    <td>Hippowdon + Regenerator pivot core</td>
+  </tr>
+  <tr>
+    <td><a href="/#/faq/pokemon-champions-sand-archetype-guide">Sand</a></td>
+    <td>Both</td>
+    <td>Hippowdon + Excadrill + Whimsicott</td>
+    <td>Tyranitar + SD Excadrill + SD Garchomp</td>
+  </tr>
+  <tr>
+    <td><a href="/#/faq/pokemon-champions-sun-archetype-guide">Sun</a></td>
+    <td>Both</td>
+    <td>Charizard Y + Whimsicott + Venusaur</td>
+    <td>Hippowdon + Charizard Y + Growth Venusaur</td>
+  </tr>
+  <tr>
+    <td><a href="/#/faq/pokemon-champions-rain-archetype-guide">Rain</a></td>
+    <td>Both</td>
+    <td>Pelipper + Mega Greninja + Kingdra (special)</td>
+    <td>Glimmora + Pelipper + DD Kingdra (physical)</td>
+  </tr>
+  <tr>
+    <td><a href="/#/faq/pokemon-champions-snow-archetype-guide">Snow</a></td>
+    <td>Both</td>
+    <td>Mega Froslass Veil + Weavile</td>
+    <td>Glimmora + SD Weavile + Band Beartic</td>
+  </tr>
+  <tr>
+    <td><a href="/#/faq/pokemon-champions-trick-room-archetype-guide">Trick Room</a></td>
+    <td>Both</td>
+    <td>Hatterene + Kangaskhan / Rhyperior</td>
+    <td>Reuniclus + Bulk Up Conkeldurr + SD Rhyperior</td>
+  </tr>
+  <tr>
+    <td><a href="/#/faq/pokemon-champions-tailwind-archetype-guide">Tailwind</a></td>
+    <td>Doubles only</td>
+    <td>Whimsicott + Mega Delphox</td>
+    <td>— (use Choice Scarf instead)</td>
+  </tr>
+  <tr>
+    <td><a href="/#/faq/pokemon-champions-shadow-tag-perish-trap-archetype-guide">Perish Trap</a></td>
+    <td>Doubles only</td>
+    <td>Mega Gengar + Alcremie Perish Song</td>
+    <td>— (no 1v1 trap synergy)</td>
+  </tr>
+  <tr>
+    <td><a href="/#/faq/pokemon-champions-singles-volt-turn-archetype-guide">Volt-Turn</a></td>
+    <td>Singles only</td>
+    <td>—</td>
+    <td>Rotom-W + Corviknight + Scizor pivot chain</td>
+  </tr>
+  <tr>
+    <td><a href="/#/faq/pokemon-champions-singles-stall-archetype-guide">Stall</a></td>
+    <td>Singles only</td>
+    <td>—</td>
+    <td>Full walls + Toxic + recovery + Clefable close</td>
+  </tr>
+</table>
+
+<h3>Doubles-primary archetypes</h3>
+<p>These archetypes are built around format-specific mechanics (Fake Out, redirection, Follow Me, partner protection) that don\'t translate cleanly to Singles.</p>
 <ul>
-  <li><strong>Anchors:</strong> Garchomp, Mimikyu (Disguise setup), Dragonite (Dragon Dance or Dragonize Extreme Speed)</li>
-  <li><strong>Hazard lead:</strong> Hippowdon (Stealth Rock + Slack Off), Tyranitar, or Glimmora</li>
-  <li><strong>Cleaners:</strong> Weavile, Volcarona (Quiver Dance), Scizor, Kingambit (Supreme Overlord)</li>
-  <li><strong>Weakness:</strong> Fast priority users, Focus Sash breakers, hazard removal spam</li>
+  <li><strong><a href="/#/faq/pokemon-champions-hyper-offense-archetype-guide">Doubles Hyper Offense</a>:</strong> Mega Delphox / Mega Greninja / Mega Gengar behind Whimsicott Tailwind + Incineroar Fake Out glue. Priority cleanup via Weavile / Sneasler.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-intimidate-balance-archetype-guide">Doubles Intimidate Balance</a>:</strong> Incineroar pivot + Mega Venusaur Thick Fat wall + Whimsicott support. No crushing matchups, no losing ones.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-tailwind-archetype-guide">Doubles Tailwind</a>:</strong> Whimsicott Prankster setter amplifies a mid-speed Mega core. Strictly a Doubles support layer.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-shadow-tag-perish-trap-archetype-guide">Doubles Perish Trap</a>:</strong> Mega Gengar Shadow Tag locks in a target while Alcremie Perish Songs. Forces KOs on the 3-turn counter.</li>
 </ul>
 
-<h4>2. <a href="/#/faq/pokemon-champions-intimidate-balance-archetype-guide">Balance</a></h4>
-<p><strong>Game plan:</strong> Hazards + pivot + wincon + wall. Wear the opponent down through attrition, then set up a sweep in the endgame when their counter is chipped. This is the default archetype for "I don't know what I'm doing yet" teams because every slot has a clear role. Full builds in the <a href="/#/faq/pokemon-champions-intimidate-balance-archetype-guide">Intimidate Balance deep dive</a> (Doubles) and the <a href="/#/faq/pokemon-champions-singles-balance-archetype-guide">Singles Balance guide</a>.</p>
+<h3>Singles-primary archetypes</h3>
+<p>These rely on pivot chains, hazard stacking, or wall attrition that only exist in 6v6 Singles where individual Pokémon face off 1v1 without Fake Out or redirection.</p>
 <ul>
-  <li><strong>Hazard/wall foundation:</strong> Hippowdon, Corviknight, Skarmory</li>
-  <li><strong>Pivot core:</strong> Corviknight + Hydreigon (Volt-turn chain) or Incineroar (Parting Shot)</li>
-  <li><strong>Wincon:</strong> Garchomp, Dragonite, Mimikyu, or Mega Gengar</li>
-  <li><strong>Wall:</strong> Clefable (Magic Guard), Slowking, Umbreon</li>
-  <li><strong>Weakness:</strong> Dedicated wallbreakers with Choice Band/Specs, setup teams that outpace your cycle</li>
+  <li><strong><a href="/#/faq/pokemon-champions-singles-hyper-offense-archetype-guide">Singles Hyper Offense</a>:</strong> Glimmora hazard lead → SD Garchomp / DD Dragonite / Quiver Volcarona sweep chain → Kingambit close.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-singles-balance-archetype-guide">Singles Balance</a>:</strong> Four pillars — hazard setter, Regenerator pivot, setup sweeper, bulky wall. The default Singles ladder pick.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-singles-volt-turn-archetype-guide">Singles Volt-Turn</a>:</strong> Rotom-W + Corviknight + Scizor momentum chain with Scarf Hydreigon revenge killer and Dragonite close.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-singles-stall-archetype-guide">Singles Stall</a>:</strong> Full walls + Toxic + recovery + Clefable Calm Mind wincon. The highest-skill archetype in the format.</li>
 </ul>
 
-<h4>3. <a href="/#/faq/pokemon-champions-sand-archetype-guide">Sand Offense</a></h4>
-<p><strong>Game plan:</strong> Sand Stream setter + Sand Rush abuser. Classic Singles powerhouse that doesn't need new Z-A abilities to work — both anchors are vanilla in Champions. Sand damages anything that isn't Rock/Ground/Steel, giving you free chip every turn. See the <a href="/#/faq/pokemon-champions-sand-archetype-guide">Sand archetype deep dive</a>.</p>
+<h3>Cross-format archetypes</h3>
+<p>These work in both formats, but the Doubles and Singles <strong>rosters are different teams</strong>. Click through for the per-format builds:</p>
 <ul>
-  <li><strong>Setters:</strong> Tyranitar (Sand Stream + Rock/Dark STAB offense), Hippowdon (Sand Stream + defensive anchor)</li>
-  <li><strong>Sand Rush abuser:</strong> Excadrill — doubles speed in sand, cleans with Earthquake + Iron Head</li>
-  <li><strong>Secondary abusers:</strong> Garchomp, Gliscor (Poison Heal), Krookodile</li>
-  <li><strong>Weakness:</strong> Rain-boosted Water coverage, Fighting STAB, opposing weather wars</li>
-</ul>
-
-<h4>4. <a href="/#/faq/pokemon-champions-sun-archetype-guide">Sun (Mega Sol or Drought)</a></h4>
-<p><strong>Game plan:</strong> Permanent Sun → Chlorophyll abusers hit top speed tier → Fire STAB boosted 50% → Solar Beam has no charge turn. Champions gives you two distinct Sun setters with different tradeoffs. The <a href="/#/faq/pokemon-champions-sun-archetype-guide">Sun archetype deep dive</a> breaks down the Charizard Y vs Mega Meganium choice in full.</p>
-<ul>
-  <li><strong>Mega Meganium + Mega Sol:</strong> Makes every turn calculate as Sun regardless of actual weather. Doesn't set Sun on the field, but can't be disrupted by opposing weather either. The cleanest permanent-sun solution in the format.</li>
-  <li><strong>Mega Charizard Y + Drought:</strong> Sets real Sun via Drought. Suffers from the "wasted first turn to Mega Evolve" problem, but the Sun is on the field so Chlorophyll + Solar Power activate.</li>
-  <li><strong>Core partners:</strong> Venusaur (Chlorophyll), Victreebel (Chlorophyll), Arcanine (Intimidate)</li>
-  <li><strong>Weakness:</strong> Opposing <a href="/#/faq/pokemon-champions-rain-archetype-guide">Rain</a> (overwrites real Sun but not Mega Sol), Rock-type priority, Mega Tyranitar Sand</li>
-</ul>
-
-<h4>5. <a href="/#/faq/pokemon-champions-snow-archetype-guide">Snow (Aurora Veil)</a></h4>
-<p><strong>Game plan:</strong> Mega Froslass turn 1 sets Snow Warning → Aurora Veil goes up → Slush Rush abusers double their speed. The Z-A ability upgrade on Mega Froslass is the reason Snow is viable in Champions when it was fringe in Scarlet/Violet. See the <a href="/#/faq/pokemon-champions-snow-archetype-guide">Snow archetype deep dive</a>.</p>
-<ul>
-  <li><strong>Mega Froslass:</strong> Snow Warning on Mega Evolution — unique to Champions</li>
-  <li><strong>Abusers:</strong> Beartic (Slush Rush), Mamoswine (Thick Fat + Slush Rush), Weavile</li>
-  <li><strong>Aurora Veil caster:</strong> Froslass itself or Abomasnow</li>
-  <li><strong>Weakness:</strong> Fire-type spread moves, Steel walls (resist Ice)</li>
-</ul>
-
-<h4>6. <a href="/#/faq/pokemon-champions-trick-room-archetype-guide">Trick Room</a></h4>
-<p><strong>Game plan:</strong> Reverse the speed tier for 5 turns. Slow attackers with big Attack/SpA stats suddenly outspeed the whole field. The status condition nerfs in Champions benefit TR teams disproportionately — Thunder Wave and sleep are much weaker, so your setter survives. Full setter/wallbreaker builds in the <a href="/#/faq/pokemon-champions-trick-room-archetype-guide">Trick Room deep dive</a>.</p>
-<ul>
-  <li><strong>Setters:</strong> Hatterene (Magic Bounce blocks opposing Taunt), Mimikyu (Disguise guarantees one free turn), Reuniclus, Slowking</li>
-  <li><strong>Slow wallbreakers:</strong> Rhyperior, Conkeldurr (Guts), Mamoswine, Kingambit</li>
-  <li><strong>Weakness:</strong> Taunt before setup, phazing moves, faster Trick Room mirror</li>
+  <li><strong><a href="/#/faq/pokemon-champions-sand-archetype-guide">Sand</a>:</strong> Excadrill Sand Rush is the win condition in both formats. Doubles uses Protect + Whimsicott support; Singles swaps to SD + hazard lead with Tyranitar.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-sun-archetype-guide">Sun</a>:</strong> Charizard Y Drought in both formats. Doubles adds Whimsicott + Incineroar + Clefable; Singles replaces the entire support half with Hippowdon hazards + SD sweepers.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-rain-archetype-guide">Rain</a>:</strong> Pelipper Drizzle core. Doubles runs special Swift Swim Kingdra; Singles uses DD <em>physical</em> Kingdra + Archaludon Electro Shot.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-snow-archetype-guide">Snow</a>:</strong> Doubles is Mega Froslass + Aurora Veil; Singles drops the Mega entirely for Spikes suicide Froslass + Choice Band Beartic.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-trick-room-archetype-guide">Trick Room</a>:</strong> Doubles uses two setters + Torkoal spread; Singles uses Reuniclus Magic Guard lead + Bulk Up wallbreakers.</li>
 </ul>
 
 <h3>Tempo of the meta</h3>
@@ -1149,108 +1216,187 @@ export const FAQS: FAQ[] = [
 <h2>Archetype Counter-Picking Guide</h2>
 <p>Once you've identified your opponent's archetype at team preview, this guide tells you how to respond. Each section lists the archetype's key vulnerabilities, the Pokémon on your team most likely to exploit them, and the bring-list shape you should aim for.</p>
 
-<h3>Vs. <a href="/#/faq/pokemon-champions-sun-archetype-guide">Sun</a> (Mega Meganium / Mega Charizard Y)</h3>
-<p><strong>Their game plan:</strong> Permanent Sun boosts Fire STAB by 50% and doubles Chlorophyll partners' speed. Solar Beam has no charge turn. See the <a href="/#/faq/pokemon-champions-sun-archetype-guide">Sun archetype deep dive</a> for their build details.</p>
-<p><strong>Your answers:</strong></p>
+<div class="callout">
+  <p><span class="tag">Format matters</span>The mons you bring to counter an opposing archetype differ between Doubles and Singles. Each section below splits the counter plan per format — pick the one matching your format, not the other.</p>
+</div>
+
+<h3>Vs. <a href="/#/faq/pokemon-champions-sun-archetype-guide">Sun</a></h3>
+<p><strong>Their game plan:</strong> Drought or Mega Sol boosts Fire STAB and skips Solar Beam\'s charge turn. Chlorophyll partners (Venusaur / Victreebel) double Speed in real Sun.</p>
+
+<h4>Doubles counter plan</h4>
 <ul>
-  <li><strong>Attack the weather setter directly.</strong> Mega Meganium is Grass — hit it with Ice, Flying, or Fire. Mega Charizard Y is Fire/Flying — hit it with Rock, Water, or Electric.</li>
-  <li><strong>Deny Chlorophyll speed.</strong> Trick Room flips the script (Chlorophyll still doubles but the tier is reversed). Tailwind on your own team matches their speed.</li>
-  <li><strong>Bring a rain setter or Mega Tyranitar</strong> — opposing weather overwrites Mega Charizard Y's Drought. (Mega Sol on Meganium cannot be overwritten because it's an ability-driven state, not field weather.)</li>
-  <li><strong>Key threats:</strong> Tyranitar (Sand overwrites Sun), Archaludon (Electric STAB into Charizard), Primarina (Water into both Megas), Weavile (Ice Shard priority)</li>
+  <li><strong>Lead Tyranitar + Excadrill</strong> — Sand overwrites Drought on switch-in.</li>
+  <li><strong>Mega Venusaur Sleep Powder</strong> shuts down Chlorophyll abusers; Thick Fat halves Fire damage.</li>
+  <li><strong>Rotom-Wash</strong> gives you Electric coverage into Charizard Y and a Water resist.</li>
+  <li><strong>Whimsicott Taunt</strong> the Charizard before it Mega Evolves — Prankster resolves first.</li>
+  <li><strong>Don\'t bring:</strong> Ice sweepers (die to boosted Heat Wave), Water sweepers in Mega Sol matchups (Meganium ignores Rain).</li>
 </ul>
 
-<h3>Vs. <a href="/#/faq/pokemon-champions-sand-archetype-guide">Sand</a> (Tyranitar + Excadrill)</h3>
-<p><strong>Their game plan:</strong> Sand Stream sets Sand → Excadrill doubles speed via Sand Rush → cleans with Earthquake + Iron Head. Sand chip wears down non-Rock/Ground/Steel. Full build breakdown in the <a href="/#/faq/pokemon-champions-sand-archetype-guide">Sand archetype deep dive</a>.</p>
-<p><strong>Your answers:</strong></p>
+<h4>Singles counter plan</h4>
 <ul>
-  <li><strong>Outspeed Excadrill before Sand goes up.</strong> Choice Scarf Dragapult or base 130+ Speed Pokémon (Aerodactyl, Weavile) still win turn-1 before the weather lands.</li>
-  <li><strong>Water or Fighting coverage.</strong> Both Tyranitar (4× Water/Fighting) and Excadrill (2× Water/Fighting) are hit super-effectively. Primarina with Moonblast + Surf shreds the core.</li>
-  <li><strong>Bring your own weather.</strong> Rain shuts down Sand Rush since the weather changes, which disables Sand Rush's speed boost.</li>
-  <li><strong>Key threats:</strong> Primarina, Greninja (Water STAB), Lucario (Fighting STAB), Scizor (resists Rock/Dark)</li>
+  <li><strong>Tyranitar + Stealth Rock</strong> — Sand overwrites Drought and chips Venusaur on every switch.</li>
+  <li><strong>Choice Scarf Garchomp / Hydreigon</strong> revenge-kills +2 Venusaur before it OHKOs you.</li>
+  <li><strong>Dragonite Extreme Speed</strong> priority closes chipped Sun sweepers.</li>
+  <li><strong>Archaludon Electro Shot</strong> in Sand — 1-turn charge + Electric into Charizard Y.</li>
 </ul>
 
-<h3>Vs. <a href="/#/faq/pokemon-champions-snow-archetype-guide">Snow</a> (Mega Froslass + Aurora Veil)</h3>
-<p><strong>Their game plan:</strong> Turn-1 Mega Evolution triggers Snow Warning → Aurora Veil halves damage → Slush Rush abusers double speed. See the <a href="/#/faq/pokemon-champions-snow-archetype-guide">Snow archetype deep dive</a>.</p>
-<p><strong>Your answers:</strong></p>
+<h3>Vs. <a href="/#/faq/pokemon-champions-sand-archetype-guide">Sand</a></h3>
+<p><strong>Their game plan:</strong> Sand Stream → Sand Rush Excadrill doubles Speed → Earthquake + Iron Head sweep. Sand chip compounds.</p>
+
+<h4>Doubles counter plan</h4>
 <ul>
-  <li><strong>Fire coverage punches through Veil chip.</strong> Aurora Veil only halves damage, doesn't block it. Strong Fire attackers (Volcarona, Charizard) still break the core.</li>
-  <li><strong>Steel walls resist Ice.</strong> Archaludon, Corviknight, and Scizor all wall Ice STAB.</li>
-  <li><strong>Taunt the Froslass</strong> before it sets Aurora Veil. Prankster Taunt from Sableye or Whimsicott shuts the whole archetype down.</li>
-  <li><strong>Defog to remove the Veil</strong> if it goes up — Corviknight and Dragapult both get Defog.</li>
-  <li><strong>Key threats:</strong> Volcarona, Scizor, Archaludon, Mega Houndoom, Primarina (resists Ice but hits with Water)</li>
+  <li><strong>Pelipper Drizzle lead</strong> overwrites Sand on switch-in; disables Sand Rush.</li>
+  <li><strong>Primarina Moonblast + Surf</strong> hits both Tyranitar (4× Water) and Excadrill (2× Water).</li>
+  <li><strong>Whimsicott Prankster Tailwind</strong> matches Excadrill\'s doubled Speed.</li>
+  <li><strong>Mega Scizor Bullet Punch</strong> priority ignores Sand Rush.</li>
 </ul>
 
-<h3>Vs. <a href="/#/faq/pokemon-champions-trick-room-archetype-guide">Trick Room</a> (Hatterene / Mimikyu)</h3>
-<p><strong>Their game plan:</strong> Set Trick Room → slow wallbreakers (Rhyperior, Conkeldurr, Mamoswine) outspeed the entire field for 5 turns → sweep. See the <a href="/#/faq/pokemon-champions-trick-room-archetype-guide">Trick Room archetype deep dive</a>.</p>
-<p><strong>Your answers:</strong></p>
+<h4>Singles counter plan</h4>
 <ul>
-  <li><strong>Taunt the setter before they click Trick Room.</strong> Whimsicott (Prankster), Sableye, or Dragapult can shut down the whole strategy with a single move.</li>
-  <li><strong>Phazing forces them out before they can capitalize.</strong> Dragonite's Dragon Tail, Skarmory's Whirlwind, or Gyarados's Roar all reset their positioning.</li>
-  <li><strong>Outlast the TR turns.</strong> Trick Room only lasts 5 turns. If you can stall with Protect + Substitute, you run out the clock and reverse the tempo.</li>
-  <li><strong>Bring your own Trick Room.</strong> A Trick Room mirror neutralizes their advantage — whoever clicks last wins the tempo war.</li>
-  <li><strong>Key threats:</strong> Whimsicott (Taunt), Gengar (Taunt + Mega Shadow Tag), Skarmory (Whirlwind), Dragonite (Dragon Tail)</li>
+  <li><strong>Choice Scarf Dragapult</strong> outspeeds Sand Rush Excadrill at base 142 → 213 with Scarf.</li>
+  <li><strong>Bulk Up / SD Conkeldurr</strong> walls Tyranitar and Excadrill simultaneously with Fighting STAB.</li>
+  <li><strong>Mega Greninja Hydro Pump</strong> OHKOs both anchors.</li>
+  <li><strong>Corviknight Defog</strong> removes their Stealth Rock so you can pivot safely.</li>
 </ul>
 
-<h3>Vs. <a href="/#/faq/pokemon-champions-tailwind-archetype-guide">Tailwind Offense</a></h3>
-<p><strong>Their game plan:</strong> Turn-1 Tailwind doubles their speed for 4 turns → fast sweepers clean up while the tempo favor lasts. See the <a href="/#/faq/pokemon-champions-tailwind-archetype-guide">Tailwind archetype deep dive</a>.</p>
-<p><strong>Your answers:</strong></p>
+<h3>Vs. <a href="/#/faq/pokemon-champions-snow-archetype-guide">Snow</a></h3>
+<p><strong>Their game plan:</strong> Doubles — Mega Froslass Aurora Veil + Slush Rush sweepers. Singles — Glimmora hazard lead + Weavile SD + Choice Band Beartic.</p>
+
+<h4>Doubles counter plan</h4>
 <ul>
-  <li><strong>Bring your own Tailwind.</strong> The mirror forces them to set it first, which wastes a turn. Whimsicott's Prankster Tailwind is the fastest option.</li>
-  <li><strong>Trick Room reverses the speed.</strong> Fast teams lose everything when Trick Room is up — pack a Hatterene or Mimikyu even if you're not running full TR.</li>
-  <li><strong>Taunt the Tailwind setter</strong> on turn 1 before they set. Prankster Taunt is ideal.</li>
-  <li><strong>Priority moves.</strong> Priority bypasses their speed boost entirely. Scizor's Bullet Punch, Dragonite's Extreme Speed, Weavile's Ice Shard.</li>
-  <li><strong>Key threats:</strong> Whimsicott mirror, Dragonite (Dragonize priority STAB), Weavile, Scizor</li>
+  <li><strong>Whimsicott Prankster Taunt</strong> turn 1 shuts down Froslass\'s Aurora Veil.</li>
+  <li><strong>Mega Charizard Y / Delphox</strong> — Fire STAB punches through Veil chip.</li>
+  <li><strong>Archaludon</strong> walls Ice STAB with Steel typing.</li>
+  <li><strong>Defog Corviknight</strong> removes Aurora Veil if it lands.</li>
+</ul>
+
+<h4>Singles counter plan</h4>
+<ul>
+  <li><strong>Corviknight / Scizor</strong> walls Ice STAB and removes hazards with Defog.</li>
+  <li><strong>Volcarona Quiver Dance</strong> Sun-less Fire sweeper breaks the core.</li>
+  <li><strong>Taunt Gliscor</strong> shuts down Glimmora hazard lead.</li>
+  <li><strong>Rotom-Wash Will-O-Wisp</strong> cripples Choice Band Beartic.</li>
+</ul>
+
+<h3>Vs. <a href="/#/faq/pokemon-champions-rain-archetype-guide">Rain</a></h3>
+<p><strong>Their game plan:</strong> Pelipper Drizzle → Swift Swim or Mega Greninja nukes with Rain-boosted Water.</p>
+
+<h4>Doubles counter plan</h4>
+<ul>
+  <li><strong>Rotom-Wash Thunderbolt</strong> OHKOs Pelipper (4× Electric).</li>
+  <li><strong>Tyranitar lead</strong> — Sand overwrites Rain on switch-in.</li>
+  <li><strong>Mega Venusaur</strong> walls Rain-boosted Water STAB with Grass resistance.</li>
+  <li><strong>Incineroar Intimidate</strong> softens Mega Greninja\'s physical partner if any.</li>
+</ul>
+
+<h4>Singles counter plan</h4>
+<ul>
+  <li><strong>Archaludon Electro Shot</strong> is the hardest Rain counter — 1-turn charge + Electric into Pelipper + Water.</li>
+  <li><strong>Mega Venusaur Giga Drain</strong> walls every Water attacker.</li>
+  <li><strong>Tyranitar + Excadrill</strong> weather war overwrites Rain.</li>
+  <li><strong>Weavile Ice Shard</strong> priority bypasses Swift Swim.</li>
+</ul>
+
+<h3>Vs. <a href="/#/faq/pokemon-champions-trick-room-archetype-guide">Trick Room</a></h3>
+<p><strong>Their game plan:</strong> Reverse Speed tier for 5 turns → slow wallbreakers sweep.</p>
+
+<h4>Doubles counter plan</h4>
+<ul>
+  <li><strong>Whimsicott Prankster Taunt</strong> turn 1 shuts down Hatterene / Mimikyu setup.</li>
+  <li><strong>Hatterene Magic Bounce mirror</strong> reflects the opposing TR attempt.</li>
+  <li><strong>Protect + stall</strong> the 4-turn window with Incineroar and Clefable, then close after.</li>
+  <li><strong>Fake Out Incineroar</strong> on the setter turn 1 to force a failed TR click.</li>
+</ul>
+
+<h4>Singles counter plan</h4>
+<ul>
+  <li><strong>Taunt Gliscor or Sableye</strong> prevents Reuniclus from setting TR.</li>
+  <li><strong>Skarmory Whirlwind</strong> phazes the setter out.</li>
+  <li><strong>Kingambit Sucker Punch</strong> priority works regardless of TR state.</li>
+  <li><strong>Choice Scarf Hydreigon U-turn</strong> maintains tempo across the 4-turn window.</li>
+</ul>
+
+<h3>Vs. <a href="/#/faq/pokemon-champions-tailwind-archetype-guide">Tailwind</a> <span class="meta" style="color:#8a8fa0;font-size:11px;">(Doubles only)</span></h3>
+<p><strong>Their game plan:</strong> Prankster Tailwind → 3 turns of doubled-Speed offense. Doubles-exclusive archetype.</p>
+<ul>
+  <li><strong>Whimsicott mirror</strong> forces them to set first; you Taunt or Encore to disrupt.</li>
+  <li><strong>Priority moves</strong> bypass Tailwind entirely (Bullet Punch, Extreme Speed, Ice Shard).</li>
+  <li><strong>Hatterene Trick Room insurance</strong> inverts their Speed mechanic.</li>
+  <li><strong>Stall 4 turns</strong> with Protect + Substitute; Tailwind runs out.</li>
 </ul>
 
 <h3>Vs. <a href="/#/faq/pokemon-champions-hyper-offense-archetype-guide">Hyper Offense</a></h3>
-<p><strong>Their game plan:</strong> Set Stealth Rock turn 1 → force switches → every setup sweeper cleans through weakened switch-ins. Full build details in the <a href="/#/faq/pokemon-champions-hyper-offense-archetype-guide">Doubles Hyper Offense guide</a> and the <a href="/#/faq/pokemon-champions-singles-hyper-offense-archetype-guide">Singles Hyper Offense guide</a>.</p>
-<p><strong>Your answers:</strong></p>
+<p><strong>Their game plan:</strong> Turn-1 hazards → force switches → setup sweep weakened switch-ins.</p>
+
+<h4>Doubles counter plan</h4>
 <ul>
-  <li><strong>Focus Sash leads</strong> survive the setup turn so you can trade.</li>
-  <li><strong>Hazard removal on every team.</strong> Defog (Corviknight, Dragapult) or Rapid Spin (Excadrill, Scizor) clears chip damage before it compounds.</li>
-  <li><strong>Priority priority priority.</strong> Hyper Offense has almost no bulk — one priority attack from Dragonite or Scizor often KOs the weakened sweeper.</li>
-  <li><strong>Phazing</strong> cancels setup completely. Roar or Whirlwind forces out a boosted Dragonite and resets the win con.</li>
-  <li><strong>Key threats:</strong> Corviknight (Defog + bulky wall), Dragonite (priority Extreme Speed), Scizor (Bullet Punch + U-turn momentum), Clefable (Magic Guard ignores hazards)</li>
+  <li><strong>Incineroar Intimidate + Fake Out</strong> disrupts the Mega wallbreaker turn 1.</li>
+  <li><strong>Mega Venusaur</strong> walls physical sweepers and Sleep Powders setup attempts.</li>
+  <li><strong>Rotom-Wash Will-O-Wisp</strong> cripples Mega Delphox or Garchomp.</li>
+  <li><strong>Focus Sash Whimsicott</strong> guarantees Taunt on the opposing setup turn.</li>
+</ul>
+
+<h4>Singles counter plan</h4>
+<ul>
+  <li><strong>Corviknight Defog + Roost</strong> clears hazards and absorbs setup sweeps.</li>
+  <li><strong>Dragonite Multiscale + Extreme Speed</strong> priority KOs weakened setup sweepers.</li>
+  <li><strong>Clefable Magic Guard</strong> ignores all hazard chip and walls Calm Mind sweepers.</li>
+  <li><strong>Hippowdon Whirlwind</strong> phazes out boosted Dragonite / Garchomp.</li>
 </ul>
 
 <h3>Vs. <a href="/#/faq/pokemon-champions-intimidate-balance-archetype-guide">Balance</a></h3>
-<p><strong>Their game plan:</strong> Attrition. Hazards chip every switch, pivots keep the favorable matchup on the field, and a setup sweeper cleans in the endgame when everything is worn down. See the <a href="/#/faq/pokemon-champions-intimidate-balance-archetype-guide">Intimidate Balance deep dive</a> or <a href="/#/faq/pokemon-champions-singles-balance-archetype-guide">Singles Balance</a> for a look at what they\'re running.</p>
-<p><strong>Your answers:</strong></p>
+<p><strong>Their game plan:</strong> Attrition. Hazards + pivots + late-game setup wincon.</p>
+
+<h4>Doubles counter plan</h4>
 <ul>
-  <li><strong>Aggressive wallbreakers</strong> force them to commit their walls turn 1 rather than cycle them safely. Choice Band Dragonite, Choice Specs Primarina, or setup sweepers that outpace their pivot cycle.</li>
-  <li><strong>Deny their hazards.</strong> Taunt the Stealth Rock setter, or Defog/Court Change the hazards before they compound.</li>
-  <li><strong>Target their wincon before they can set up.</strong> If you identify their setup sweeper, bring something that revenge-kills it (Choice Scarf user, priority) and don't let them spend turns on safe pivots.</li>
-  <li><strong>Pressure their pivot chain.</strong> If you KO their Corviknight or Incineroar, the whole cycle collapses because they can't regen their walls.</li>
-  <li><strong>Key threats:</strong> Choice Band Dragonite, Choice Specs Hydreigon, Mega Gengar (Shadow Tag traps their pivot), Kingambit (Supreme Overlord snowballs as their team falls)</li>
+  <li><strong>Mega Delphox Pyro Break</strong> — special nuke breaks Mega Venusaur and Corviknight walls.</li>
+  <li><strong>Mega Gengar Shadow Tag</strong> traps their pivot and forces a trade.</li>
+  <li><strong>Tailwind speed advantage</strong> outpaces the Intimidate cycle.</li>
+  <li><strong>Aggressive wallbreakers</strong> — commit to KOs, don\'t trade pivots.</li>
 </ul>
 
-<h3>Vs. <a href="/#/faq/pokemon-champions-rain-archetype-guide">Rain Offense</a> (Pelipper + Swift Swim)</h3>
-<p><strong>Their game plan:</strong> Pelipper sets Drizzle on entry → Swift Swim sweepers double Speed → boosted Hydro Pump and 100%-accurate Thunder/Hurricane nuke your team. Mega Greninja is the scariest finisher. Full build in the <a href="/#/faq/pokemon-champions-rain-archetype-guide">Rain archetype deep dive</a>.</p>
-<p><strong>Your answers:</strong></p>
+<h4>Singles counter plan</h4>
 <ul>
-  <li><strong>Kill Pelipper turn 1.</strong> Pelipper is ×4 weak to Electric. Thundurus-style Thunderbolt or Archaludon Electro Shot removes the Rain enabler immediately, and Swift Swim turns off when weather drops.</li>
-  <li><strong>Bring your own weather.</strong> Sand (Tyranitar) or Snow (Froslass) overwrites Rain on switch-in, disabling Swift Swim.</li>
-  <li><strong>Grass resists water.</strong> Mega Venusaur and Rillaboom (if added) wall Rain-boosted Hydro Pump trivially.</li>
-  <li><strong>Priority moves bypass Swift Swim.</strong> Ice Shard, Bullet Punch, Extreme Speed all ignore the doubled speed tier.</li>
-  <li><strong>Key threats:</strong> Tyranitar (weather overwrite + Rock STAB), Archaludon (Electric + Steel), Mega Venusaur (Grass wall), Weavile (Ice Shard priority)</li>
+  <li><strong>Choice Band Dragonite</strong> breaks Corviknight / Clefable walls.</li>
+  <li><strong>Choice Specs Hydreigon Draco Meteor</strong> punches through Slowking.</li>
+  <li><strong>Kingambit Supreme Overlord</strong> snowballs as their pivots fall.</li>
+  <li><strong>Setup sweeper with Substitute</strong> (SD Garchomp behind Sub) evades Will-O-Wisp / Thunder Wave.</li>
 </ul>
 
-<h3>Vs. Stall</h3>
-<p><strong>Their game plan:</strong> Outlast everything. Toxic, hazards, recovery, and phazing wear you down over 30+ turns. You cannot out-stall them — you have to break their walls.</p>
-<p><strong>Your answers:</strong></p>
+<h3>Vs. <a href="/#/faq/pokemon-champions-shadow-tag-perish-trap-archetype-guide">Perish Trap</a> <span class="meta" style="color:#8a8fa0;font-size:11px;">(Doubles only)</span></h3>
+<p><strong>Their game plan:</strong> Mega Gengar Shadow Tag + partner Perish Song → forced 3-turn KO.</p>
 <ul>
-  <li><strong>Wallbreakers with boosting items.</strong> Choice Band/Specs or setup sweepers that get past their recovery math are the only reliable way through.</li>
-  <li><strong>Taunt spam</strong> on Prankster users shuts down Toxic + Recover cycles completely.</li>
-  <li><strong>Magic Guard or Heavy-Duty Boots ignores their hazard chip</strong> — Clefable or Archaludon sit on stall walls indefinitely.</li>
-  <li><strong>Substitute</strong> blocks Toxic and forces the wall to commit to actual offensive moves.</li>
-  <li><strong>Key threats:</strong> Mega Gengar (Taunt trap), Choice Specs Hydreigon, Kingambit (Supreme Overlord chains through walls), Clefable mirror</li>
+  <li><strong>Ghost-type leads</strong> (Dragapult, Mimikyu) ignore Shadow Tag.</li>
+  <li><strong>Taunt Gengar</strong> before it Mega Evolves.</li>
+  <li><strong>Soundproof users</strong> (Voltorb line — not in Champions) bypass Perish Song entirely.</li>
+  <li><strong>Encore the Perish Song user</strong> — Whimsicott Prankster locks Alcremie into a useless move.</li>
+</ul>
+
+<h3>Vs. <a href="/#/faq/pokemon-champions-singles-volt-turn-archetype-guide">Volt-Turn</a> <span class="meta" style="color:#8a8fa0;font-size:11px;">(Singles only)</span></h3>
+<p><strong>Their game plan:</strong> Pivot chain with Rotom-Wash + Corviknight + Scizor maintains favorable matchups while hazards chip.</p>
+<ul>
+  <li><strong>Gliscor</strong> walls Rotom-Wash\'s Volt Switch with Ground immunity.</li>
+  <li><strong>Kingambit</strong> punishes U-turn with Sucker Punch.</li>
+  <li><strong>Taunt hazard setters</strong> to shut down the chip game.</li>
+  <li><strong>Fast setup sweepers</strong> (Volcarona Quiver Dance) outrun the pivot cycle.</li>
+</ul>
+
+<h3>Vs. <a href="/#/faq/pokemon-champions-singles-stall-archetype-guide">Stall</a> <span class="meta" style="color:#8a8fa0;font-size:11px;">(Singles only)</span></h3>
+<p><strong>Their game plan:</strong> Outlast you with walls + Toxic + recovery. 50+ turn matches.</p>
+<ul>
+  <li><strong>Wallbreakers with boosting items.</strong> Choice Band Dragonite, Choice Specs Hydreigon.</li>
+  <li><strong>Taunt Prankster users</strong> (Whimsicott, Sableye) shut down Toxic + Recover cycles.</li>
+  <li><strong>Magic Guard Clefable</strong> ignores hazard + Toxic chip and out-walls their walls with Calm Mind.</li>
+  <li><strong>Substitute</strong> blocks Toxic and forces actual offense from their walls.</li>
+  <li><strong>Kingambit Supreme Overlord</strong> breaks stall as their walls fall.</li>
 </ul>
 
 <h3>General principles</h3>
 <ul>
-  <li><strong>Every archetype has a Taunt weakness.</strong> Prankster Taunt users (Whimsicott, Sableye) disrupt setup, hazards, and stall simultaneously.</li>
+  <li><strong>Every archetype has a Taunt weakness.</strong> Prankster Taunt users disrupt setup, hazards, and stall simultaneously.</li>
   <li><strong>Speed control is the highest-impact tech.</strong> Tailwind beats Trick Room beats raw speed beats nothing.</li>
-  <li><strong>Your Mega is your answer.</strong> You only get one per battle — save it for the matchup where it's the key piece.</li>
+  <li><strong>Your Mega is your answer.</strong> One Mega per battle — save it for the matchup where it\'s the key piece.</li>
+  <li><strong>Don\'t import Doubles counters into Singles.</strong> Fake Out + Intimidate + redirection don\'t exist in Singles; Singles counters rely on hazards, pivots, and priority instead.</li>
 </ul>
     `,
   },
@@ -1289,16 +1435,32 @@ export const FAQS: FAQ[] = [
 </ol>
 
 <h3>The core + cover pattern</h3>
-<p>Once you've picked your wincon, identify the "cover" — the 1-2 mons that directly enable it. Common cores:</p>
+<p>Once you\'ve picked your wincon, identify the "cover" — the 1-2 mons that directly enable it. <strong>Core members differ between Doubles and Singles</strong> — each archetype guide lists both rosters separately.</p>
+
+<h4>Doubles cores</h4>
 <ul>
-  <li><strong><a href="/#/faq/pokemon-champions-sun-archetype-guide">Sun core</a>:</strong> Mega Meganium + Venusaur. The wincon is Venusaur sweeping under Sun; Meganium is the cover that enables it.</li>
-  <li><strong><a href="/#/faq/pokemon-champions-sand-archetype-guide">Sand core</a>:</strong> Tyranitar + Excadrill. Wincon is Excadrill; Tyranitar provides the Sand.</li>
-  <li><strong><a href="/#/faq/pokemon-champions-rain-archetype-guide">Rain core</a>:</strong> Pelipper + Mega Greninja or Kingdra. Wincon is a Swift Swim sweeper abusing boosted Water STAB.</li>
-  <li><strong><a href="/#/faq/pokemon-champions-snow-archetype-guide">Snow core</a>:</strong> Mega Froslass + Weavile / Beartic. Wincon is chip under Aurora Veil while Slush Rush attackers clean.</li>
-  <li><strong><a href="/#/faq/pokemon-champions-trick-room-archetype-guide">Trick Room core</a>:</strong> Hatterene + Rhyperior / Conkeldurr. Wincon is a slow wallbreaker outspeeding the entire field for 5 turns.</li>
-  <li><strong><a href="/#/faq/pokemon-champions-tailwind-archetype-guide">Setup / Tailwind core</a>:</strong> Mimikyu + Whimsicott. Wincon is a boosted sweeper; Mimikyu absorbs a hit with Disguise, Whimsicott sets Tailwind.</li>
-  <li><strong>Trap core:</strong> Mega Gengar + Perish Song user. Wincon is forcing KOs via Shadow Tag + Perish Song.</li>
-  <li><strong><a href="/#/faq/pokemon-champions-hyper-offense-archetype-guide">Hazard core</a>:</strong> Hippowdon + setup sweeper. Hazards chip through switches; the sweeper wins the endgame.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-sun-archetype-guide">Sun</a>:</strong> Charizard Y + Venusaur (Chlorophyll) + Whimsicott Tailwind + Incineroar Fake Out.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-sand-archetype-guide">Sand</a>:</strong> Hippowdon + Excadrill (Sand Rush) + Whimsicott backup + Incineroar glue.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-rain-archetype-guide">Rain</a>:</strong> Pelipper + Mega Greninja + special Swift Swim Kingdra + Whimsicott Tailwind.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-snow-archetype-guide">Snow</a>:</strong> Mega Froslass + Aurora Veil + Weavile + Mamoswine.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-trick-room-archetype-guide">Trick Room</a>:</strong> Hatterene + Rhyperior / Mega Kangaskhan / Torkoal.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-tailwind-archetype-guide">Tailwind</a>:</strong> Whimsicott Prankster + Mega Delphox + Garchomp.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-hyper-offense-archetype-guide">Hyper Offense</a>:</strong> Mega Mega (Delphox / Greninja / Gengar) + Incineroar + Whimsicott + priority cleaner.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-intimidate-balance-archetype-guide">Balance</a>:</strong> Incineroar + Mega Venusaur + Whimsicott + Clefable redirect.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-shadow-tag-perish-trap-archetype-guide">Perish Trap</a>:</strong> Mega Gengar + Alcremie (Perish Song + Follow Me).</li>
+</ul>
+
+<h4>Singles cores</h4>
+<ul>
+  <li><strong><a href="/#/faq/pokemon-champions-sun-archetype-guide">Sun</a>:</strong> Hippowdon Rocks + Charizard Y + Growth Venusaur + SD Garchomp + Dragonite ESpeed.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-sand-archetype-guide">Sand</a>:</strong> Tyranitar Rocks + SD Excadrill + SD Garchomp + Gliscor pivot.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-rain-archetype-guide">Rain</a>:</strong> Glimmora hazards + Pelipper pivot + DD physical Kingdra + Archaludon Electro Shot.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-snow-archetype-guide">Snow</a>:</strong> Glimmora hazards + SD Weavile + Spikes Froslass (not Mega) + Choice Band Beartic.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-trick-room-archetype-guide">Trick Room</a>:</strong> Reuniclus Magic Guard + Bulk Up Conkeldurr + SD Rhyperior + Kingambit close.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-singles-hyper-offense-archetype-guide">Hyper Offense</a>:</strong> Glimmora + SD Garchomp + DD Dragonite + Quiver Volcarona + Kingambit.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-singles-balance-archetype-guide">Balance</a>:</strong> Hippowdon + Slowking Regen + Corviknight Defog + SD Garchomp + Clefable.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-singles-volt-turn-archetype-guide">Volt-Turn</a>:</strong> Rotom-W + Corviknight + Scizor pivot chain + Scarf Hydreigon.</li>
+  <li><strong><a href="/#/faq/pokemon-champions-singles-stall-archetype-guide">Stall</a>:</strong> Hippowdon + Clefable Magic Guard + Umbreon Wish + Corviknight Defog.</li>
 </ul>
 
 <h3>Speed tier ladder</h3>
