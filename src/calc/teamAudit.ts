@@ -4,7 +4,7 @@
 // weather vulnerability, offensive balance, and meta preparedness
 
 import { Move } from '@smogon/calc';
-import { getPokemonData, getAvailablePokemon, getTypeEffectiveness, getDefensiveMultiplier} from '../data/champions';
+import { getPokemonData, getAvailablePokemon, getTypeEffectiveness, getDefensiveMultiplier, isChampionsPokemon } from '../data/champions';
 import { PRESETS } from '../data/presets';
 import { NORMAL_TIER_LIST } from '../data/tierlist';
 import { getCachedUsageStats, getLiveTeammates } from '../data/liveData';
@@ -248,10 +248,12 @@ export function auditTeam(team: PokemonState[], format: BattleFormat = DEFAULT_F
     hasPivot: members.some(m => hasMove(m, 'U-turn', 'Volt Switch', 'Parting Shot', 'Flip Turn', 'Teleport')),
   };
 
-  // Detect Pokemon that COULD provide speed control but don't have the move equipped
-  const KNOWN_TR_SETTERS = ['Mimikyu', 'Hatterene', 'Porygon2', 'Dusclops', 'Cresselia', 'Armarouge', 'Gothitelle', 'Bronzong', 'Slowbro', 'Slowking', 'Indeedee-F'];
-  const KNOWN_TAILWIND = ['Whimsicott', 'Talonflame', 'Pelipper', 'Murkrow', 'Suicune', 'Drifblim', 'Corviknight'];
-  const KNOWN_FAKE_OUT = ['Incineroar', 'Rillaboom', 'Meowscarada', 'Kangaskhan', 'Ambipom', 'Mienshao', 'Sneasler', 'Lopunny', 'Hitmontop'];
+  // Detect Pokemon that COULD provide speed control but don't have
+  // the move equipped. Filtered through isChampionsPokemon so stale
+  // species (Rillaboom etc.) don't create phantom suggestions.
+  const KNOWN_TR_SETTERS = ['Mimikyu', 'Hatterene', 'Armarouge', 'Slowbro', 'Slowking', 'Reuniclus', 'Alcremie'].filter(isChampionsPokemon);
+  const KNOWN_TAILWIND = ['Whimsicott', 'Talonflame', 'Pelipper', 'Corviknight', 'Altaria', 'Dragonite'].filter(isChampionsPokemon);
+  const KNOWN_FAKE_OUT = ['Incineroar', 'Meowscarada', 'Kangaskhan', 'Sneasler', 'Lopunny'].filter(isChampionsPokemon);
 
   const potentialTR = members.filter(m => KNOWN_TR_SETTERS.includes(m.species) && !hasMove(m, 'Trick Room'));
   const potentialTailwind = members.filter(m => KNOWN_TAILWIND.includes(m.species) && !hasMove(m, 'Tailwind'));
@@ -302,9 +304,9 @@ export function auditTeam(team: PokemonState[], format: BattleFormat = DEFAULT_F
         severity: 'warning',
         category: 'Speed Control',
         title: 'No Fake Out user',
-        detail: 'Fake Out guarantees a free turn for your partner by flinching one opponent.',
-        suggestion: 'Consider Incineroar, Rillaboom, or Meowscarada for Fake Out',
-        suggestedPokemon: ['Incineroar', 'Rillaboom', 'Meowscarada'],
+        detail: 'Fake Out guarantees a free turn for your partner by flinching one opponent. In Champions, Fake Out cannot be used on the turn a Pokemon switches in.',
+        suggestion: 'Consider Incineroar, Meowscarada, or Sneasler for Fake Out',
+        suggestedPokemon: ['Incineroar', 'Meowscarada', 'Sneasler'].filter(isChampionsPokemon),
       });
     }
   }
@@ -327,9 +329,9 @@ export function auditTeam(team: PokemonState[], format: BattleFormat = DEFAULT_F
       severity: 'info',
       category: 'Support',
       title: 'No redirection support',
-      detail: 'Rage Powder / Follow Me redirects single-target attacks to protect your sweeper. Useful for enabling setup or protecting fragile attackers.',
-      suggestion: 'Consider Amoonguss (Rage Powder + Spore + Regenerator)',
-      suggestedPokemon: ['Amoonguss'],
+      detail: 'Follow Me / Ally Switch redirects single-target attacks to protect your sweeper. Useful for enabling setup or protecting fragile attackers. Note: Amoonguss (the mainline VGC redirector) is not in Champions.',
+      suggestion: 'Consider Clefable or Togekiss (Follow Me) as the primary redirector slot',
+      suggestedPokemon: ['Clefable', 'Togekiss'],
     });
   }
 
@@ -339,9 +341,9 @@ export function auditTeam(team: PokemonState[], format: BattleFormat = DEFAULT_F
       severity: 'warning',
       category: 'Offense',
       title: 'No priority moves',
-      detail: 'Priority attacks (Extreme Speed, Bullet Punch, Sucker Punch, Grassy Glide) bypass Speed and pick off weakened targets. Without them, faster opponents can sweep you at low HP.',
-      suggestion: 'Consider Rillaboom (Grassy Glide), Scizor (Bullet Punch), or Dragonite (Extreme Speed)',
-      suggestedPokemon: ['Rillaboom', 'Scizor', 'Dragonite'],
+      detail: 'Priority attacks (Extreme Speed, Bullet Punch, Sucker Punch, Aqua Jet) bypass Speed and pick off weakened targets. Without them, faster opponents can sweep you at low HP.',
+      suggestion: 'Consider Scizor (Bullet Punch), Dragonite (Extreme Speed), or Weavile (Ice Shard)',
+      suggestedPokemon: ['Scizor', 'Dragonite', 'Weavile'],
     });
   }
 
@@ -352,8 +354,8 @@ export function auditTeam(team: PokemonState[], format: BattleFormat = DEFAULT_F
       category: 'Momentum',
       title: 'No pivot moves (U-Turn / Volt Switch / Parting Shot)',
       detail: 'Pivot moves let you switch while dealing damage or debuffing, maintaining momentum and bringing in teammates safely.',
-      suggestion: 'Incineroar (Parting Shot), Rillaboom (U-turn), Rotom-Wash (Volt Switch)',
-      suggestedPokemon: ['Incineroar', 'Rotom-Wash'],
+      suggestion: 'Incineroar (Parting Shot), Rotom-Wash (Volt Switch), or Scizor (U-turn)',
+      suggestedPokemon: ['Incineroar', 'Rotom-Wash', 'Scizor'].filter(isChampionsPokemon),
     });
   }
 
@@ -417,8 +419,8 @@ export function auditTeam(team: PokemonState[], format: BattleFormat = DEFAULT_F
       category: 'Offense',
       title: 'Entirely physical offense',
       detail: 'Every attacker on your team is physical. A single Intimidate drop or Will-O-Wisp cripples your entire damage output. Physical walls like Corviknight wall your whole team.',
-      suggestion: 'Add a special attacker: Dragapult, Gholdengo, Volcarona, or Primarina',
-      suggestedPokemon: ['Dragapult', 'Gholdengo', 'Volcarona', 'Primarina'],
+      suggestion: 'Add a special attacker: Dragapult, Volcarona, Primarina, or Hydreigon',
+      suggestedPokemon: ['Dragapult', 'Volcarona', 'Primarina', 'Hydreigon'].filter(isChampionsPokemon),
     });
   }
   if (members.length >= 3 && specAttackers > 0 && physAttackers === 0) {
@@ -428,15 +430,20 @@ export function auditTeam(team: PokemonState[], format: BattleFormat = DEFAULT_F
       category: 'Offense',
       title: 'Entirely special offense',
       detail: 'Every attacker is special. Assault Vest users and special walls like Snorlax or Umbreon wall your entire team.',
-      suggestion: 'Add a physical attacker: Garchomp, Rillaboom, Scizor, or Dragonite',
-      suggestedPokemon: ['Garchomp', 'Rillaboom', 'Scizor', 'Dragonite'],
+      suggestion: 'Add a physical attacker: Garchomp, Scizor, Dragonite, or Weavile',
+      suggestedPokemon: ['Garchomp', 'Scizor', 'Dragonite', 'Weavile'].filter(isChampionsPokemon),
     });
   }
 
   // ─── 5. META PREPAREDNESS ─────────────────────────────────────
 
-  // Check if team has an answer for top meta threats
-  const metaThreats = ['Garchomp', 'Incineroar', 'Dragapult', 'Amoonguss', 'Greninja'];
+  // Check if team has an answer for top meta threats. Species
+  // filtered through isChampionsPokemon so stale VGC entries
+  // (Amoonguss, Rillaboom, Gholdengo, etc.) don't leak into the
+  // audit and produce warnings for threats that don't exist in
+  // Champions.
+  const metaThreats = ['Garchomp', 'Incineroar', 'Dragapult', 'Whimsicott', 'Greninja', 'Mimikyu', 'Dragonite']
+    .filter(n => isChampionsPokemon(n));
   for (const threat of metaThreats) {
     if (members.some(m => m.species === threat)) continue; // You have it
 
