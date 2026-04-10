@@ -802,16 +802,19 @@ export const FAQS: FAQ[] = [
 
 <p><strong>Looking for a deep dive on a specific archetype?</strong> Each of the archetypes below links to a standalone guide with full SP spreads, sample teams, game plans, and matchup tables.</p>
 <ul>
-  <li><a href="/#/faq/pokemon-champions-sun-archetype-guide">Sun (Charizard Y / Mega Meganium)</a></li>
-  <li><a href="/#/faq/pokemon-champions-sand-archetype-guide">Sand (Hippowdon + Excadrill)</a></li>
-  <li><a href="/#/faq/pokemon-champions-snow-archetype-guide">Snow (Mega Froslass + Aurora Veil)</a></li>
-  <li><a href="/#/faq/pokemon-champions-rain-archetype-guide">Rain (Pelipper + Swift Swim)</a></li>
-  <li><a href="/#/faq/pokemon-champions-trick-room-archetype-guide">Trick Room (Hatterene + slow wallbreakers)</a></li>
-  <li><a href="/#/faq/pokemon-champions-tailwind-archetype-guide">Tailwind (Whimsicott + fast Megas)</a></li>
+  <li><a href="/#/faq/pokemon-champions-sun-archetype-guide">Sun (Charizard Y / Mega Meganium)</a> — both formats</li>
+  <li><a href="/#/faq/pokemon-champions-sand-archetype-guide">Sand (Hippowdon + Excadrill)</a> — both formats</li>
+  <li><a href="/#/faq/pokemon-champions-snow-archetype-guide">Snow (Mega Froslass + Aurora Veil)</a> — both formats</li>
+  <li><a href="/#/faq/pokemon-champions-rain-archetype-guide">Rain (Pelipper + Swift Swim)</a> — both formats</li>
+  <li><a href="/#/faq/pokemon-champions-trick-room-archetype-guide">Trick Room (Hatterene + slow wallbreakers)</a> — both formats</li>
+  <li><a href="/#/faq/pokemon-champions-tailwind-archetype-guide">Tailwind (Whimsicott + fast Megas)</a> — Doubles only</li>
+  <li><a href="/#/faq/pokemon-champions-shadow-tag-perish-trap-archetype-guide">Shadow Tag Perish Trap (Mega Gengar)</a> — Doubles only</li>
   <li><a href="/#/faq/pokemon-champions-hyper-offense-archetype-guide">Doubles Hyper Offense</a></li>
-  <li><a href="/#/faq/pokemon-champions-intimidate-balance-archetype-guide">Intimidate Balance (goodstuff)</a></li>
+  <li><a href="/#/faq/pokemon-champions-intimidate-balance-archetype-guide">Intimidate Balance (goodstuff)</a> — Doubles</li>
   <li><a href="/#/faq/pokemon-champions-singles-hyper-offense-archetype-guide">Singles Hyper Offense</a></li>
   <li><a href="/#/faq/pokemon-champions-singles-balance-archetype-guide">Singles Balance</a></li>
+  <li><a href="/#/faq/pokemon-champions-singles-volt-turn-archetype-guide">Singles Volt-Turn</a></li>
+  <li><a href="/#/faq/pokemon-champions-singles-stall-archetype-guide">Singles Stall</a></li>
 </ul>
 
 <h3>Sun</h3>
@@ -1592,83 +1595,129 @@ Moves: Trick Room, Psyshock, Dazzling Gleam, Protect</pre>
   <li>Duration: <strong>5 turns</strong> (no Heat Rock in Champions)</li>
 </ul>
 
-<h2>Two cores, two strategies</h2>
+<h2>Doubles team</h2>
 
-<h3>Core A — Real Sun (Mega Charizard Y)</h3>
-<p>Drought sets actual field weather. Enables Chlorophyll partners. Every Fire move on your side is boosted.</p>
+<p>Speed-controlled hyper-offense with Tailwind speed control, redirection support, and Intimidate glue. Meganiumite is a valid swap for Charizardite Y if you want weather-immune Mega Sol math (drop Venusaur when you do — Chlorophyll requires real weather).</p>
+
+<pre>
+Mega Charizard Y @ Charizardite Y — Timid, 32 SpA / 32 Spe / 2 HP
+  Heat Wave / Solar Beam / Air Slash / Protect
+Venusaur         @ Miracle Seed  — Modest, 32 HP / 32 SpA / 2 Def
+  Giga Drain / Sludge Bomb / Earth Power / Protect
+Whimsicott       @ Focus Sash    — Timid, 32 HP / 32 Spe / 2 SpA
+  Tailwind / Moonblast / Encore / Taunt
+Incineroar       @ Sitrus Berry  — Adamant, 32 HP / 32 Atk / 2 Def
+  Fake Out / Flare Blitz / Parting Shot / Knock Off
+Clefable         @ Leftovers     — Calm, 32 HP / 2 Def / 32 SpD
+  Moonblast / Follow Me / Moonlight / Protect
+Garchomp         @ Soft Sand     — Jolly, 32 Atk / 32 Spe / 2 HP
+  Earthquake / Dragon Claw / Rock Slide / Protect
+</pre>
 
 <div class="role-grid">
   <div class="role-card">
     <span class="name">Mega Charizard Y</span>
-    <span class="meta">Timid · Charizardite Y · 32 SpA / 32 Spe</span>
-    <p>Heat Wave / Solar Beam / Air Slash / Protect. Sets Sun via Drought on Mega Evolution.</p>
+    <span class="meta">Weather setter + nuke</span>
+    <p>Drought sets real Sun on Mega Evolve. Solar Beam skips its charge turn under Sun. Heat Wave spreads 1.5× Fire damage across both slots.</p>
   </div>
   <div class="role-card">
     <span class="name">Venusaur</span>
-    <span class="meta">Modest · Miracle Seed · 32 HP / 32 SpA</span>
-    <p>Giga Drain / Sludge Bomb / Earth Power / Protect. Chlorophyll doubles Speed in Sun.</p>
-  </div>
-  <div class="role-card">
-    <span class="name">Victreebel</span>
-    <span class="meta">Jolly · Soft Sand · 32 Atk / 32 Spe</span>
-    <p>Leaf Blade / Sucker Punch / Knock Off / Protect. Physical Chlorophyll alternative.</p>
-  </div>
-</div>
-
-<h3>Core B — Mega Sol (Mega Meganium)</h3>
-<p>Mega Sol calculates damage as if Sun were active. It does <em>not</em> set real weather, so Chlorophyll partners don\'t double their Speed — but nothing can disrupt it either.</p>
-
-<div class="role-grid">
-  <div class="role-card">
-    <span class="name">Mega Meganium</span>
-    <span class="meta">Modest · Meganiumite · 32 HP / 32 SpA</span>
-    <p>Earth Power / Solar Beam / Giga Drain / Protect. Weather-immune Sun math.</p>
+    <span class="meta">Chlorophyll sweeper</span>
+    <p>Doubled Speed under real Sun outspeeds the unboosted meta. Sludge Bomb hits Fairy walls Charizard can\'t.</p>
   </div>
   <div class="role-card">
     <span class="name">Whimsicott</span>
-    <span class="meta">Timid · Focus Sash · 32 HP / 32 Spe</span>
-    <p>Prankster Tailwind solves Meganium\'s base 80 Speed problem. Mandatory partner.</p>
+    <span class="meta">Prankster Tailwind</span>
+    <p>Mandatory speed control. Encore locks opposing setup, Taunt shuts down Trick Room attempts.</p>
   </div>
-</div>
-
-<h3>Universal partners (both cores)</h3>
-<div class="role-grid">
   <div class="role-card">
     <span class="name">Incineroar</span>
-    <span class="meta">Intimidate + Fake Out</span>
-    <p>Swings damage math turn 1. Parting Shot pivots safely.</p>
-  </div>
-  <div class="role-card">
-    <span class="name">Garchomp</span>
-    <span class="meta">Physical wallbreaker</span>
-    <p>Answers Rock / Ground threats that Fire attackers fear.</p>
+    <span class="meta">Intimidate glue</span>
+    <p>Turn-1 Fake Out flinches while Parting Shot cycles position. Universal Doubles support package.</p>
   </div>
   <div class="role-card">
     <span class="name">Clefable</span>
-    <span class="meta">Follow Me redirection</span>
-    <p>Fills the Amoonguss-shaped hole in Champions\' support roster.</p>
+    <span class="meta">Follow Me redirector</span>
+    <p>Fills the Amoonguss-shaped gap in Champions\' support roster. Magic Guard ignores hazard chip.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Garchomp</span>
+    <span class="meta">Flex physical threat</span>
+    <p>Answers Rock / Ground threats that Fire attackers fear. Rock Slide doubles as spread damage.</p>
   </div>
 </div>
 
-<h2>Game plan</h2>
-
-<h3>Doubles</h3>
+<h3>Doubles game plan</h3>
 <ol>
-  <li><strong>Turn 1.</strong> Lead Whimsicott + Mega. Prankster Tailwind. Mega Evolves and attacks. Sun / Mega Sol live.</li>
-  <li><strong>Turns 2–4.</strong> Outspeed everything. Fire STAB breaks soft walls. Incineroar rotates in for Intimidate cycling.</li>
-  <li><strong>Turn 5+.</strong> Real Sun expires. Close, reset Drought via Charizard Y, or lean on priority. Mega Sol never expires.</li>
+  <li><strong>Turn 1.</strong> Lead Whimsicott + Charizard Y. Prankster Tailwind. Charizard Mega Evolves → Drought → Heat Wave.</li>
+  <li><strong>Turns 2–4.</strong> Outspeeding the field. Boosted Fire STAB breaks soft walls. Incineroar rotates in for Intimidate cycling.</li>
+  <li><strong>Turn 5+.</strong> Real Sun expires. Reset via Charizard switch-in, or lean on Garchomp Earthquake cleanup.</li>
 </ol>
 
-<h3>Singles</h3>
-<p class="tight">Sun in Singles works best with Mega Charizard Y + a Chlorophyll Venusaur. Mega Meganium is weaker here because there\'s no redirection partner to abuse the Grass type.</p>
+<h2>Singles team</h2>
+
+<p>The Singles build is a <strong>completely different roster</strong>. No Whimsicott (Tailwind is too short for 1v1). No Incineroar (Fake Out / Parting Shot are Doubles tools). No Clefable Follow Me (no partner to redirect for). Instead: hazard lead + Chlorophyll wallbreaker + setup sweeper + priority closer.</p>
+
+<pre>
+Mega Charizard Y @ Charizardite Y — Timid, 32 SpA / 32 Spe / 2 HP
+  Fire Blast / Solar Beam / Focus Blast / Roost
+Venusaur         @ Miracle Seed  — Modest, 32 HP / 32 SpA / 2 Def
+  Growth / Giga Drain / Sludge Bomb / Weather Ball
+Hippowdon        @ Leftovers     — Impish, 32 HP / 32 Def / 2 SpD
+  Earthquake / Slack Off / Stealth Rock / Whirlwind
+Garchomp         @ Black Glasses — Jolly, 32 Atk / 32 Spe / 2 HP
+  Swords Dance / Earthquake / Dragon Claw / Stone Edge
+Dragonite        @ Sitrus Berry  — Adamant, 32 Atk / 32 Spe / 2 HP
+  Dragon Dance / Extreme Speed / Earthquake / Dragon Claw
+Gliscor          @ Leftovers     — Impish, 32 HP / 32 Def / 2 SpD
+  Earthquake / Roost / Toxic / Defog
+</pre>
+
+<div class="role-grid">
+  <div class="role-card">
+    <span class="name">Mega Charizard Y</span>
+    <span class="meta">Solo Sun wallbreaker</span>
+    <p>Roost replaces Protect — no partner to stall for. Fire Blast beats Heat Wave in 1v1 damage math. Focus Blast handles Heatran-style resists.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Venusaur</span>
+    <span class="meta">Growth +2 sweeper</span>
+    <p>Growth is +2 Atk / SpA in Sun. Weather Ball becomes a 100 BP Fire move. Chlorophyll doubles Speed.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Hippowdon</span>
+    <span class="meta">Hazard lead</span>
+    <p>Stealth Rock enables the Sun win condition by chipping incoming Rock / Water answers. Whirlwind phases opposing setup.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Garchomp</span>
+    <span class="meta">Swords Dance sweeper</span>
+    <p>Singles-specific build: SD instead of Protect, Stone Edge over Rock Slide for 1v1 precision.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Dragonite</span>
+    <span class="meta">Priority cleaner</span>
+    <p>Multiscale + Extreme Speed finishes chipped threats. Works outside the Sun window.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Gliscor</span>
+    <span class="meta">Defensive pivot + Defog</span>
+    <p>Removes opposing hazards and spreads Toxic. Replaces the Doubles support slot.</p>
+  </div>
+</div>
+
+<h3>Singles game plan</h3>
 <ol>
-  <li><strong>Lead</strong> Charizard Y → Mega Evolve → Drought is up.</li>
-  <li><strong>Force a switch</strong> with Solar Beam threat (no charge turn in Sun).</li>
-  <li><strong>Pivot</strong> to Venusaur (Growth +2 in Sun) or a Sun-boosted wallbreaker on the predicted switch.</li>
-  <li><strong>Sweep</strong> through weakened switch-ins with doubled Chlorophyll Speed.</li>
-  <li><strong>Reset Drought</strong> via Charizard Y switch-in if Sun expires mid-game.</li>
+  <li><strong>Lead Hippowdon.</strong> Stealth Rock turn 1. Pivot out when bulk is spent.</li>
+  <li><strong>Bring Charizard Y</strong> on a forced switch. Drought sets, Fire Blast OHKOs the predicted incoming wall.</li>
+  <li><strong>Pivot to Venusaur</strong> for Growth → Chlorophyll sweep. Growth is +2 under Sun, not +1.</li>
+  <li><strong>Late game:</strong> Garchomp SD or Dragonite DD cleans survivors. ESpeed priority closes chipped targets.</li>
+  <li><strong>Reset Drought</strong> via Charizard Y switch-in if Sun expires mid-sweep.</li>
 </ol>
-<p class="tight">Singles Sun is a glass-cannon archetype — don\'t expect to win long grinds. Close inside 10 turns or concede the pace.</p>
+
+<div class="callout warn">
+  <p><span class="tag">Don\'t swap rosters</span>The Doubles and Singles builds share only Charizard Y and Venusaur. Every other slot is different — do not bring the Doubles team into a Singles ladder or vice versa.</p>
+</div>
 
 <h2>Matchups</h2>
 <table>
@@ -1729,79 +1778,130 @@ Moves: Trick Room, Psyshock, Dazzling Gleam, Protect</pre>
   <li><strong>Sand Veil</strong> +20% evasion (Gliscor)</li>
 </ul>
 
-<h2>The locked core</h2>
+<h2>Doubles team</h2>
+
+<p>Doubles Sand runs Hippowdon (or Tyranitar) + Excadrill as the mandatory core, Whimsicott for Tailwind backup, and Incineroar for Intimidate glue. Garchomp fills the flex wallbreaker slot.</p>
+
+<pre>
+Hippowdon        @ Leftovers     — Impish, 32 HP / 32 Def / 2 SpD
+  Earthquake / Slack Off / Stealth Rock / Protect
+Excadrill        @ Soft Sand     — Jolly, 32 Atk / 32 Spe / 2 HP
+  Earthquake / Iron Head / Rock Slide / Protect
+Garchomp         @ Soft Sand     — Jolly, 32 Atk / 32 Spe / 2 HP
+  Earthquake / Rock Slide / Dragon Claw / Protect
+Whimsicott       @ Focus Sash    — Timid, 32 HP / 32 Spe / 2 SpA
+  Tailwind / Moonblast / Encore / Taunt
+Incineroar       @ Sitrus Berry  — Adamant, 32 HP / 32 Atk / 2 Def
+  Fake Out / Flare Blitz / Parting Shot / Knock Off
+Rotom-Wash       @ Sitrus Berry  — Modest, 32 HP / 32 SpA / 2 SpD
+  Hydro Pump / Thunderbolt / Will-O-Wisp / Protect
+</pre>
 
 <div class="role-grid">
   <div class="role-card">
     <span class="name">Hippowdon</span>
-    <span class="meta">Impish · Leftovers · 32 HP / 32 Def</span>
-    <p>Earthquake / Slack Off / Stealth Rock / Whirlwind. Self-sustaining pivot.</p>
-  </div>
-  <div class="role-card">
-    <span class="name">Tyranitar</span>
-    <span class="meta">Adamant · Tyranitarite · 32 HP / 32 Atk</span>
-    <p>Rock Slide / Crunch / Ice Punch / Protect. Alternate anchor + wallbreaker.</p>
+    <span class="meta">Sand setter + Ground immune</span>
+    <p>Sets Sand on switch-in. Ground immunity enables Excadrill spread Earthquake spam.</p>
   </div>
   <div class="role-card">
     <span class="name">Excadrill</span>
-    <span class="meta">Jolly · Soft Sand · 32 Atk / 32 Spe</span>
-    <p>Earthquake / Iron Head / Rock Slide / Protect. ~324 Speed in Sand.</p>
+    <span class="meta">Sand Rush cleaner</span>
+    <p>Doubled Speed in Sand → outspeeds the field. Earthquake hits both slots safely when partnered with Hippowdon.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Garchomp</span>
+    <span class="meta">Sand Force wallbreaker</span>
+    <p>+30% Rock / Ground moves under Sand. Protect instead of SD in Doubles — you need the defensive option for the 2v2 dance.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Whimsicott</span>
+    <span class="meta">Tailwind backup</span>
+    <p>Tailwind stacks with Sand Rush for 4× Speed Excadrill when you need a nuke turn.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Incineroar</span>
+    <span class="meta">Intimidate glue</span>
+    <p>Cushions physical attackers and pivots with Parting Shot. Universal Doubles support.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Rotom-Wash</span>
+    <span class="meta">Water coverage</span>
+    <p>Covers Sand\'s Water weakness (Pelipper / Primarina leads). Will-O-Wisp disrupts Fighting threats.</p>
   </div>
 </div>
 
-<h3>Hippowdon vs Tyranitar</h3>
-<table>
-  <tr><th></th><th>Hippowdon</th><th>Tyranitar</th></tr>
-  <tr><td>Bulk</td><td>Elite physical wall</td><td>Mixed + Sand SpD</td></tr>
-  <tr><td>Mega slot</td><td>Free</td><td>Used (Mega T-Tar)</td></tr>
-  <tr><td>Offense</td><td>Low</td><td>High — wallbreaker</td></tr>
-  <tr><td>Hazards</td><td>Natural SR setter</td><td>Optional SR</td></tr>
-</table>
+<h3>Doubles game plan</h3>
+<ol>
+  <li><strong>Turn 1.</strong> Lead Hippowdon + Excadrill. Sand sets on switch-in. Excadrill is already faster than the unboosted meta.</li>
+  <li><strong>Turn 2.</strong> Spam Earthquake — Hippowdon is Ground-immune, everything else takes full damage.</li>
+  <li><strong>Turns 3–5.</strong> Cycle Incineroar for Intimidate, Garchomp for Dragon STAB. Sand chip compounds across the board.</li>
+  <li><strong>Turn 6+.</strong> Reset Sand via Hippowdon switch-in. Leftovers + Slack Off = immortal wall.</li>
+</ol>
 
-<div class="callout tip">
-  <p><span class="tag">Rule of thumb</span>Pick Hippowdon if you want to Mega with something else (Excadrill, Garchomp, Aerodactyl). Pick Tyranitar if you don\'t need another Mega and want the nuke.</p>
-</div>
+<h2>Singles team</h2>
 
-<h3>Common partners</h3>
+<p>Singles Sand swaps Doubles support (Whimsicott, Incineroar, Rotom-Wash) for a hazard lead, a setup sweeper, and a pivot. The Excadrill Sand Rush win condition stays — everything else changes.</p>
+
+<pre>
+Tyranitar        @ Leftovers     — Adamant, 32 HP / 32 Atk / 2 SpD
+  Stealth Rock / Rock Slide / Crunch / Whirlwind
+Excadrill        @ Life-equivalent · Soft Sand — Jolly, 32 Atk / 32 Spe / 2 HP
+  Swords Dance / Earthquake / Iron Head / Rock Slide
+Garchomp         @ Black Glasses — Jolly, 32 Atk / 32 Spe / 2 HP
+  Swords Dance / Earthquake / Dragon Claw / Stone Edge
+Gliscor          @ Leftovers     — Impish, 32 HP / 32 Def / 2 SpD
+  Earthquake / Roost / Toxic / Defog
+Rotom-Wash       @ Leftovers     — Bold, 32 HP / 32 Def / 2 SpA
+  Hydro Pump / Volt Switch / Will-O-Wisp / Pain Split
+Dragonite        @ Sitrus Berry  — Adamant, 32 Atk / 32 Spe / 2 HP
+  Dragon Dance / Extreme Speed / Earthquake / Dragon Claw
+</pre>
+
 <div class="role-grid">
   <div class="role-card">
+    <span class="name">Tyranitar</span>
+    <span class="meta">Sand lead + Rocks</span>
+    <p>Singles T-Tar runs Stealth Rock instead of Ice Punch. Whirlwind phazes opposing setup.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Excadrill</span>
+    <span class="meta">SD Sand Rush sweeper</span>
+    <p>Singles-specific: Swords Dance replaces Protect. +2 Earthquake under Sand Rush Speed cleans the field.</p>
+  </div>
+  <div class="role-card">
     <span class="name">Garchomp</span>
-    <span class="meta">Sand Force boost</span>
-    <p>+30% Earthquake and Rock Slide. Also a full sweeper in its own right.</p>
+    <span class="meta">SD secondary sweeper</span>
+    <p>Stone Edge over Rock Slide for 1v1 precision. Swords Dance over Protect.</p>
   </div>
   <div class="role-card">
     <span class="name">Gliscor</span>
-    <span class="meta">Sand Veil + Defog</span>
-    <p>Keeps your own hazards while removing theirs. Evasion chip.</p>
+    <span class="meta">Defensive pivot + Defog</span>
+    <p>Sand Veil evasion + Toxic + Defog. Replaces the Doubles-only Whimsicott / Incineroar slot.</p>
   </div>
   <div class="role-card">
-    <span class="name">Mega Aerodactyl</span>
-    <span class="meta">Tough Claws</span>
-    <p>Rock Slide + elite Speed. Flying secondary STAB.</p>
+    <span class="name">Rotom-Wash</span>
+    <span class="meta">Volt-Turn pivot</span>
+    <p>Volt Switch momentum + Will-O-Wisp disruption. Handles opposing Water leads.</p>
   </div>
   <div class="role-card">
-    <span class="name">Mamoswine</span>
-    <span class="meta">Ice Shard priority</span>
-    <p>Handles Dragons that don\'t fear Sand.</p>
+    <span class="name">Dragonite</span>
+    <span class="meta">Priority closer</span>
+    <p>Secondary DD sweeper. Extreme Speed closes chipped targets regardless of Sand state.</p>
   </div>
 </div>
 
-<h2>Game plan</h2>
-
-<h3>Doubles</h3>
+<h3>Singles game plan</h3>
 <ol>
-  <li><strong>Turn 1.</strong> Lead Hippowdon + Excadrill. Sand sets. Excadrill is now faster than everything unboosted.</li>
-  <li><strong>Turn 2.</strong> Spam Earthquake — Hippowdon is Ground-immune. Hippowdon Protects or Stealth Rocks.</li>
-  <li><strong>Turns 3–5.</strong> Cycle Garchomp / Mamoswine for cleanup. Sand chip compounds.</li>
-  <li><strong>Turn 6+.</strong> Reset Sand via Hippowdon switch-in. Leftovers + Slack Off = immortal.</li>
+  <li><strong>Lead Tyranitar.</strong> Stealth Rock turn 1. Sand sets on entry. Whirlwind opposing setup attempts.</li>
+  <li><strong>Pivot to Excadrill</strong> on a forced switch. Sand Rush + SD → boosted Earthquake sweep.</li>
+  <li><strong>Secondary sweep</strong> with Garchomp if Excadrill goes down. Stone Edge handles Flying threats.</li>
+  <li><strong>Defensive cycle</strong> via Gliscor + Rotom-Wash when you need to reset the pace.</li>
+  <li><strong>Dragonite closes</strong> with Extreme Speed priority on chipped targets.</li>
 </ol>
 
-<h3>Singles</h3>
-<ol>
-  <li><strong>Lead</strong> Hippowdon or T-Tar → Stealth Rock → pivot out.</li>
-  <li><strong>Bring Excadrill</strong> on a forced switch. OHKO or force another switch.</li>
-  <li><strong>Close</strong> with Excadrill or Garchomp once Rock / Ground / Steel resists are gone.</li>
-</ol>
+<div class="callout warn">
+  <p><span class="tag">Don\'t swap rosters</span>Doubles and Singles share Excadrill, Garchomp, and Rotom-Wash as species — but Excadrill and Garchomp run SD instead of Protect, and the lead flips from Hippowdon to Tyranitar. Do not mix the teams.</p>
+</div>
 
 <h2>Matchups</h2>
 <table>
@@ -1862,72 +1962,134 @@ Moves: Trick Room, Psyshock, Dazzling Gleam, Protect</pre>
   <li><em>Snow deals no chip damage</em> — unlike old Hail</li>
 </ul>
 
-<h2>The core</h2>
+<h2>Doubles team</h2>
+
+<p>Doubles Snow is a coin-flip archetype: if Aurora Veil lands turn 1, you\'re favored in every matchup; if Froslass gets Taunted or Fake Out\'d, the team collapses. Mandatory speed control via Tailwind backup.</p>
+
+<pre>
+Mega Froslass    @ Froslassite   — Timid, 32 SpA / 32 Spe / 2 HP
+  Blizzard / Ice Beam / Shadow Ball / Aurora Veil
+Weavile          @ Black Glasses — Jolly, 32 Atk / 32 Spe / 2 HP
+  Ice Shard / Icicle Crash / Knock Off / Protect
+Mamoswine        @ Never-Melt Ice — Adamant, 32 HP / 32 Atk / 2 Def
+  Ice Shard / Icicle Crash / Earthquake / Rock Slide
+Arcanine         @ Sitrus Berry  — Adamant, 32 HP / 32 Atk / 2 Def
+  Flare Blitz / Extreme Speed / Snarl / Protect
+Whimsicott       @ Focus Sash    — Timid, 32 HP / 32 Spe / 2 SpA
+  Tailwind / Moonblast / Encore / Taunt
+Dragonite        @ Lum Berry     — Adamant, 32 HP / 32 Atk / 2 Def
+  Extreme Speed / Dragon Claw / Earthquake / Protect
+</pre>
 
 <div class="role-grid">
   <div class="role-card">
     <span class="name">Mega Froslass</span>
-    <span class="meta">Timid · Froslassite · 32 SpA / 32 Spe</span>
-    <p>Blizzard / Ice Beam / Shadow Ball / Aurora Veil. Sets Snow + Veil turn 1. Expect to die turn 2.</p>
+    <span class="meta">Veil setter</span>
+    <p>Snow Warning on Mega Evolve enables Aurora Veil turn 1. Expect her to die turn 2 — her only job is the Veil.</p>
   </div>
   <div class="role-card">
     <span class="name">Weavile</span>
-    <span class="meta">Jolly · Black Glasses · 32 Atk / 32 Spe</span>
-    <p>Ice Shard / Icicle Crash / Knock Off / Protect. Priority cleanup under Veil.</p>
+    <span class="meta">Ice Shard cleanup</span>
+    <p>Priority cleanup after Veil comes down. Knock Off removes opposing Sitrus Berry / Leftovers.</p>
   </div>
   <div class="role-card">
     <span class="name">Mamoswine</span>
-    <span class="meta">Adamant · Never-Melt Ice · 32 HP / 32 Atk</span>
-    <p>Ice Shard / Icicle Crash / Earthquake / Rock Slide. Bulky secondary.</p>
-  </div>
-</div>
-
-<h3>Common partners</h3>
-<div class="role-grid">
-  <div class="role-card">
-    <span class="name">Beartic</span>
-    <span class="meta">Slush Rush</span>
-    <p>Doubled Speed + Icicle Crash flinch cheese. Snow-dependent.</p>
+    <span class="meta">Bulky wallbreaker</span>
+    <p>Dual STAB coverage + Earthquake hits both opposing slots under Veil.</p>
   </div>
   <div class="role-card">
     <span class="name">Arcanine</span>
-    <span class="meta">Intimidate + Extreme Speed</span>
-    <p>Priority cleaner + Fire coverage for non-Ice enemies.</p>
+    <span class="meta">Intimidate + ESpeed</span>
+    <p>Intimidate softens physical mirrors. Snarl drops SpA for the back half of the game.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Whimsicott</span>
+    <span class="meta">Tailwind backup</span>
+    <p>Once Veil drops, Whimsicott Tailwind keeps the tempo alive. Prankster Encore disrupts opposing setup.</p>
   </div>
   <div class="role-card">
     <span class="name">Dragonite</span>
-    <span class="meta">Multiscale + ESpeed</span>
-    <p>Priority cleaner that isn\'t weak to Ice mirrors.</p>
-  </div>
-  <div class="role-card">
-    <span class="name">Avalugg</span>
-    <span class="meta">Physical wall</span>
-    <p>Appreciates the Snow +50% Defense boost on Ice types.</p>
+    <span class="meta">Priority closer</span>
+    <p>Multiscale insurance + Extreme Speed cleans chipped targets. Not weak to Ice mirrors.</p>
   </div>
 </div>
 
-<h2>Game plan</h2>
-
-<h3>Doubles</h3>
+<h3>Doubles game plan</h3>
 <ol>
-  <li><strong>Turn 1.</strong> Lead Froslass + Weavile. Mega Evolve (Snow sets) → Aurora Veil. Weavile attacks with Ice Shard or Knock Off.</li>
-  <li><strong>Turn 2.</strong> Froslass usually dies. Bring Mamoswine / Beartic. Veil still up → incoming attackers take half damage.</li>
-  <li><strong>Turns 3–5.</strong> Spam Ice STAB. Blizzard is 100% accurate. Weavile cleans weakened targets.</li>
-  <li><strong>Turn 6+.</strong> Armor phase ends. Close before this point or concede the pace.</li>
+  <li><strong>Turn 1.</strong> Lead Froslass + Weavile. Mega Evolve (Snow sets) → Aurora Veil. Weavile Ice Shards or Knock Offs the bigger threat.</li>
+  <li><strong>Turn 2.</strong> Froslass usually dies. Bring Mamoswine. Veil still up → incoming attackers take half damage.</li>
+  <li><strong>Turns 3–5.</strong> Spam Ice STAB. Blizzard is 100% accurate under Snow. Weavile cleans weakened targets.</li>
+  <li><strong>Turn 6+.</strong> Armor phase ends. Close via Dragonite Extreme Speed or concede the pace.</li>
 </ol>
 
 <div class="callout">
   <p><span class="tag">Core rule</span>Aurora Veil is your <em>entire</em> defensive plan. If Froslass dies before setting it, the archetype collapses. Click Veil turn 1 no matter what.</p>
 </div>
 
-<h3>Singles</h3>
-<p class="tight">Snow is much weaker in Singles. Aurora Veil\'s halved-damage defense only protects the one Pokémon on the field, and you can\'t use Froslass\'s "die turn 2" template because Singles 1v1 makes her too exposed. Instead, use Snow as a <strong>pivot support layer</strong>, not the primary archetype.</p>
+<h2>Singles team</h2>
+
+<p>Snow in Singles is <strong>fundamentally different</strong> — Froslass is not the lead, Aurora Veil is not the game plan. Singles Snow is a Weavile Swords Dance hyper-offense with a hazard stack lead; Froslass only comes in mid-game as a Speed enabler for Slush Rush Beartic.</p>
+
+<pre>
+Glimmora         @ Focus Sash    — Timid, 32 SpA / 32 Spe / 2 HP
+  Stealth Rock / Toxic Spikes / Earth Power / Sludge Bomb
+Weavile          @ Black Glasses — Jolly, 32 Atk / 32 Spe / 2 HP
+  Swords Dance / Icicle Crash / Knock Off / Ice Shard
+Mamoswine        @ Never-Melt Ice — Adamant, 32 Atk / 32 Spe / 2 HP
+  Icicle Crash / Earthquake / Stealth Rock / Ice Shard
+Froslass         @ Focus Sash    — Timid, 32 SpA / 32 Spe / 2 HP
+  Spikes / Taunt / Destiny Bond / Ice Beam
+Beartic          @ Choice Band   — Adamant, 32 Atk / 32 Spe / 2 HP
+  Icicle Crash / Close Combat / Liquidation / Ice Shard
+Dragonite        @ Lum Berry     — Adamant, 32 Atk / 32 Spe / 2 HP
+  Dragon Dance / Extreme Speed / Earthquake / Dragon Claw
+</pre>
+
+<div class="role-grid">
+  <div class="role-card">
+    <span class="name">Glimmora</span>
+    <span class="meta">Primary hazard lead</span>
+    <p>Stealth Rock + Toxic Spikes compound damage. Toxic Debris auto-spikes on physical contact.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Weavile</span>
+    <span class="meta">SD wallbreaker</span>
+    <p>Swords Dance replaces Protect. +2 Icicle Crash / Knock Off OHKOs most neutral targets.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Mamoswine</span>
+    <span class="meta">Anti-lead hazards</span>
+    <p>Ice Shard + Stealth Rock dual role. Beats opposing Glimmora leads with Icicle Crash.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Froslass</span>
+    <span class="meta">Spikes + suicide lead alt</span>
+    <p>Non-Mega Froslass here — Spikes layer, then Destiny Bond or Taunt trade. Completely different set from the Doubles Mega.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Beartic</span>
+    <span class="meta">Slush Rush Choice Band</span>
+    <p>Needs Froslass or Abomasnow to set Snow first. Doubled Speed + Choice Band Icicle Crash OHKOs almost anything.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Dragonite</span>
+    <span class="meta">Priority closer</span>
+    <p>DD + ESpeed closes chipped targets. Multiscale insurance lets it set up even at 50% HP.</p>
+  </div>
+</div>
+
+<h3>Singles game plan</h3>
 <ol>
-  <li><strong>Run Froslass mid-game</strong> — not as a lead. Switch her in after a forced KO to set Snow for Slush Rush partners.</li>
-  <li><strong>Veil on a predicted switch</strong> so the incoming wallbreaker (Weavile SD, Mamoswine) absorbs one free hit.</li>
-  <li><strong>Use Weavile Swords Dance</strong> as your main wincon — Ice Shard priority works in or out of Snow.</li>
+  <li><strong>Lead Glimmora.</strong> Stealth Rock turn 1 on a predicted switch. Toxic Debris on physical contact.</li>
+  <li><strong>Layer Spikes with Froslass</strong> later in the game — she\'s a Spikes suicide lead, not a Veil setter in Singles.</li>
+  <li><strong>Bring Weavile</strong> on a forced switch. Swords Dance → +2 Ice Shard priority sweeps.</li>
+  <li><strong>Set Snow via Froslass</strong> if you need Beartic to go off. Choice Band Beartic at 2× Speed is a Singles nuke.</li>
+  <li><strong>Dragonite closes.</strong> Priority Extreme Speed finishes chipped threats regardless of Snow state.</li>
 </ol>
-<p class="tight">For a full Singles template, see the <a href="/#/faq/pokemon-champions-singles-hyper-offense-archetype-guide">Singles HO guide</a> — Snow works there as a Weavile speed enabler layered onto standard HO structure.</p>
+
+<div class="callout warn">
+  <p><span class="tag">Don\'t swap rosters</span>The Doubles and Singles builds share Weavile, Mamoswine, Froslass, Dragonite, and Beartic as species — but Froslass runs an entirely different role (Spikes suicide lead, not Mega Veil setter) and every other slot has a different item / move set. Do not mix the teams.</p>
+</div>
 
 <h2>Matchups</h2>
 <table>
@@ -1983,74 +2145,134 @@ Moves: Trick Room, Psyshock, Dazzling Gleam, Protect</pre>
   <li>Duration: <strong>5 turns</strong> (no Damp Rock in Champions)</li>
 </ul>
 
-<h2>The core</h2>
-
-<div class="role-grid">
-  <div class="role-card">
-    <span class="name">Pelipper</span>
-    <span class="meta">Modest · Mystic Water · 32 HP / 32 SpA</span>
-    <p>Hurricane / Surf / Ice Beam / Protect. Drizzle on switch-in. Flying + Water STAB.</p>
-  </div>
-  <div class="role-card">
-    <span class="name">Kingdra</span>
-    <span class="meta">Modest · Dragon Fang · 32 SpA / 32 Spe</span>
-    <p>Hydro Pump / Draco Meteor / Ice Beam / Protect. Swift Swim doubles Speed.</p>
-  </div>
-  <div class="role-card">
-    <span class="name">Mega Greninja</span>
-    <span class="meta">Timid · Greninjaite · 32 SpA / 32 Spe</span>
-    <p>Hydro Pump / Ice Beam / Dark Pulse / Protect. Protean → every move STAB.</p>
-  </div>
-</div>
-
 <div class="callout warn">
   <p><span class="tag">Heads up</span>Scald is <strong>removed</strong> in Champions. Use Surf, Hydro Pump, or Muddy Water instead. See <a href="/#/faq/pokemon-champions-move-changes">move changes</a>.</p>
 </div>
 
-<h3>Common partners</h3>
+<h2>Doubles team</h2>
+
+<p>Doubles Rain centers on Pelipper\'s Drizzle paired with Swift Swim abusers, a Tailwind backup, and Intimidate glue.</p>
+
+<pre>
+Pelipper         @ Mystic Water  — Modest, 32 HP / 32 SpA / 2 Def
+  Hurricane / Surf / Ice Beam / Protect
+Mega Greninja    @ Greninjaite   — Timid, 32 SpA / 32 Spe / 2 HP
+  Hydro Pump / Ice Beam / Dark Pulse / Protect
+Kingdra          @ Dragon Fang   — Modest, 32 SpA / 32 Spe / 2 HP
+  Muddy Water / Draco Meteor / Ice Beam / Protect
+Whimsicott       @ Focus Sash    — Timid, 32 HP / 32 Spe / 2 SpA
+  Tailwind / Moonblast / Encore / Taunt
+Incineroar       @ Sitrus Berry  — Adamant, 32 HP / 32 Atk / 2 Def
+  Fake Out / Flare Blitz / Parting Shot / Knock Off
+Rotom-Wash       @ Sitrus Berry  — Modest, 32 HP / 32 SpA / 2 SpD
+  Hydro Pump / Thunderbolt / Will-O-Wisp / Protect
+</pre>
+
 <div class="role-grid">
   <div class="role-card">
-    <span class="name">Primarina</span>
-    <span class="meta">Liquid Voice</span>
-    <p>Hyper Voice becomes Water type — huge spread damage under Rain.</p>
+    <span class="name">Pelipper</span>
+    <span class="meta">Drizzle setter</span>
+    <p>Muddy Water / Hurricane for spread damage. Drizzle on switch-in enables the entire core.</p>
   </div>
   <div class="role-card">
-    <span class="name">Archaludon</span>
-    <span class="meta">Stalwart + Electro Shot</span>
-    <p>Electro Shot charges in 1 turn under Rain — a Rain-locked nuke.</p>
+    <span class="name">Mega Greninja</span>
+    <span class="meta">Protean cleaner</span>
+    <p>Every move becomes STAB. Rain-boosted Hydro Pump is a nuke on switch-in.</p>
   </div>
   <div class="role-card">
-    <span class="name">Rotom-Wash</span>
-    <span class="meta">Levitate</span>
-    <p>100% Thunder under Rain + Electric / Water dual STAB.</p>
+    <span class="name">Kingdra</span>
+    <span class="meta">Swift Swim wallbreaker</span>
+    <p>Muddy Water is your primary spread move — lowers opposing Accuracy. Draco Meteor for single-target nukes.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Whimsicott</span>
+    <span class="meta">Tailwind backup</span>
+    <p>Tailwind stacks with Swift Swim for 4× Speed. Prankster Encore disrupts opposing setup.</p>
   </div>
   <div class="role-card">
     <span class="name">Incineroar</span>
-    <span class="meta">Intimidate buffer</span>
-    <p>Softens the Electric moves opposing Rain teams like to spam.</p>
+    <span class="meta">Intimidate glue</span>
+    <p>Cushions the Electric moves opposing Rain teams like to spam. Cycles Intimidate on opposing physical cores.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Rotom-Wash</span>
+    <span class="meta">Levitate + Electric coverage</span>
+    <p>Handles opposing Water walls. Will-O-Wisp disrupts physical threats that resist Water.</p>
   </div>
 </div>
 
-<h2>Game plan</h2>
-
-<h3>Doubles</h3>
+<h3>Doubles game plan</h3>
 <ol>
-  <li><strong>Turn 1.</strong> Lead Pelipper + Swift Swim sweeper. Drizzle sets. Sweeper now outspeeds everything.</li>
-  <li><strong>Turn 2.</strong> Hydro Pump / Hurricane / Thunder with perfect accuracy. Pelipper Protects or attacks based on threats.</li>
-  <li><strong>Turns 3–5.</strong> Pivot to Mega Greninja for cleanup. Protean + boosted Water = compounding damage.</li>
-  <li><strong>Turn 6+.</strong> Rain over. Close fast or reset via Pelipper switch-in.</li>
+  <li><strong>Turn 1.</strong> Lead Pelipper + Mega Greninja. Drizzle sets. Greninja Mega Evolves and clicks Hydro Pump at the biggest threat.</li>
+  <li><strong>Turn 2.</strong> Full-power Rain offense. Pelipper Protects or attacks based on threats. Muddy Water spreads damage + accuracy drops.</li>
+  <li><strong>Turns 3–4.</strong> Swap Pelipper out (she\'s dead weight after setting weather) for Kingdra or Whimsicott.</li>
+  <li><strong>Turn 5+.</strong> Rain expires. Reset via Pelipper switch-in, or Whimsicott Tailwind for speed backup.</li>
 </ol>
 
-<h3>Singles</h3>
-<p class="tight">Singles Rain is a classic archetype — it works great here. The plan is pivot → hazard chip → Rain-boosted nuke turn.</p>
+<h2>Singles team</h2>
+
+<p>Singles Rain drops Whimsicott and Incineroar (Doubles-only tools) and adds a hazard lead + Dragon Dance Kingdra. The win condition shifts from "turn-2 Hydro Pump nuke" to "pivot → chip → boosted sweep."</p>
+
+<pre>
+Pelipper         @ Mystic Water  — Modest, 32 HP / 32 SpA / 2 Def
+  Hurricane / Surf / U-turn / Roost
+Mega Greninja    @ Greninjaite   — Timid, 32 SpA / 32 Spe / 2 HP
+  Hydro Pump / Ice Beam / Dark Pulse / U-turn
+Kingdra          @ Dragon Fang   — Adamant, 32 Atk / 32 Spe / 2 HP
+  Rain Dance / Dragon Dance / Waterfall / Outrage
+Glimmora         @ Focus Sash    — Timid, 32 SpA / 32 Spe / 2 HP
+  Stealth Rock / Toxic Spikes / Earth Power / Sludge Bomb
+Archaludon       @ Leftovers     — Modest, 32 HP / 32 SpA / 2 SpD
+  Electro Shot / Draco Meteor / Flash Cannon / Body Press
+Dragonite        @ Sitrus Berry  — Adamant, 32 Atk / 32 Spe / 2 HP
+  Dragon Dance / Extreme Speed / Earthquake / Dragon Claw
+</pre>
+
+<div class="role-grid">
+  <div class="role-card">
+    <span class="name">Pelipper</span>
+    <span class="meta">Singles pivot</span>
+    <p>U-turn + Roost replaces Protect — momentum instead of stall. Drizzle sets on entry.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Mega Greninja</span>
+    <span class="meta">Protean pivot cleaner</span>
+    <p>U-turn for Singles momentum. Protean makes every attack STAB even outside Rain.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Kingdra</span>
+    <span class="meta">DD wincon</span>
+    <p>Singles DD Kingdra: Rain Dance resets weather if Pelipper is gone. Dragon Dance then sweeps with Waterfall / Outrage.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Glimmora</span>
+    <span class="meta">Hazard lead</span>
+    <p>Stealth Rock + Toxic Spikes compound with Rain-boosted damage. Chip enables Swift Swim OHKOs.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Archaludon</span>
+    <span class="meta">Electro Shot nuke</span>
+    <p>Electro Shot charges in 1 turn under Rain — a Rain-locked special nuke. Body Press for Normal / Ice coverage.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Dragonite</span>
+    <span class="meta">Priority closer</span>
+    <p>Multiscale DD cleaner. Extreme Speed finishes chipped targets after Rain expires.</p>
+  </div>
+</div>
+
+<h3>Singles game plan</h3>
 <ol>
-  <li><strong>Lead</strong> Pelipper. Drizzle sets. U-turn out into a Swift Swim sweeper on a predicted Electric move.</li>
-  <li><strong>Set hazards</strong> mid-game with a Tyranitar or Glimmora in slot 2. Stealth Rock compounds with Rain-boosted chip.</li>
-  <li><strong>Boost up.</strong> Kingdra can Rain Dance + Dragon Dance in Singles for a double-boost sweep.</li>
-  <li><strong>Sweep.</strong> Doubled Speed + boosted Water STAB OHKOs most walls.</li>
-  <li><strong>Reset Rain</strong> via Pelipper switch-in when weather expires.</li>
+  <li><strong>Lead Glimmora.</strong> Stealth Rock turn 1. Toxic Spikes auto-fire. Die on Focus Sash if needed.</li>
+  <li><strong>Pivot to Pelipper</strong> to set Drizzle. U-turn out on a predicted Electric move.</li>
+  <li><strong>Bring Archaludon</strong> or <strong>Mega Greninja</strong> to nuke with Rain-boosted STAB / 1-turn Electro Shot.</li>
+  <li><strong>Late game:</strong> DD Kingdra or DD Dragonite sweeps survivors. Use Rain Dance if Pelipper is dead and weather expired.</li>
+  <li><strong>Extreme Speed</strong> closes chipped threats regardless of weather state.</li>
 </ol>
-<p class="tight">Mega Greninja is the strongest Singles Rain cleaner — Protean + Choice Specs + doubled Speed is effectively a nuke on every click.</p>
+
+<div class="callout warn">
+  <p><span class="tag">Don\'t swap rosters</span>Doubles and Singles share only Pelipper / Mega Greninja / Kingdra as species — and Kingdra runs a completely different set (DD physical in Singles vs Swift Swim special in Doubles). Do not mix the teams.</p>
+</div>
 
 <h2>Matchups</h2>
 <table>
@@ -2105,77 +2327,134 @@ Moves: Trick Room, Psyshock, Dazzling Gleam, Protect</pre>
   <li>Second TR click toggles it <em>off</em> — plan around that in mirrors</li>
 </ul>
 
-<h2>Setters</h2>
+<h2>Doubles team</h2>
+
+<p>Doubles TR runs two setters (one lead, one back-half reset) and four slow wallbreakers. Hatterene is the default lead because Magic Bounce walls Taunt; Mimikyu is the backup for Disguise absorption.</p>
+
+<pre>
+Hatterene        @ Leftovers     — Quiet, 32 HP / 2 Def / 32 SpA · 0 Spe
+  Dazzling Gleam / Psyshock / Trick Room / Protect
+Mimikyu          @ Sitrus Berry  — Brave, 32 HP / 32 Atk / 2 Def · 0 Spe
+  Play Rough / Shadow Sneak / Trick Room / Protect
+Rhyperior        @ Weakness Policy — Brave, 32 HP / 32 Atk / 2 Def · 0 Spe
+  Rock Slide / High Horsepower / Heat Crash / Protect
+Conkeldurr       @ Flame Orb     — Brave, 32 HP / 32 Atk / 2 Def · 0 Spe
+  Drain Punch / Mach Punch / Knock Off / Protect
+Mega Kangaskhan  @ Kangaskhanite — Adamant, 32 HP / 32 Atk / 2 Def
+  Double-Edge / Power-Up Punch / Sucker Punch / Protect
+Torkoal          @ Charcoal      — Quiet, 32 HP / 2 Def / 32 SpA · 0 Spe
+  Eruption / Earth Power / Heat Wave / Protect
+</pre>
+
 <div class="role-grid">
   <div class="role-card">
     <span class="name">Hatterene</span>
-    <span class="meta">Quiet · Leftovers · 32 HP / 32 SpA</span>
-    <p>Dazzling Gleam / Psyshock / Trick Room / Protect. Magic Bounce reflects hazards and Taunt.</p>
+    <span class="meta">Primary TR setter</span>
+    <p>Magic Bounce reflects Taunt and hazards. Dazzling Gleam spreads damage both slots.</p>
   </div>
   <div class="role-card">
     <span class="name">Mimikyu</span>
-    <span class="meta">Brave · Sitrus Berry · 32 HP / 32 Atk</span>
-    <p>Play Rough / Shadow Claw / Trick Room / Protect. Disguise = free setup turn.</p>
+    <span class="meta">Backup TR setter</span>
+    <p>Disguise guarantees one free turn — brought as secondary lead vs Fake Out cores.</p>
   </div>
-  <div class="role-card">
-    <span class="name">Reuniclus</span>
-    <span class="meta">Quiet · Leftovers · 32 HP / 32 SpA</span>
-    <p>Psyshock / Focus Blast / Trick Room / Recover. Magic Guard ignores hazards.</p>
-  </div>
-  <div class="role-card">
-    <span class="name">Slowking</span>
-    <span class="meta">Sassy · Sitrus Berry · 32 HP / 32 SpD</span>
-    <p>Surf / Psychic / Trick Room / Protect. Regenerator survives setup attempts.</p>
-  </div>
-</div>
-
-<h2>Wallbreakers (TR beneficiaries)</h2>
-<div class="role-grid">
   <div class="role-card">
     <span class="name">Rhyperior</span>
-    <span class="meta">Brave · Weakness Policy</span>
-    <p>Rock Slide / Earthquake / High Horsepower / Protect. Solid Rock tank.</p>
+    <span class="meta">TR wallbreaker</span>
+    <p>Rock Slide + High Horsepower covers most threats. Solid Rock + Sand SpD makes it a TR tank.</p>
   </div>
   <div class="role-card">
     <span class="name">Conkeldurr</span>
-    <span class="meta">Brave · Sitrus Berry</span>
-    <p>Drain Punch / Mach Punch / Knock Off / Protect. Guts abuses burn.</p>
+    <span class="meta">Guts abuser</span>
+    <p>Flame Orb activates Guts → 1.5× Attack. Mach Punch works when TR runs out.</p>
   </div>
   <div class="role-card">
     <span class="name">Mega Kangaskhan</span>
-    <span class="meta">Adamant · Kangaskhanite</span>
-    <p>Double-Edge / Power-Up Punch / Sucker Punch / Protect. Parental Bond is absurd under TR.</p>
+    <span class="meta">Parental Bond nuke</span>
+    <p>Double-Edge hits twice at full power under TR. Sucker Punch priority closes endgames.</p>
   </div>
   <div class="role-card">
-    <span class="name">Mamoswine</span>
-    <span class="meta">Brave · Never-Melt Ice</span>
-    <p>Icicle Crash / Earthquake / Ice Shard / Protect. Priority works in or out of TR.</p>
+    <span class="name">Torkoal</span>
+    <span class="meta">Eruption spreader</span>
+    <p>Eruption at 100% HP is 150 BP spread. Pairs with TR to outspeed the field and dump damage.</p>
   </div>
 </div>
 
-<h2>Game plan</h2>
-
-<h3>Doubles</h3>
+<h3>Doubles game plan</h3>
 <ol>
   <li><strong>Turn 1 · Setup.</strong> Lead Hatterene + wallbreaker. Hatterene clicks TR. Partner Protects or attacks. Partner <em>must</em> survive.</li>
   <li><strong>Turn 2 · Active, 4 remaining.</strong> Slow wallbreaker outspeeds and OHKOs. Swap Hatterene for a second wallbreaker.</li>
   <li><strong>Turns 3–5.</strong> Keep breaking. Plan OHKOs; anything that survives is a problem.</li>
-  <li><strong>Turn 6 · Expired.</strong> You\'re the slow team now. Priority or a second TR setup from Hatterene.</li>
+  <li><strong>Turn 6 · Expired.</strong> Priority (Mach Punch / Sucker Punch) or a second TR setup from Mimikyu.</li>
 </ol>
 
 <div class="callout tip">
   <p><span class="tag">Track your turns</span>You have exactly <strong>4 turns of abuse</strong>. Count them from the setup click — don\'t commit your wallbreaker on turn 6 thinking you still have Speed.</p>
 </div>
 
-<h3>Singles</h3>
-<p class="tight">Trick Room is <strong>rare but viable</strong> in Singles. The problem: setting TR costs a turn 1-on-1, which usually means the setter takes a free hit. Reuniclus is the best Singles setter because Magic Guard ignores status and hazards while it clicks TR.</p>
+<h2>Singles team</h2>
+
+<p>Singles TR drops the second setter and the spread-damage slots (Torkoal, Hatterene-as-support). Every slot needs to function 1v1. Reuniclus replaces Hatterene as lead because Magic Guard lets it eat hazards while setting TR, and the wallbreakers pick up setup moves instead of Protect.</p>
+
+<pre>
+Reuniclus        @ Leftovers     — Quiet, 32 HP / 2 Def / 32 SpA · 0 Spe
+  Psyshock / Focus Blast / Trick Room / Recover
+Slowking         @ Leftovers     — Sassy, 32 HP / 2 Def / 32 SpD · 0 Spe
+  Surf / Psychic / Trick Room / Slack Off
+Rhyperior        @ Weakness Policy — Brave, 32 HP / 32 Atk / 2 Def · 0 Spe
+  Rock Slide / Earthquake / Swords Dance / Megahorn
+Conkeldurr       @ Flame Orb     — Brave, 32 HP / 32 Atk / 2 Def · 0 Spe
+  Drain Punch / Mach Punch / Bulk Up / Knock Off
+Mamoswine        @ Never-Melt Ice — Brave, 32 HP / 32 Atk / 2 Def · 0 Spe
+  Icicle Crash / Earthquake / Ice Shard / Stealth Rock
+Kingambit        @ Silk Scarf    — Brave, 32 HP / 32 Atk / 2 Def · 0 Spe
+  Swords Dance / Sucker Punch / Iron Head / Kowtow Cleave
+</pre>
+
+<div class="role-grid">
+  <div class="role-card">
+    <span class="name">Reuniclus</span>
+    <span class="meta">Magic Guard setter</span>
+    <p>Ignores hazards / status / Life Orb chip while clicking TR. Recover for longevity — no partner to stall with Protect.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Slowking</span>
+    <span class="meta">Regenerator backup setter</span>
+    <p>Second TR reset. Regenerator recovers 33% on every switch, so it can reset TR multiple times over a long game.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Rhyperior</span>
+    <span class="meta">Swords Dance sweeper</span>
+    <p>Singles build gets SD over Protect. Megahorn covers Grass walls that shrug off Earthquake.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Conkeldurr</span>
+    <span class="meta">Bulk Up sweeper</span>
+    <p>Bulk Up replaces Protect in Singles — accumulates +Atk/+Def while TR is up. Guts flame boost kicks in naturally.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Mamoswine</span>
+    <span class="meta">Hazard + priority</span>
+    <p>Stealth Rock enables the TR win condition by chipping opposing walls. Ice Shard works outside TR.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Kingambit</span>
+    <span class="meta">SD closer</span>
+    <p>Supreme Overlord snowballs as your team falls. Sucker Punch priority closes games regardless of TR state.</p>
+  </div>
+</div>
+
+<h3>Singles game plan</h3>
 <ol>
-  <li><strong>Lead</strong> Reuniclus or Slowking. Click Trick Room turn 1. Accept the damage trade.</li>
-  <li><strong>Pivot</strong> to Rhyperior, Conkeldurr, or Mamoswine on the turn TR goes up.</li>
-  <li><strong>Wallbreak</strong> inside the 4-turn window. Aim for 2 KOs before TR expires.</li>
-  <li><strong>Phaze with Whirlwind</strong> (Rhyperior) if the opponent brings a setup sweeper into your slow core.</li>
+  <li><strong>Lead Mamoswine.</strong> Stealth Rock turn 1. Take the chip damage on Focus Sash if needed.</li>
+  <li><strong>Pivot to Reuniclus</strong> on a predicted switch. Click Trick Room. Magic Guard lets you take hazard damage safely.</li>
+  <li><strong>Bring Rhyperior or Conkeldurr</strong> to set up (SD / Bulk Up) while TR is active. +2 OHKO math with hazard chip.</li>
+  <li><strong>Slowking second TR</strong> if the first window expires and the opponent still has a check left.</li>
+  <li><strong>Kingambit closes.</strong> SD + Sucker Punch finishes any survivors regardless of weather / TR state.</li>
 </ol>
-<p class="tight">Singles TR is a <strong>niche counter-meta pick</strong> — bring it when the ladder is dominated by fast Hyper Offense, not as a default. Balance and Stall teams outlast your TR window too easily.</p>
+
+<div class="callout warn">
+  <p><span class="tag">Don\'t swap rosters</span>Doubles and Singles share Rhyperior, Conkeldurr, and Mamoswine as species — but all three run completely different sets (SD / Bulk Up / hazard instead of Protect). Do not mix the teams.</p>
+</div>
 
 <h2>Matchups</h2>
 <table>
@@ -2220,6 +2499,10 @@ Moves: Trick Room, Psyshock, Dazzling Gleam, Protect</pre>
   <div><span class="label">Difficulty</span><span class="value">Easy</span></div>
 </div>
 
+<div class="callout warn">
+  <p><span class="tag">Doubles only</span>Tailwind is a <strong>Doubles-only archetype</strong>. In Singles, the 4-turn window and single-partner-at-a-time structure make it strictly worse than Choice Scarf or priority. If you\'re building for Singles, see the <a href="/#/faq/pokemon-champions-singles-hyper-offense-archetype-guide">Singles HO guide</a> or <a href="/#/faq/pokemon-champions-singles-balance-archetype-guide">Singles Balance guide</a> instead.</p>
+</div>
+
 <p>Tailwind isn\'t really a standalone archetype — it\'s a speed layer you bolt onto any offensive core. Most top Doubles teams run it as default support, whether or not they call themselves "Tailwind teams."</p>
 
 <h3>How Tailwind works</h3>
@@ -2230,26 +2513,59 @@ Moves: Trick Room, Psyshock, Dazzling Gleam, Protect</pre>
   <li>DOES stack with Swift Swim, Chlorophyll, Unburden</li>
 </ul>
 
-<h2>Setters</h2>
+<h2>Doubles team</h2>
+
+<p>The canonical Doubles Tailwind build: Whimsicott Prankster setter, Mega Delphox as the speed-starved nuke, Incineroar glue, and priority backup for when the window closes.</p>
+
+<pre>
+Mega Delphox     @ Delphoxite    — Timid, 32 SpA / 32 Spe / 2 HP
+  Pyro Break / Psychic / Dazzling Gleam / Protect
+Whimsicott       @ Focus Sash    — Timid, 32 HP / 32 Spe / 2 SpA
+  Tailwind / Moonblast / Encore / Taunt
+Incineroar       @ Sitrus Berry  — Adamant, 32 HP / 32 Atk / 2 Def
+  Fake Out / Flare Blitz / Parting Shot / Knock Off
+Garchomp         @ Soft Sand     — Jolly, 32 Atk / 32 Spe / 2 HP
+  Earthquake / Rock Slide / Dragon Claw / Protect
+Weavile          @ Black Glasses — Jolly, 32 Atk / 32 Spe / 2 HP
+  Ice Shard / Icicle Crash / Knock Off / Protect
+Talonflame       @ Sharp Beak    — Jolly, 32 Atk / 32 Spe / 2 HP
+  Tailwind / Brave Bird / Flare Blitz / U-turn
+</pre>
+
 <div class="role-grid">
   <div class="role-card">
+    <span class="name">Mega Delphox</span>
+    <span class="meta">Speed-starved nuke</span>
+    <p>Base 104 Speed → 208 under Tailwind. Hardest-hitting special attacker in Champions once it gets the speed tier.</p>
+  </div>
+  <div class="role-card">
     <span class="name">Whimsicott</span>
-    <span class="meta">Timid · Focus Sash · 32 HP / 32 Spe</span>
-    <p>Tailwind / Moonblast / Encore / Taunt. Prankster = +1 priority Tailwind. Gold standard.</p>
+    <span class="meta">Prankster setter</span>
+    <p>Gold-standard Tailwind setter. Prankster = +1 priority, resolves first regardless of Speed.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Incineroar</span>
+    <span class="meta">Intimidate glue</span>
+    <p>Cycles Intimidate + Fake Out + Parting Shot. Universal support.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Garchomp</span>
+    <span class="meta">Scarf-less cleaner</span>
+    <p>Base 102 Speed → 204 under Tailwind. Rock Slide doubles as spread damage.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Weavile</span>
+    <span class="meta">Priority backup</span>
+    <p>Ice Shard priority covers when Tailwind drops. Closes games with chipped Dragons.</p>
   </div>
   <div class="role-card">
     <span class="name">Talonflame</span>
-    <span class="meta">Jolly · Sharp Beak · 32 Atk / 32 Spe</span>
-    <p>Tailwind / Brave Bird / Flare Blitz / U-turn. Gale Wings priority Tailwind.</p>
-  </div>
-  <div class="role-card">
-    <span class="name">Pelipper</span>
-    <span class="meta">Modest · Mystic Water · 32 HP / 32 SpA</span>
-    <p>Tailwind / Surf / Hurricane / Protect. Drizzle + Tailwind dual utility.</p>
+    <span class="meta">Backup Tailwind</span>
+    <p>Gale Wings priority Tailwind + Brave Bird. Second setter for long games.</p>
   </div>
 </div>
 
-<h2>Fast abusers</h2>
+<h2>Fast abusers (Speed tier reference)</h2>
 <table>
   <tr><th>Pokémon</th><th>Base Spe</th><th>Under Tailwind</th></tr>
   <tr><td>Mega Aerodactyl</td><td>150</td><td>300</td></tr>
@@ -2261,26 +2577,18 @@ Moves: Trick Room, Psyshock, Dazzling Gleam, Protect</pre>
   <tr><td>Hydreigon</td><td>98</td><td>196</td></tr>
 </table>
 
-<h2>Game plan</h2>
-
-<h3>Doubles</h3>
+<h2>Doubles game plan</h2>
 <ol>
-  <li><strong>Turn 1 · Setup.</strong> Lead Whimsicott + hardest hitter. Prankster Tailwind resolves first. Partner attacks.</li>
+  <li><strong>Turn 1 · Setup.</strong> Lead Whimsicott + Mega Delphox. Prankster Tailwind resolves first. Delphox Mega Evolves and nukes.</li>
   <li><strong>Turn 2 · Window turn 1.</strong> Outspeeding the entire opposing team. Spam damage.</li>
-  <li><strong>Turn 3 · Window turn 2.</strong> Whimsicott Taunts TR setters or Encores Protects.</li>
+  <li><strong>Turn 3 · Window turn 2.</strong> Whimsicott Taunts TR setters or Encores Protects. Incineroar rotates in.</li>
   <li><strong>Turn 4 · Last window turn.</strong> Commit to KOs that require the speed tier.</li>
-  <li><strong>Turn 5+.</strong> Tailwind over. Priority users or bulky pivots. Should have closed the game.</li>
+  <li><strong>Turn 5+.</strong> Tailwind over. Weavile priority or Talonflame second Tailwind keeps pressure alive.</li>
 </ol>
 
 <div class="callout">
   <p><span class="tag">Math check</span>4 turns total includes the setup turn → you only get <strong>3 turns of real abuse</strong>. Plan your KOs around that window.</p>
 </div>
-
-<h3>Singles</h3>
-<div class="callout warn">
-  <p><span class="tag">Not viable</span>Tailwind is <strong>mostly unusable in Singles</strong>. With only one Pokémon on the field, the setter eats a free hit to support just one partner, and the 4-turn window usually expires before the replacement sweeper even gets a clean turn.</p>
-</div>
-<p class="tight">Singles speed control comes from <strong>Choice Scarf</strong> (revenge killers like Scarf Hydreigon or Scarf Garchomp) and <strong>priority moves</strong> (Dragonite Extreme Speed, Weavile Ice Shard, Kingambit Sucker Punch). If you need a pivot-and-attack layer, use a Regenerator core from the <a href="/#/faq/pokemon-champions-singles-balance-archetype-guide">Singles Balance guide</a> instead.</p>
 
 <h2>Matchups</h2>
 <table>
@@ -2314,13 +2622,17 @@ Moves: Trick Room, Psyshock, Dazzling Gleam, Protect</pre>
     category: 'competitive',
     tags: ['hyper offense', 'mega delphox', 'mega greninja', 'mega gengar', 'incineroar', 'archetype', 'team comp'],
     content: `
-<h2>Hyper Offense — Overview</h2>
+<h2>Doubles Hyper Offense — Overview</h2>
 
 <div class="at-a-glance">
   <div><span class="label">Playstyle</span><span class="value">All-in offense</span></div>
   <div><span class="label">Goal</span><span class="value">OHKO before they move</span></div>
-  <div><span class="label">Best format</span><span class="value">Doubles</span></div>
+  <div><span class="label">Format</span><span class="value">Doubles</span></div>
   <div><span class="label">Difficulty</span><span class="value">Medium-Hard</span></div>
+</div>
+
+<div class="callout">
+  <p><span class="tag">Looking for Singles?</span>Singles HO is a completely different roster — hazard stacking + setup sweepers instead of Fake Out pivots. See the <a href="/#/faq/pokemon-champions-singles-hyper-offense-archetype-guide">Singles Hyper Offense guide</a> for the Singles team template.</p>
 </div>
 
 <p>"Delete the opponent before they get a turn." Trades defensive flexibility for raw kill pressure. Lives or dies on whether you get the first meaningful OHKO.</p>
@@ -2453,13 +2765,17 @@ Sneasler      @ Focus Sash — Jolly, 32 Atk / 32 Spe / 2 HP
     category: 'competitive',
     tags: ['balance', 'intimidate', 'incineroar', 'mega venusaur', 'goodstuff', 'archetype', 'team comp'],
     content: `
-<h2>Intimidate Balance — Overview</h2>
+<h2>Doubles Intimidate Balance — Overview</h2>
 
 <div class="at-a-glance">
   <div><span class="label">Playstyle</span><span class="value">Flexible goodstuff</span></div>
   <div><span class="label">Anchor</span><span class="value">Incineroar</span></div>
-  <div><span class="label">Best format</span><span class="value">Doubles</span></div>
+  <div><span class="label">Format</span><span class="value">Doubles</span></div>
   <div><span class="label">Difficulty</span><span class="value">Medium</span></div>
+</div>
+
+<div class="callout">
+  <p><span class="tag">Looking for Singles?</span>Singles Balance uses a completely different roster — Regenerator pivots, hazard setters, setup sweepers. See the <a href="/#/faq/pokemon-champions-singles-balance-archetype-guide">Singles Balance guide</a> for the Singles team template.</p>
 </div>
 
 <p>Balance is the opposite of Hyper Offense. No single-mechanic commitment — just flexible tools that work in every matchup. <strong>You rarely win in 5 turns, but you also rarely lose.</strong></p>
@@ -2842,6 +3158,362 @@ Hydreigon      @ Choice Scarf — Timid, 32 SpA / 32 Spe / 2 HP
 <ul>
   <li><a href="/#/faq/pokemon-champions-intimidate-balance-archetype-guide">Doubles Balance guide</a></li>
   <li><a href="/#/faq/pokemon-champions-singles-hyper-offense-archetype-guide">Singles Hyper Offense</a></li>
+  <li><a href="/#/faq/pokemon-champions-battle-formats">Singles vs Doubles format differences</a></li>
+</ul>
+    `,
+  },
+  {
+    slug: 'pokemon-champions-shadow-tag-perish-trap-archetype-guide',
+    question: 'How do Shadow Tag Perish Trap teams work in Pokémon Champions?',
+    answer: 'Perish Trap pairs Mega Gengar (Shadow Tag) with Perish Song to force KOs on trapped opponents. Gengar locks a target in for 3 turns, Perish Song counts down, and the trapped Pokémon faints on turn 3 unless the opponent sacrifices it. It\'s a Doubles-specific trap archetype — Singles has no equivalent because switching out in 1v1 is less punishing.',
+    category: 'competitive',
+    tags: ['perish song', 'mega gengar', 'shadow tag', 'trap', 'archetype', 'team comp'],
+    content: `
+<h2>Shadow Tag Perish Trap — Overview</h2>
+
+<div class="at-a-glance">
+  <div><span class="label">Playstyle</span><span class="value">Forced trades</span></div>
+  <div><span class="label">Trapper</span><span class="value">Mega Gengar</span></div>
+  <div><span class="label">Format</span><span class="value">Doubles only</span></div>
+  <div><span class="label">Difficulty</span><span class="value">Hard</span></div>
+</div>
+
+<div class="callout warn">
+  <p><span class="tag">Doubles only</span>Perish Trap is <strong>not viable in Singles</strong> — Singles has no partner to click Perish Song while Gengar traps the target, and Shadow Tag alone doesn\'t force KOs. Singles trappers use Taunt + Will-O-Wisp instead.</p>
+</div>
+
+<p>Perish Trap is the <strong>trade-forcing archetype</strong>. Mega Gengar\'s Shadow Tag prevents the opponent from switching; a partner clicks Perish Song; Gengar runs out the 3-turn counter. The trapped Pokémon dies at the end of turn 3 unless the opponent sacrifices it by Protecting or trading.</p>
+
+<h3>How Perish Song works</h3>
+<ul>
+  <li><strong>Perish Song</strong> puts a 3-turn counter on every Pokémon on the field that isn\'t Soundproof</li>
+  <li><strong>Shadow Tag</strong> prevents trapped Pokémon from switching (ignores immunity on Ghost types)</li>
+  <li>The turn you click Perish Song is turn 3 on the counter — dies at end of turn 3</li>
+  <li>Your own Gengar gets the counter too, so you switch out turn 2 to avoid dying</li>
+</ul>
+
+<h2>Doubles team</h2>
+
+<p>Perish Trap needs a Perish Song user <em>alongside</em> Gengar. Gengar traps, the partner sings, Gengar pivots out turn 2 before its own counter kills it.</p>
+
+<pre>
+Mega Gengar      @ Gengarite     — Timid, 32 SpA / 32 Spe / 2 HP
+  Shadow Ball / Sludge Bomb / Taunt / Protect
+Whimsicott       @ Focus Sash    — Timid, 32 HP / 32 Spe / 2 SpA
+  Tailwind / Encore / Taunt / Moonblast
+Alcremie         @ Leftovers     — Calm, 32 HP / 2 Def / 32 SpD
+  Perish Song / Follow Me / Protect / Moonblast
+Incineroar       @ Sitrus Berry  — Adamant, 32 HP / 32 Atk / 2 Def
+  Fake Out / Flare Blitz / Parting Shot / Knock Off
+Garchomp         @ Soft Sand     — Jolly, 32 Atk / 32 Spe / 2 HP
+  Earthquake / Rock Slide / Dragon Claw / Protect
+Clefable         @ Leftovers     — Calm, 32 HP / 2 Def / 32 SpD
+  Moonblast / Follow Me / Moonlight / Protect
+</pre>
+
+<div class="role-grid">
+  <div class="role-card">
+    <span class="name">Mega Gengar</span>
+    <span class="meta">Shadow Tag trapper</span>
+    <p>Traps a target, then Taunts to prevent them from status / setup. Must pivot out turn 2 to dodge its own Perish counter.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Alcremie</span>
+    <span class="meta">Perish Song partner</span>
+    <p>Clicks Perish Song while Gengar traps. Follow Me redirects attacks away from Gengar.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Whimsicott</span>
+    <span class="meta">Prankster support</span>
+    <p>Taunt + Encore disrupts opposing Taunt attempts that would shut off Perish Song.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Incineroar</span>
+    <span class="meta">Intimidate glue</span>
+    <p>Swaps in on turn 2 when Gengar pivots out. Absorbs the opposing attacker\'s hit.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Garchomp</span>
+    <span class="meta">Backup offense</span>
+    <p>Standard physical attacker for when the Perish trap fails to land.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Clefable</span>
+    <span class="meta">Backup redirector</span>
+    <p>Second Follow Me source. Magic Guard ignores hazards / burn chip.</p>
+  </div>
+</div>
+
+<h3>Doubles game plan</h3>
+<ol>
+  <li><strong>Turn 1.</strong> Lead Gengar + Alcremie. Gengar Mega Evolves (Shadow Tag active), Taunts the biggest threat. Alcremie Follow Me\'s to redirect damage.</li>
+  <li><strong>Turn 2.</strong> Alcremie clicks Perish Song. Gengar Protects to survive the counter-attack.</li>
+  <li><strong>Turn 3.</strong> Pivot Gengar OUT (to Incineroar or Clefable) — its Perish counter is at 1. Alcremie stays in for Follow Me protection.</li>
+  <li><strong>Turn 4 · Counter 0.</strong> The trapped opponent Pokémon faints. Alcremie pivots out too (she also had the counter). You\'re now up a KO without taking damage.</li>
+  <li><strong>Endgame.</strong> Repeat with the second trapped target, or close with Garchomp / Incineroar offense.</li>
+</ol>
+
+<div class="callout warn">
+  <p><span class="tag">Perish counter math</span>You and the opponent both get the counter — Gengar and Alcremie MUST switch out before turn 4 or they die too. Plan the swap in advance.</p>
+</div>
+
+<h2>Matchups</h2>
+<table>
+  <tr><th>Vs</th><th>Outcome</th><th>Plan</th></tr>
+  <tr><td>Sun / Sand / Snow</td><td>Neutral</td><td>Weather doesn\'t affect the trap. Play it as a standard offensive matchup.</td></tr>
+  <tr><td>Trick Room</td><td>Unfavored</td><td>Gengar outsped by slow wallbreakers. Taunt the setter before TR goes up.</td></tr>
+  <tr><td>Tailwind</td><td>Neutral</td><td>Their speed doesn\'t help because Perish Song ignores speed tier.</td></tr>
+  <tr><td>Hyper Offense</td><td>Favored</td><td>Glass cannons die to Shadow Ball or get trapped for Perish KOs.</td></tr>
+  <tr><td>Balance</td><td>Favored</td><td>Their walls don\'t help — Perish Song ignores bulk.</td></tr>
+</table>
+
+<h2>Common mistakes</h2>
+<ul>
+  <li><strong>Not swapping Gengar turn 3.</strong> Gengar dies to its own Perish counter. Pivot out to preserve it.</li>
+  <li><strong>Leading Perish Song turn 1.</strong> Without Taunt + redirection, the opponent just switches Gengar\'s target out.</li>
+  <li><strong>No Follow Me backup.</strong> Alcremie is fragile; if she dies before clicking Perish Song, the trap collapses.</li>
+  <li><strong>Trapping a Ghost type.</strong> Ghost types ignore Shadow Tag. Check opposing leads before committing Mega.</li>
+</ul>
+
+<h2>Related articles</h2>
+<ul>
+  <li><a href="/#/faq/pokemon-champions-hyper-offense-archetype-guide">Doubles Hyper Offense guide</a></li>
+  <li><a href="/#/faq/pokemon-champions-team-archetypes">All team archetypes overview</a></li>
+</ul>
+    `,
+  },
+  {
+    slug: 'pokemon-champions-singles-volt-turn-archetype-guide',
+    question: 'How do Singles Volt-Turn teams work in Pokémon Champions?',
+    answer: 'Singles Volt-Turn is a momentum-based archetype built on Volt Switch, U-turn, and Parting Shot. Every pivot move forces a favorable matchup on the field while chipping the opponent with hazards. The core pairs 3+ pivot users (Rotom-Wash, Corviknight, Scizor, Hydreigon) with a Stealth Rock layer and a setup sweeper endgame. It\'s the Singles answer to Doubles\' Intimidate Balance.',
+    category: 'competitive',
+    tags: ['singles', 'volt-turn', 'u-turn', 'volt switch', 'pivot', 'rotom', 'corviknight', 'archetype', 'team comp'],
+    content: `
+<h2>Singles Volt-Turn — Overview</h2>
+
+<div class="at-a-glance">
+  <div><span class="label">Playstyle</span><span class="value">Momentum pivoting</span></div>
+  <div><span class="label">Core move</span><span class="value">Volt Switch + U-turn</span></div>
+  <div><span class="label">Format</span><span class="value">Singles only</span></div>
+  <div><span class="label">Difficulty</span><span class="value">Medium</span></div>
+</div>
+
+<p>Volt-Turn weaponizes <strong>momentum</strong>. Every attack is also a switch. You force the opponent into bad matchups over and over, chipping with hazards on every entry, until their wincon is too hurt to threaten yours.</p>
+
+<h3>How Volt-Turn works</h3>
+<ul>
+  <li><strong>Volt Switch / U-turn / Flip Turn / Parting Shot</strong> — attack, then switch to a teammate</li>
+  <li>The opponent picks their switch <em>first</em>, then you react with your pivot</li>
+  <li>Combine with <strong>Stealth Rock</strong> so every opposing switch takes chip damage</li>
+  <li>Win by grinding their wincon below its setup-HP threshold, then sweeping</li>
+</ul>
+
+<h2>Singles team</h2>
+
+<pre>
+Corviknight      @ Leftovers     — Impish, 32 HP / 32 Def / 2 SpD
+  Body Press / U-turn / Roost / Defog
+Rotom-Wash       @ Leftovers     — Bold, 32 HP / 32 Def / 2 SpA
+  Volt Switch / Hydro Pump / Will-O-Wisp / Pain Split
+Scizor           @ Leftovers     — Adamant, 32 HP / 32 Atk / 2 Def
+  U-turn / Bullet Punch / Knock Off / Roost
+Hydreigon        @ Choice Scarf  — Timid, 32 SpA / 32 Spe / 2 HP
+  Draco Meteor / Dark Pulse / Flash Cannon / U-turn
+Glimmora         @ Focus Sash    — Timid, 32 SpA / 32 Spe / 2 HP
+  Stealth Rock / Toxic Spikes / Earth Power / Sludge Bomb
+Dragonite        @ Sitrus Berry  — Adamant, 32 Atk / 32 Spe / 2 HP
+  Dragon Dance / Extreme Speed / Earthquake / Dragon Claw
+</pre>
+
+<div class="role-grid">
+  <div class="role-card">
+    <span class="name">Corviknight</span>
+    <span class="meta">Physical pivot + Defog</span>
+    <p>U-turn + Roost sustain. Defog removes opposing hazards while Glimmora keeps yours up.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Rotom-Wash</span>
+    <span class="meta">Volt Switch core</span>
+    <p>Volt Switch + Hydro Pump covers Water / Electric neutrally. Will-O-Wisp cripples physical switch-ins.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Scizor</span>
+    <span class="meta">Priority pivot</span>
+    <p>Bullet Punch priority + U-turn momentum. Knock Off removes opposing Choice items and Leftovers.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Hydreigon</span>
+    <span class="meta">Scarf revenge killer</span>
+    <p>Choice Scarf U-turn extends the pivot chain. Draco Meteor nukes chipped threats.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Glimmora</span>
+    <span class="meta">Hazard layer</span>
+    <p>Stealth Rock + Toxic Spikes enable the whole archetype by chipping every opposing switch.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Dragonite</span>
+    <span class="meta">Setup wincon</span>
+    <p>Dragon Dance closes games once the opponent\'s checks are chipped below priority ESpeed\'s OHKO range.</p>
+  </div>
+</div>
+
+<h3>Singles game plan</h3>
+<ol>
+  <li><strong>Lead Glimmora.</strong> Stealth Rock turn 1 on a predicted switch. Toxic Debris auto-layers.</li>
+  <li><strong>Pivot chain.</strong> Rotom-Wash Volt Switch into Corviknight U-turn into Scizor U-turn. Every switch chips the opponent\'s side.</li>
+  <li><strong>Force mispicks.</strong> The pivot chain forces bad switches. Choice Scarf Hydreigon U-turns into the right matchup.</li>
+  <li><strong>Chip phase.</strong> Will-O-Wisp + Stealth Rock + Toxic Spikes + Leech cumulative damage wears down the opposing wincon.</li>
+  <li><strong>Close with Dragonite.</strong> Dragon Dance when the opponent\'s priority checks are gone. Extreme Speed OHKOs chipped targets.</li>
+</ol>
+
+<div class="callout tip">
+  <p><span class="tag">Pivot priority order</span>When deciding which pivot to click, ask: "which teammate has the best 1v1 against the opponent\'s <em>most likely switch-in</em>?" Volt-Turn is about reading the switch, not the immediate matchup.</p>
+</div>
+
+<h2>Matchups</h2>
+<table>
+  <tr><th>Vs</th><th>Outcome</th><th>Plan</th></tr>
+  <tr><td>Hyper Offense</td><td>Neutral</td><td>Pivot to your bulky checks on their setup turn.</td></tr>
+  <tr><td>Balance</td><td>Favored</td><td>You out-pivot the pivot core. They can\'t keep up with Scarf Hydreigon momentum.</td></tr>
+  <tr><td>Stall</td><td>Slightly unfavored</td><td>Stall out-recovers your chip damage. Bring Dragonite early for a setup win.</td></tr>
+  <tr><td>Sand / Sun / Rain</td><td>Neutral</td><td>Weather helps them more than you. Keep pivoting around weather setters.</td></tr>
+  <tr><td>Trick Room</td><td>Unfavored</td><td>Your Speed advantage inverts. Taunt the setter or concede in preview.</td></tr>
+</table>
+
+<h2>Common mistakes</h2>
+<ul>
+  <li><strong>Pivoting into a bad matchup.</strong> If your pivot resolves before the opponent\'s attack, you control the next slot. Read carefully.</li>
+  <li><strong>Skipping hazards.</strong> Volt-Turn without Stealth Rock is just random switching. Hazards are the damage source.</li>
+  <li><strong>No wincon.</strong> Pivoting alone doesn\'t win games — you need Dragonite / Kingambit / setup sweeper to close.</li>
+  <li><strong>U-turning into a resist.</strong> If the opponent\'s likely switch-in resists your U-turn, don\'t pivot — attack instead.</li>
+</ul>
+
+<h2>Related articles</h2>
+<ul>
+  <li><a href="/#/faq/pokemon-champions-singles-balance-archetype-guide">Singles Balance guide</a></li>
+  <li><a href="/#/faq/pokemon-champions-singles-hyper-offense-archetype-guide">Singles Hyper Offense guide</a></li>
+  <li><a href="/#/faq/pokemon-champions-battle-formats">Singles vs Doubles format differences</a></li>
+</ul>
+    `,
+  },
+  {
+    slug: 'pokemon-champions-singles-stall-archetype-guide',
+    question: 'How do Singles Stall teams work in Pokémon Champions?',
+    answer: 'Singles Stall wins through attrition. The team runs full walls with reliable recovery, Toxic for passive damage, and hazards for chip. You don\'t kill the opponent — you outlast them. Core members: Hippowdon (Sand chip + Rocks), Clefable (Magic Guard wincon), Corviknight (Defog + U-turn), plus Umbreon, Slowking, or Gliscor for matchup coverage. Stall is the highest-skill, longest-games archetype in Champions.',
+    category: 'competitive',
+    tags: ['singles', 'stall', 'toxic', 'recovery', 'walls', 'attrition', 'archetype', 'team comp'],
+    content: `
+<h2>Singles Stall — Overview</h2>
+
+<div class="at-a-glance">
+  <div><span class="label">Playstyle</span><span class="value">Attrition / outlast</span></div>
+  <div><span class="label">Core</span><span class="value">Full walls + Toxic</span></div>
+  <div><span class="label">Format</span><span class="value">Singles only</span></div>
+  <div><span class="label">Difficulty</span><span class="value">Very hard</span></div>
+</div>
+
+<div class="callout warn">
+  <p><span class="tag">Not viable in Doubles</span>Stall is a <strong>Singles-only archetype</strong>. Doubles has too much spread damage and too few turns per match for walls to out-recover offensive pressure. In Doubles, use <a href="/#/faq/pokemon-champions-intimidate-balance-archetype-guide">Intimidate Balance</a> instead.</p>
+</div>
+
+<p>Stall wins by <strong>not losing</strong>. Every wall has reliable recovery. Toxic spreads passive damage. Hazards chip every switch. You never KO the opponent directly — you outlast them until they time out or their wallbreaker\'s PP runs dry.</p>
+
+<h3>How Stall works</h3>
+<ul>
+  <li><strong>Toxic</strong> ticks 1/16 → 2/16 → 3/16 → ... over 5+ turns</li>
+  <li><strong>Reliable recovery</strong> (Recover, Roost, Slack Off, Soft-Boiled) regenerates 50% HP per click</li>
+  <li><strong>Stealth Rock</strong> chips every opposing switch</li>
+  <li><strong>Hazard control</strong> (Defog / Rapid Spin) keeps opposing chip off your side</li>
+  <li><strong>Win condition:</strong> outlast the wallbreaker until its PP depletes or your setup sweeper cleans the shell</li>
+</ul>
+
+<h2>Singles team</h2>
+
+<pre>
+Hippowdon        @ Leftovers     — Impish, 32 HP / 32 Def / 2 SpD
+  Earthquake / Slack Off / Stealth Rock / Whirlwind
+Clefable         @ Leftovers     — Calm, 32 HP / 2 Def / 32 SpD
+  Moonblast / Moonlight / Calm Mind / Thunder Wave
+Corviknight      @ Leftovers     — Impish, 32 HP / 32 Def / 2 SpD
+  Body Press / Roost / U-turn / Defog
+Umbreon          @ Leftovers     — Calm, 32 HP / 2 Def / 32 SpD
+  Foul Play / Wish / Protect / Yawn
+Slowking         @ Leftovers     — Calm, 32 HP / 2 Def / 32 SpD
+  Scald-alt: Surf / Slack Off / Toxic / Future Sight
+Gliscor          @ Leftovers     — Impish, 32 HP / 32 Def / 2 SpD
+  Earthquake / Roost / Toxic / Protect
+</pre>
+
+<div class="role-grid">
+  <div class="role-card">
+    <span class="name">Hippowdon</span>
+    <span class="meta">Physical wall + Rocks</span>
+    <p>Stealth Rock lead. Sand Stream chip compounds with Toxic. Whirlwind phases opposing setup.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Clefable</span>
+    <span class="meta">Magic Guard wincon</span>
+    <p>Magic Guard ignores ALL indirect damage — hazards, burn, Toxic, Life Orb. Calm Mind eventually walls everything.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Corviknight</span>
+    <span class="meta">Defogger + backup wall</span>
+    <p>Removes opposing hazards with Defog. Body Press scales off its massive Defense.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Umbreon</span>
+    <span class="meta">Wish passer</span>
+    <p>Wish heals your other walls when their recovery PP runs low. Yawn forces switches.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Slowking</span>
+    <span class="meta">Regenerator pivot</span>
+    <p>Future Sight pressures walls from a pivot slot. Regenerator recovers 33% on every switch.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Gliscor</span>
+    <span class="meta">Toxic spreader</span>
+    <p>Toxic + Protect stall + Roost. Ground immunity handles Electric-type attackers that threaten your Water core.</p>
+  </div>
+</div>
+
+<h3>Singles game plan</h3>
+<ol>
+  <li><strong>Lead Hippowdon.</strong> Stealth Rock turn 1. Pivot out when bulk is spent.</li>
+  <li><strong>Spread Toxic.</strong> Gliscor or Slowking (via Toxic) puts the Toxic counter on their main attacker.</li>
+  <li><strong>Pivot cycle.</strong> Rotate Clefable, Umbreon, Corviknight based on the matchup. Each one has recovery + role.</li>
+  <li><strong>Wish pass.</strong> Umbreon passes Wishes to walls that are low on recovery PP.</li>
+  <li><strong>Close with Clefable.</strong> Once the opposing wallbreaker is dead or PP-stalled, Clefable Calm Mind sweeps the rest of their team.</li>
+</ol>
+
+<div class="callout tip">
+  <p><span class="tag">PP economy</span>Stall matches go 50+ turns. Every Recover / Slack Off click costs PP. Track your recovery PP carefully — if you run out before the opponent\'s wallbreaker dies, you lose.</p>
+</div>
+
+<h2>Matchups</h2>
+<table>
+  <tr><th>Vs</th><th>Outcome</th><th>Plan</th></tr>
+  <tr><td>Hyper Offense</td><td>Favored</td><td>Walls absorb boosted sweeps. Toxic kills them over 6 turns.</td></tr>
+  <tr><td>Balance</td><td>Neutral</td><td>Long grindy match. Whoever runs out of recovery PP first loses.</td></tr>
+  <tr><td>Sand</td><td>Favored</td><td>You outlast Sand chip with recovery. Excadrill can\'t break Clefable.</td></tr>
+  <tr><td>Rain</td><td>Slightly unfavored</td><td>Archaludon / Mega Greninja punch through with Rain-boosted nukes.</td></tr>
+  <tr><td>Trick Room</td><td>Slightly unfavored</td><td>Wallbreakers OHKO your walls under TR. Play around the 4-turn window.</td></tr>
+  <tr><td>Stall mirror</td><td>Skill matchup</td><td>Whoever\'s Clefable sets up Calm Mind first wins.</td></tr>
+</table>
+
+<h2>Common mistakes</h2>
+<ul>
+  <li><strong>No wincon.</strong> Pure walling ends in timeouts that go to the opponent. You need Clefable Calm Mind or Umbreon Wish pass to actually close games.</li>
+  <li><strong>Skipping Defog.</strong> Opposing hazards compound against you too. Remove them.</li>
+  <li><strong>Not tracking recovery PP.</strong> Recover has 8 PP. In a 50-turn match you\'ll burn through it — plan when to swap.</li>
+  <li><strong>Running offensive spreads.</strong> Stall walls need max HP + max Def / max SpD. No offense investment.</li>
+</ul>
+
+<h2>Related articles</h2>
+<ul>
+  <li><a href="/#/faq/pokemon-champions-singles-balance-archetype-guide">Singles Balance guide</a> (middle ground between Stall and HO)</li>
+  <li><a href="/#/faq/pokemon-champions-counter-opposing-archetypes">Counter-picking opposing archetypes</a></li>
   <li><a href="/#/faq/pokemon-champions-battle-formats">Singles vs Doubles format differences</a></li>
 </ul>
     `,

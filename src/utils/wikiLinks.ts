@@ -27,8 +27,12 @@ const ARCHETYPE_SLUGS: Record<string, string> = {
   'Balance': 'pokemon-champions-intimidate-balance-archetype-guide',
   'Balanced Goodstuffs': 'pokemon-champions-intimidate-balance-archetype-guide',
   'Intimidate Balance': 'pokemon-champions-intimidate-balance-archetype-guide',
-  // Stall has no dedicated article — closest reference is Singles Balance
-  'Stall': 'pokemon-champions-singles-balance-archetype-guide',
+  // Singles-specific archetypes with dedicated deep dives
+  'Stall': 'pokemon-champions-singles-stall-archetype-guide',
+  'Volt-Turn': 'pokemon-champions-singles-volt-turn-archetype-guide',
+  // Mega Gengar trap — Doubles-only
+  'Shadow Tag Perish': 'pokemon-champions-shadow-tag-perish-trap-archetype-guide',
+  'Perish Trap': 'pokemon-champions-shadow-tag-perish-trap-archetype-guide',
 };
 
 // Team comp archetype IDs (lowercase, hyphenated) used in teams.ts.
