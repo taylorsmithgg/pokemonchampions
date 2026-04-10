@@ -4,6 +4,7 @@ import type { StatID, StatsTable } from '@smogon/calc';
 import { SearchSelect } from './SearchSelect';
 import { StatPointAllocator } from './StatPointAllocator';
 import { TypeBadge } from './TypeBadge';
+import { GenBadge } from './GenBadge';
 import {
   getAvailablePokemon,
   getAvailableMoves,
@@ -81,7 +82,11 @@ function PokemonSprite({ species }: { species: string }) {
   );
 }
 
-// Build optimized state — uses the SAME archetype system shown in the UI
+// Build optimized state — uses the SAME archetype system shown in the UI.
+// When the archetype engine can't source moves from live Smogon stats
+// (e.g., Z-A-exclusive forms like Floette-Eternal aren't in the VGC 2026
+// dataset), fall back to the curated preset library for moves so the
+// Optimize button always produces a usable set.
 function buildOptimizedState(species: string, level: number): PokemonState {
   const base = createDefaultPokemonState();
   base.species = species;
@@ -92,22 +97,29 @@ function buildOptimizedState(species: string, level: number): PokemonState {
 
   base.ability = (data.abilities?.[0] || '') as string;
 
-  // Use the archetype system — same data the user sees in the Archetypes panel
   const archetypes = getArchetypes(species);
+  const presets = getPresetsBySpecies(species);
+
   if (archetypes.length > 0) {
-    const arch = archetypes[0]; // First archetype = top pick
+    const arch = archetypes[0];
+    // If the archetype couldn't populate moves (no live data),
+    // borrow them from the first preset for this species.
+    const archMoves = arch.moves.length > 0
+      ? [...arch.moves, '', '', '', ''].slice(0, 4)
+      : presets.length > 0
+        ? [...presets[0].moves, '', '', '', ''].slice(0, 4)
+        : base.moves;
     return {
       ...base,
       nature: arch.nature,
       ability: base.ability,
-      item: arch.item,
+      item: arch.item || (presets[0]?.item ?? ''),
       sps: { hp: arch.sps.hp, atk: arch.sps.atk, def: arch.sps.def, spa: arch.sps.spa, spd: arch.sps.spd, spe: arch.sps.spe },
-      moves: arch.moves.length > 0 ? [...arch.moves, '', '', '', ''].slice(0, 4) : base.moves,
+      moves: archMoves,
     };
   }
 
-  // Fallback: use preset if no archetypes
-  const presets = getPresetsBySpecies(species);
+  // No archetypes at all — fall back to preset in full.
   if (presets.length > 0) {
     const p = presets[0];
     return {
@@ -241,6 +253,7 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
                 return (
                   <div className="flex items-center gap-2">
                     <span className="flex-1 truncate">{name}</span>
+                    <GenBadge species={name} />
                     {d && d.types.map((tp: string) => (
                       <span key={tp} className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: TYPE_COLORS[tp] || '#666' }} />
                     ))}

@@ -8,6 +8,7 @@ import { getPokemonData, getAvailablePokemon, getTypeEffectiveness, getDefensive
 import { PRESETS } from '../data/presets';
 import { NORMAL_TIER_LIST } from '../data/tierlist';
 import { getCachedUsageStats, getLiveTeammates } from '../data/liveData';
+import { analyzeTeamLineups, DEFAULT_FORMAT, type TeamFlexibilityReport, type BattleFormat } from './lineupAnalysis';
 import type { PokemonState } from '../types';
 
 
@@ -32,6 +33,8 @@ export interface TeamAudit {
   typeChart: TypeCoverageReport;
   roleReport: RoleCoverageReport;
   speedProfile: SpeedProfile;
+  /** Bring-6-pick-3 lineup flexibility report. Null for < 3 members. */
+  lineupReport: TeamFlexibilityReport | null;
 }
 
 interface TypeCoverageReport {
@@ -92,7 +95,7 @@ function hasMoveType(pokemon: PokemonState, check: (m: any) => boolean): boolean
 
 // ─── Main Audit Engine ──────────────────────────────────────────────
 
-export function auditTeam(team: PokemonState[]): TeamAudit {
+export function auditTeam(team: PokemonState[], format: BattleFormat = DEFAULT_FORMAT): TeamAudit {
   const members = team.filter(p => p.species);
   const issues: AuditIssue[] = [];
 
@@ -104,8 +107,18 @@ export function auditTeam(team: PokemonState[]): TeamAudit {
       typeChart: { uncoveredOffensively: [], sharedWeaknesses: [], unresisted: [] },
       roleReport: { hasFakeOut: false, hasTailwind: false, hasTrickRoom: false, hasIntim: false, hasRedirect: false, hasPriority: false, hasHazards: false, hasStatusAbsorb: false, hasWeatherSetter: false, hasTerrainSetter: false, hasProtect: 0, hasPivot: false },
       speedProfile: { fastest: null, slowest: null, avgSpeed: 0, trickRoomViable: false, tailwindDependent: false },
+      lineupReport: null,
     };
   }
+
+  // ─── Lineup analysis for the selected format ──────────────────
+  // Champions runs separate Singles and Doubles ladders with very
+  // different pick counts (3 vs 4) and metas. The lineup report
+  // here drives the flexibility audit checks below and respects
+  // whichever format the caller asked for.
+  const lineupReport = members.length >= format.battleSize
+    ? analyzeTeamLineups(members, format)
+    : null;
 
   // ─── Gather team data ──────────────────────────────────────────
   const memberData = members.map(m => ({
@@ -483,6 +496,74 @@ export function auditTeam(team: PokemonState[]): TeamAudit {
     }
   }
 
+  // ─── BRING-6-PICK-3 LINEUP FLEXIBILITY ────────────────────────
+  // Surface lineup-specific issues that the per-member checks above
+  // can't catch. These are the signals that matter most in a bring-N
+  // format but are invisible if you only look at the 6-mon team.
+  if (lineupReport) {
+    const pickLabel = `pick-${format.battleSize}`;
+    if (lineupReport.score < 50 && members.length >= format.battleSize) {
+      issues.push({
+        id: 'lineup-inflexibility',
+        severity: members.length === format.rosterSize ? 'critical' : 'warning',
+        category: `${format.label} Flexibility`,
+        title: `Low ${pickLabel} flexibility (${lineupReport.score}/100)`,
+        detail: `Most ${format.battleSize}-Pokemon subsets of this team score poorly in ${format.label}. An opponent who bans or pressures your 1-2 strongest picks leaves you without a backup plan.`,
+        suggestion: `Add Pokemon that enable new strong ${format.battleSize}-mon subsets rather than duplicating roles you already have.`,
+      });
+    }
+
+    // Single viable lineup — the most dangerous trap in bring-N-pick-M.
+    const viableCount = lineupReport.lineups.filter(l => l.total >= 25).length;
+    if (viableCount === 1 && lineupReport.lineups.length > 1) {
+      issues.push({
+        id: 'lineup-single-viable',
+        severity: 'critical',
+        category: `${format.label} Flexibility`,
+        title: `Only one viable ${pickLabel} lineup`,
+        detail: `Only ${lineupReport.bestLineup?.members.join(' + ')} scores as a viable ${pickLabel} lineup. Any matchup that punishes that lineup beats the entire team.`,
+        suggestion: `Diversify roles — aim for at least 3 strong ${pickLabel} subsets so you can adapt at team preview.`,
+      });
+    }
+
+    // Load-bearing Pokemon: a single member appears in EVERY top lineup.
+    if (lineupReport.loadBearing.length > 0 && lineupReport.loadBearing[0].appearances >= Math.min(5, lineupReport.lineups.length)) {
+      const anchor = lineupReport.loadBearing[0].species;
+      issues.push({
+        id: `lineup-anchor-${anchor}`,
+        severity: 'warning',
+        category: `${format.label} Flexibility`,
+        title: `${anchor} is load-bearing`,
+        detail: `${anchor} appears in every top ${format.battleSize}-lineup. Its weaknesses are effectively the team's weaknesses — if the opponent prepares for ${anchor}, you have no plan B.`,
+        suggestion: `Build an alternate win condition that doesn't rely on ${anchor}.`,
+      });
+    }
+
+    // Underused Pokemon: roster members that never make a top lineup.
+    if (lineupReport.underused.length > 0 && members.length === format.rosterSize) {
+      const dead = lineupReport.underused.map(u => u.species);
+      issues.push({
+        id: 'lineup-dead-slots',
+        severity: 'warning',
+        category: `${format.label} Flexibility`,
+        title: `${dead.length} Pokemon rarely appear in top lineups`,
+        detail: `${dead.join(', ')} don't make the best ${pickLabel} selections for this team. They're likely taking up a roster slot without contributing.`,
+        suggestion: `Consider replacing with Pokemon that unlock new viable ${format.battleSize}-mon subsets.`,
+      });
+    }
+
+    // Positive: strong flexibility
+    if (lineupReport.score >= 75 && members.length >= 4) {
+      issues.push({
+        id: 'good-flexibility',
+        severity: 'good',
+        category: `${format.label} Flexibility`,
+        title: `Strong ${pickLabel} flexibility (${lineupReport.score}/100)`,
+        detail: `${lineupReport.lineups.filter(l => l.total >= 40).length} lineups score above the viable threshold. You can adapt at team preview to most matchups.`,
+      });
+    }
+  }
+
   // ─── POSITIVE FINDINGS ────────────────────────────────────────
   if (roles.hasFakeOut && roles.hasTailwind) {
     issues.push({
@@ -552,6 +633,7 @@ export function auditTeam(team: PokemonState[]): TeamAudit {
     typeChart: { uncoveredOffensively, sharedWeaknesses, unresisted },
     roleReport: roles,
     speedProfile,
+    lineupReport,
   };
 }
 

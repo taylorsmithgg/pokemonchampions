@@ -4,7 +4,16 @@
 import { Generations, Pokemon as CalcPokemon } from '@smogon/calc';
 import type { StatID } from '@smogon/calc';
 import type { NatureName, TypeName } from '../types';
-import { CHAMPIONS_POKEMON_LIST, CHAMPIONS_MEGA_LIST } from './championsRoster';
+import {
+  CHAMPIONS_POKEMON_LIST,
+  CHAMPIONS_MEGA_LIST,
+  CHAMPIONS_POKEMON_BY_GEN,
+  MEGA_STONE_MAP,
+  GENERATION_META,
+  type GenMeta,
+} from './championsRoster';
+
+export { GENERATION_META, type GenMeta } from './championsRoster';
 
 const gen9 = Generations.get(9);
 
@@ -91,6 +100,10 @@ export function getNatureLabel(nature: NatureName): string {
 
 const CHAMPIONS_POKEMON_SET = new Set<string>();
 const CHAMPIONS_MEGA_SET = new Set<string>();
+// Reverse index: species name → gen number. Built once at init so
+// getPokemonGeneration() is O(1). Accepts the base species; Mega/form
+// suffixes are stripped before lookup.
+const SPECIES_TO_GEN = new Map<string, number>();
 
 function initChampionsPokemon() {
   if (CHAMPIONS_POKEMON_SET.size > 0) return;
@@ -110,6 +123,12 @@ function initChampionsPokemon() {
   }
 
   for (const name of CHAMPIONS_MEGA_LIST) CHAMPIONS_MEGA_SET.add(name);
+
+  // Build reverse gen index from the per-gen buckets.
+  for (const [genStr, list] of Object.entries(CHAMPIONS_POKEMON_BY_GEN)) {
+    const gen = Number(genStr);
+    for (const name of list) SPECIES_TO_GEN.set(name, gen);
+  }
 }
 
 export function getAvailablePokemon(): string[] {
@@ -135,7 +154,16 @@ export function isChampionsPokemon(name: string): boolean {
 
   // Mega forms (Foo-Mega, Foo-Mega-X, Foo-Mega-Y)
   const megaMatch = name.match(/^(.+?)-Mega(?:-[XY])?$/);
-  if (megaMatch && CHAMPIONS_MEGA_SET.has(megaMatch[1])) return true;
+  if (megaMatch) {
+    // Exact family match (e.g., Charizard-Mega-Y → Charizard)
+    if (CHAMPIONS_MEGA_SET.has(megaMatch[1])) return true;
+    // Sub-form match (e.g., Floette-Mega → Floette-Eternal, because
+    // AZ's Eternal Flower is the form that actually Mega Evolves).
+    // Check if any entry in the Mega set starts with `${family}-`.
+    for (const entry of CHAMPIONS_MEGA_SET) {
+      if (entry.startsWith(`${megaMatch[1]}-`)) return true;
+    }
+  }
 
   // "Mega Foo" / "Mega Foo X" display-name format (used in tier list)
   const megaDisplayMatch = name.match(/^Mega (.+?)(?: [XY])?$/);
@@ -167,6 +195,41 @@ export function getPokemonData(name: string) {
   return gen9.species.get(name.toLowerCase().replace(/[^a-z0-9]/g, '') as any);
 }
 
+/**
+ * Returns the debut generation (1-9) of a given Champions Pokemon, or
+ * undefined if the species isn't in the roster. Accepts Mega forms
+ * (Charizard-Mega-Y → 1) and Rotom appliance forms (Rotom-Wash → 4)
+ * by normalizing to the base species first.
+ */
+export function getPokemonGeneration(name: string): number | undefined {
+  initChampionsPokemon();
+  if (!name) return undefined;
+  if (SPECIES_TO_GEN.has(name)) return SPECIES_TO_GEN.get(name);
+
+  // Strip Mega/form suffix and retry
+  const stripped = name
+    .replace(/-Mega(-[XY])?$/, '')
+    .replace(/^(Rotom|Basculegion)-[A-Za-z]+$/, '$1')
+    .replace(/^Aegislash(-Blade|-Both)?$/, 'Aegislash-Shield');
+  if (SPECIES_TO_GEN.has(stripped)) return SPECIES_TO_GEN.get(stripped);
+
+  // "Mega Foo X" display format
+  const megaDisplay = name.match(/^Mega (.+?)(?: [XY])?$/);
+  if (megaDisplay && SPECIES_TO_GEN.has(megaDisplay[1])) return SPECIES_TO_GEN.get(megaDisplay[1]);
+
+  return undefined;
+}
+
+/**
+ * Returns the GenMeta (region name, label, color) for a species, or
+ * undefined if the species isn't in the roster.
+ */
+export function getGenMetaForPokemon(name: string): GenMeta | undefined {
+  const gen = getPokemonGeneration(name);
+  if (gen === undefined) return undefined;
+  return GENERATION_META.find(m => m.gen === gen);
+}
+
 // Resolve the effective form based on held item (detects Mega Stones)
 // Returns { species data for the correct form, the form name, isMega flag }
 // Only species present in CHAMPIONS_MEGA_LIST can actually Mega Evolve —
@@ -194,6 +257,19 @@ export function resolveForm(species: string, item: string): {
         }
       }
     } catch { /* fall through to base */ }
+
+    // Fallback: Smogon calc's getForme doesn't know about every
+    // Mega Stone → Mega form mapping (notably Floettite on
+    // Floette-Eternal). If getForme returned the base species but a
+    // sibling "{family}-Mega" entry exists, use that instead.
+    // We strip any form suffix (e.g., "-Eternal") before appending
+    // "-Mega" so Floette-Eternal + Floettite resolves to Floette-Mega.
+    const baseFamily = species.replace(/-[^-]+$/, '');
+    const directMegaName = `${baseFamily}-Mega`;
+    const directMega = getPokemonData(directMegaName);
+    if (directMega && directMegaName !== species) {
+      return { data: directMega, formName: directMegaName, isMega: true };
+    }
   }
 
   return { data: baseData, formName: species, isMega: false };
@@ -263,31 +339,17 @@ const CHAMPIONS_ITEMS = new Set([
   'Coba Berry', 'Payapa Berry', 'Tanga Berry', 'Charti Berry',
   'Kasib Berry', 'Haban Berry', 'Colbur Berry', 'Babiri Berry',
   'Chilan Berry', 'Roseli Berry',
-  // ─── Mega Stones ──────────────────────────────────────────────
-  // IMPORTANT: Every stone here MUST have a corresponding base species
-  // in CHAMPIONS_MEGA_LIST (src/data/championsRoster.ts). Adding a stone
-  // without a valid Mega will let users "equip" a fake evolution.
-  // Original Mega Stones (Gens VI/VII)
-  'Venusaurite', 'Charizardite X', 'Charizardite Y', 'Blastoisinite',
-  'Beedrillite', 'Pidgeotite', 'Alakazite', 'Slowbronite', 'Gengarite',
-  'Kangaskhanite', 'Pinsirite', 'Gyaradosite', 'Aerodactylite',
-  'Ampharosite', 'Steelixite', 'Scizorite', 'Heracronite', 'Houndoominite',
-  'Tyranitarite', 'Gardevoirite', 'Sablenite', 'Aggronite', 'Medichamite',
-  'Manectite', 'Sharpedonite', 'Cameruptite', 'Altarianite', 'Banettite',
-  'Absolite', 'Glalitite', 'Lopunnite', 'Garchompite', 'Lucarionite',
-  'Abomasite', 'Galladite', 'Audinite',
-  // Z-A Mega Stones for Pokemon confirmed to have Megas in Champions
-  'Dragoninite',   // Mega Dragonite
-  'Meganiumite',   // Mega Meganium
-  'Feraligite',    // Mega Feraligatr
-  'Skarmorite',    // Mega Skarmory
-  'Clefablite',    // Mega Clefable
-  'Victreebelite', // Mega Victreebel
-  'Starminite',    // Mega Starmie
-  'Chimechite',    // Mega Chimecho
-  'Froslassite',   // Mega Froslass
-  'Emboarite',     // Mega Emboar
+  // Mega Stones are added below from MEGA_STONE_MAP to keep them in
+  // sync with the roster. Do NOT add stones inline — add the species
+  // to championsRoster.ts::MEGA_STONE_MAP instead.
 ]);
+
+// Pull every stone from MEGA_STONE_MAP into the item pool. This
+// guarantees that if a species is legal to Mega Evolve, its stone is
+// selectable in the UI.
+for (const stones of Object.values(MEGA_STONE_MAP)) {
+  for (const stone of stones) CHAMPIONS_ITEMS.add(stone);
+}
 
 
 export function getAvailableItems(): string[] {

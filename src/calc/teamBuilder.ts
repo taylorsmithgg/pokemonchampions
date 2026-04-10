@@ -1,6 +1,8 @@
 // Incremental Team Builder
 // Builds a competitive team one slot at a time, each pick optimizing
-// for what the team is missing: coverage, roles, speed tiers, synergy
+// for what the team is missing: coverage, roles, speed tiers, synergy,
+// AND — critically for a bring-6-pick-3 Doubles format — how many
+// additional viable 3-mon subsets the candidate would unlock.
 
 import { Move } from '@smogon/calc';
 import { getAvailablePokemon, getPokemonData, getTypeEffectiveness} from '../data/champions';
@@ -8,6 +10,7 @@ import { PRESETS } from '../data/presets';
 import { NORMAL_TIER_LIST } from '../data/tierlist';
 import type { PokemonState } from '../types';
 import { createDefaultPokemonState } from '../types';
+import { analyzeTeamLineups, DEFAULT_FORMAT, type BattleFormat } from './lineupAnalysis';
 
 
 
@@ -27,6 +30,7 @@ interface CandidateScore {
 function scoreCandidateForTeam(
   candidateName: string,
   currentTeam: PokemonState[],
+  format: BattleFormat = DEFAULT_FORMAT,
 ): CandidateScore {
   const data = getPokemonData(candidateName);
   if (!data) return { species: candidateName, score: 0, reasons: [] };
@@ -179,6 +183,44 @@ function scoreCandidateForTeam(
     score += 2;
   }
 
+  // ─── 8. Lineup flexibility — bring-N-pick-M impact ────────────
+  // Score how much this candidate improves the team's pool of
+  // viable pick-M sub-selections for the selected format. For
+  // Doubles (pick 4) this means 4-mon subsets, for Singles it
+  // means 3-mon subsets.
+  if (teamMembers.length >= format.battleSize - 1) {
+    const trialMember: PokemonState = preset ? {
+      ...createDefaultPokemonState(),
+      species: preset.species,
+      nature: preset.nature,
+      ability: preset.ability,
+      item: preset.item,
+      sps: { ...preset.sps },
+      moves: [...preset.moves, '', '', '', ''].slice(0, 4),
+    } : {
+      ...createDefaultPokemonState(),
+      species: candidateName,
+      ability,
+    };
+
+    const currentReport = analyzeTeamLineups(teamMembers, format);
+    const trialReport = analyzeTeamLineups([...teamMembers, trialMember], format);
+    const flexDelta = trialReport.score - currentReport.score;
+    if (flexDelta > 0) {
+      score += Math.min(12, Math.round(flexDelta * 0.6));
+      if (flexDelta >= 10) {
+        reasons.push(`Unlocks ${flexDelta}-point jump in ${format.label} lineup flexibility`);
+      }
+    }
+
+    const trialTopCount = trialReport.lineups.filter(l => l.total >= 50).length;
+    const currentTopCount = currentReport.lineups.filter(l => l.total >= 50).length;
+    if (trialTopCount > currentTopCount) {
+      score += (trialTopCount - currentTopCount) * 3;
+      reasons.push(`Creates ${trialTopCount - currentTopCount} new strong ${format.label} lineups`);
+    }
+  }
+
   return { species: candidateName, score, reasons };
 }
 
@@ -186,6 +228,7 @@ function scoreCandidateForTeam(
 export function buildOptimalTeam(
   startingTeam: PokemonState[] = [],
   slots: number = 6,
+  format: BattleFormat = DEFAULT_FORMAT,
 ): PokemonState[] {
   const team = [...startingTeam];
 
@@ -205,7 +248,7 @@ export function buildOptimalTeam(
   for (let i = 0; i < slots; i++) {
     if (team[i].species) continue; // Skip filled slots
 
-    const scores = viablePokemon.map(name => scoreCandidateForTeam(name, team));
+    const scores = viablePokemon.map(name => scoreCandidateForTeam(name, team, format));
     scores.sort((a, b) => b.score - a.score);
 
     const best = scores[0];
@@ -237,13 +280,17 @@ export function buildOptimalTeam(
 }
 
 // Get next best pick for the team
-export function suggestNextPick(currentTeam: PokemonState[], count: number = 5): CandidateScore[] {
+export function suggestNextPick(
+  currentTeam: PokemonState[],
+  count: number = 5,
+  format: BattleFormat = DEFAULT_FORMAT,
+): CandidateScore[] {
   const allPokemon = getAvailablePokemon();
   const viable = allPokemon.filter(name =>
     PRESETS.some(p => p.species === name) || NORMAL_TIER_LIST.some(e => e.name === name)
   );
 
-  const scores = viable.map(name => scoreCandidateForTeam(name, currentTeam));
+  const scores = viable.map(name => scoreCandidateForTeam(name, currentTeam, format));
   scores.sort((a, b) => b.score - a.score);
   return scores.filter(s => s.score > 0).slice(0, count);
 }

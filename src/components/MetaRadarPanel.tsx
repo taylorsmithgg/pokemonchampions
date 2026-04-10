@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMetaRadar } from '../hooks/useMetaRadar';
 import { Sprite } from './Sprite';
 import { QuickAdd } from './QuickAdd';
+import { GenBadge } from './GenBadge';
 import type { MetaScore } from '../calc/metaRadar';
 
 const TIER_COLORS: Record<string, string> = {
@@ -37,8 +38,9 @@ function RankingCard({ score }: { score: MetaScore }) {
       <div className="p-3 flex items-center gap-3">
         <Sprite species={score.species} size="md" />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
             <span className="text-sm font-bold text-white">{score.species}</span>
+            <GenBadge species={score.species} />
             <span className={`text-xs font-black px-1.5 py-0.5 rounded border ${tierStyle}`}>{score.tier}</span>
             <span className={`text-sm font-bold ${trend.color}`}>{trend.icon}</span>
             <span className="text-xs text-slate-600 ml-auto">{score.score} pts</span>

@@ -51,7 +51,7 @@ function hasMoveCategory(moves: string[], category: string): boolean {
   return false;
 }
 
-function scoreLeadPair(a: PokemonState, b: PokemonState): LeadScore {
+export function scoreLeadPair(a: PokemonState, b: PokemonState): LeadScore {
   const aData = getPokemonData(a.species);
   const bData = getPokemonData(b.species);
   if (!aData || !bData) {

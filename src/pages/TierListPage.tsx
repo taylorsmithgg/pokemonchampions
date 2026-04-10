@@ -8,12 +8,14 @@ import {
   type TierEntry,
   type Tier,
 } from '../data/tierlist';
-import { TYPE_COLORS, STAT_IDS, STAT_LABELS, STAT_COLORS, getPokemonData, getAvailableItems } from '../data/champions';
+import { TYPE_COLORS, STAT_IDS, STAT_LABELS, STAT_COLORS, getPokemonData, getAvailableItems, getPokemonGeneration, GENERATION_META } from '../data/champions';
 import { useLiveData } from '../hooks/useLiveData';
 import { suggestSpreads } from '../calc/spOptimizer';
 import { discoverStrategies, type Discovery } from '../calc/metaDiscovery';
 import { MetaRadarPanel } from '../components/MetaRadarPanel';
+import { DoublesProjectionPanel } from '../components/DoublesProjectionPanel';
 import { QuickAdd } from '../components/QuickAdd';
+import { GenBadge } from '../components/GenBadge';
 import type { StatID } from '@smogon/calc';
 
 function StatBar({ stat, value, max = 200 }: { stat: StatID; value: number; max?: number }) {
@@ -62,11 +64,12 @@ function PokemonDetailCard({ entry, onClose }: { entry: TierEntry; onClose: () =
             />
             <div>
               <h3 className="text-base font-bold text-white">{entry.name}</h3>
-              <div className="flex gap-1 mt-1">
+              <div className="flex gap-1 mt-1 flex-wrap">
                 {entry.types.map((t: string) => (
                   <span key={t} className="text-[9px] px-2 py-0.5 rounded-full text-white font-bold" style={{ backgroundColor: TYPE_COLORS[t] || '#666' }}>{t}</span>
                 ))}
                 {entry.isMega && <span className="text-[9px] px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded-full font-bold">Mega</span>}
+                <GenBadge species={speciesName} variant="both" />
               </div>
             </div>
           </div>
@@ -221,9 +224,10 @@ function TierCard({ entry, onClick }: { entry: TierEntry; onClick: () => void })
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 mb-1">
+          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
             <span className="text-sm font-bold text-white group-hover:text-poke-red-light transition-colors">{entry.name}</span>
             {entry.isMega && <span className="text-[8px] px-1 py-0 bg-purple-500/20 text-purple-400 rounded font-bold">M</span>}
+            <GenBadge species={speciesName} />
           </div>
           <div className="flex gap-1 mb-1.5">
             {entry.types.map((t: string) => (
@@ -346,13 +350,23 @@ function MetaDiscoveriesSection() {
 }
 
 export function TierListPage() {
-  const [view, setView] = useState<'radar' | 'static'>('radar');
+  const [view, setView] = useState<'projection' | 'radar' | 'static'>('projection');
   const [listType, setListType] = useState<'normal' | 'mega'>('normal');
   const [filterTier, setFilterTier] = useState<Tier | 'all'>('all');
   const [filterRole, setFilterRole] = useState('all');
   const [filterType, setFilterType] = useState('all');
+  const [filterGens, setFilterGens] = useState<Set<number>>(new Set());
   const [search, setSearch] = useState('');
   const [selectedEntry, setSelectedEntry] = useState<TierEntry | null>(null);
+
+  const toggleGen = (gen: number) => {
+    setFilterGens(prev => {
+      const next = new Set(prev);
+      if (next.has(gen)) next.delete(gen);
+      else next.add(gen);
+      return next;
+    });
+  };
 
   const list = listType === 'mega' ? MEGA_TIER_LIST : NORMAL_TIER_LIST;
 
@@ -373,12 +387,19 @@ export function TierListPage() {
     if (filterTier !== 'all') results = results.filter(e => e.tier === filterTier);
     if (filterRole !== 'all') results = results.filter(e => e.roles.includes(filterRole));
     if (filterType !== 'all') results = results.filter(e => e.types.includes(filterType as any));
+    if (filterGens.size > 0) {
+      results = results.filter(e => {
+        const speciesName = e.isMega ? e.name.replace('Mega ', '').replace(/ [XY]$/, '') : e.name;
+        const gen = getPokemonGeneration(speciesName);
+        return gen !== undefined && filterGens.has(gen);
+      });
+    }
     if (search) {
       const lower = search.toLowerCase();
       results = results.filter(e => e.name.toLowerCase().includes(lower) || e.note?.toLowerCase().includes(lower));
     }
     return results;
-  }, [list, filterTier, filterRole, filterType, search]);
+  }, [list, filterTier, filterRole, filterType, filterGens, search]);
 
   const groupedByTier = useMemo(() => {
     return TIER_DEFINITIONS.map(tierDef => ({
@@ -414,7 +435,18 @@ export function TierListPage() {
         <MetaDiscoveriesSection />
 
         {/* View tabs */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 flex-wrap">
+          <button
+            onClick={() => setView('projection')}
+            className={`text-sm px-4 py-2 rounded-lg border font-semibold transition-colors ${
+              view === 'projection' ? 'bg-poke-red/15 border-poke-red/40 text-poke-red-light' : 'bg-poke-surface border-poke-border text-slate-400 hover:text-white'
+            }`}
+          >
+            Doubles Projection
+            <span className="text-[9px] px-1.5 py-0 bg-poke-gold/20 text-poke-gold rounded-full font-bold ml-2 uppercase tracking-wider">
+              Original
+            </span>
+          </button>
           <button
             onClick={() => setView('radar')}
             className={`text-sm px-4 py-2 rounded-lg border font-semibold transition-colors ${
@@ -432,6 +464,11 @@ export function TierListPage() {
             Static Tier List
           </button>
         </div>
+
+        {/* Doubles Projection — first-principles meta analysis */}
+        {view === 'projection' && (
+          <DoublesProjectionPanel />
+        )}
 
         {/* Meta Radar View */}
         {view === 'radar' && (
@@ -471,6 +508,36 @@ export function TierListPage() {
                 <option value="all">All Types</option>
                 {allTypes.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
+            </div>
+
+            {/* Generation filter pills — multi-select */}
+            <div className="flex flex-wrap items-center gap-1.5 mb-4">
+              <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mr-1">Gen</span>
+              {GENERATION_META.map(meta => {
+                const isActive = filterGens.has(meta.gen);
+                return (
+                  <button
+                    key={meta.gen}
+                    onClick={() => toggleGen(meta.gen)}
+                    className={`text-[10px] font-bold px-2 py-1 rounded border transition-colors ${
+                      isActive
+                        ? `${meta.color} ${meta.bgColor} ${meta.borderColor}`
+                        : 'bg-poke-surface border-poke-border text-slate-500 hover:text-white'
+                    }`}
+                    title={`Filter to Gen ${meta.gen} — ${meta.region}`}
+                  >
+                    {meta.shortLabel} · {meta.region}
+                  </button>
+                );
+              })}
+              {filterGens.size > 0 && (
+                <button
+                  onClick={() => setFilterGens(new Set())}
+                  className="text-[10px] text-slate-500 hover:text-white px-2 py-1 transition-colors"
+                >
+                  Clear
+                </button>
+              )}
             </div>
 
             {/* Tier groups */}

@@ -3,6 +3,7 @@
 
 import { Move } from '@smogon/calc';
 import { getPokemonData } from '../data/champions';
+import { MEGA_STONE_MAP } from '../data/championsRoster';
 import type { PokemonState } from '../types';
 
 interface ItemSuggestion {
@@ -18,26 +19,6 @@ const TYPE_BOOST_ITEMS: Record<string, string> = {
   Flying: 'Sharp Beak', Psychic: 'Twisted Spoon', Bug: 'Silver Powder',
   Rock: 'Hard Stone', Ghost: 'Spell Tag', Dragon: 'Dragon Fang',
   Dark: 'Black Glasses', Steel: 'Metal Coat', Fairy: 'Fairy Feather',
-};
-
-const MEGA_STONES: Record<string, string[]> = {
-  Charizard: ['Charizardite X', 'Charizardite Y'],
-  Gengar: ['Gengarite'], Kangaskhan: ['Kangaskhanite'],
-  Gyarados: ['Gyaradosite'], Scizor: ['Scizorite'],
-  Alakazam: ['Alakazite'], Venusaur: ['Venusaurite'],
-  Lopunny: ['Lopunnite'], Altaria: ['Altarianite'],
-  Garchomp: ['Garchompite'], Tyranitar: ['Tyranitarite'],
-  Dragonite: ['Dragoninite'], Froslass: ['Froslassite'],
-  Heracross: ['Heracronite'], Lucario: ['Lucarionite'],
-  Blastoise: ['Blastoisinite'], Gardevoir: ['Gardevoirite'],
-  Gallade: ['Galladite'], Aggron: ['Aggronite'],
-  Pinsir: ['Pinsirite'], Aerodactyl: ['Aerodactylite'],
-  Steelix: ['Steelixite'], Medicham: ['Medichamite'],
-  Banette: ['Banettite'], Absol: ['Absolite'],
-  Glalie: ['Glalitite'], Sableye: ['Sablenite'],
-  Sharpedo: ['Sharpedonite'], Camerupt: ['Cameruptite'],
-  Slowbro: ['Slowbronite'], Pidgeot: ['Pidgeotite'],
-  Ampharos: ['Ampharosite'], Beedrill: ['Beedrillite'],
 };
 
 export function suggestItems(
@@ -77,7 +58,10 @@ export function suggestItems(
   const primaryMoveType = Object.entries(moveTypes).sort((a, b) => b[1] - a[1])[0]?.[0];
 
   // ─── Priority 1: Mega Stones (highest priority) ───────────────
-  const megaStones = MEGA_STONES[pokemon.species];
+  // Use MEGA_STONE_MAP from the roster (single source of truth).
+  // Keys may be base species ("Charizard") or sub-forms like
+  // "Floette-Eternal", so look up the exact species name.
+  const megaStones = MEGA_STONE_MAP[pokemon.species];
   if (megaStones) {
     for (const stone of megaStones) {
       suggestions.push({

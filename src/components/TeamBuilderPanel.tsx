@@ -1,11 +1,15 @@
 import { useState, useMemo, useCallback } from 'react';
 import type { StatID } from '@smogon/calc';
 import { SearchSelect } from './SearchSelect';
+import { SwordIcon, ShieldIcon, OptimizeIcon } from './QuickAdd';
 import { auditTeam, type TeamAudit } from '../calc/teamAudit';
 import { buildOptimalTeam, suggestNextPick } from '../calc/teamBuilder';
+import { DEFAULT_FORMAT, type BattleFormat } from '../calc/lineupAnalysis';
+import { FormatSelector } from './FormatSelector';
 import { PRESETS } from '../data/presets';
 import { NORMAL_TIER_LIST } from '../data/tierlist';
 import { Sprite } from './Sprite';
+import { GenBadge } from './GenBadge';
 import { getSpriteUrl } from '../utils/sprites';
 import {
   getAvailablePokemon,
@@ -151,30 +155,46 @@ function TeamSlot({
             />
           </div>
           {pokemon.species && (
-            <div className="flex gap-1.5 items-center">
+            <div className="flex gap-1 items-center shrink-0">
+              {/* Optimize: auto-fill the slot from live data. Keeps
+                  the "Optimize" semantics explicit since it mutates
+                  the slot rather than routing elsewhere. */}
               <button
                 onClick={onAutoFill}
-                className="text-xs px-2 py-1 bg-poke-gold/15 text-poke-gold border border-poke-gold/30 rounded-lg hover:bg-poke-gold/25 transition-colors"
-                title="Auto-fill optimal set"
+                className="w-7 h-7 flex items-center justify-center rounded-md border bg-poke-gold/15 text-poke-gold border-poke-gold/30 hover:bg-poke-gold/25 hover:border-poke-gold/60 hover:text-white transition-colors"
+                title="Auto-fill optimal set from live data"
+                aria-label="Optimize this slot"
               >
-                Optimize
+                <OptimizeIcon className="w-[14px] h-[14px]" />
               </button>
+              {/* Use-in-calc buttons: pass the exact current build
+                  (moves, SPs, nature) to the calculator. Distinct
+                  from QuickAdd, which pulls from the preset library
+                  and would discard the user's customization. */}
               <button
                 onClick={() => onLoadToCalc('attacker')}
-                className="text-xs px-2 py-1 bg-poke-red/15 text-poke-red-light border border-poke-red/30 rounded-lg hover:bg-poke-red/25 transition-colors"
+                className="w-7 h-7 flex items-center justify-center rounded-md border bg-poke-red/15 text-poke-red-light border-poke-red/30 hover:bg-poke-red/25 hover:border-poke-red/60 hover:text-white transition-colors"
                 title="Use this exact build in calculator as Attacker"
+                aria-label="Use this build as Attacker"
               >
-                → Atk
+                <SwordIcon className="w-[14px] h-[14px]" />
               </button>
               <button
                 onClick={() => onLoadToCalc('defender')}
-                className="text-xs px-2 py-1 bg-poke-blue/15 text-poke-blue-light border border-poke-blue/30 rounded-lg hover:bg-poke-blue/25 transition-colors"
+                className="w-7 h-7 flex items-center justify-center rounded-md border bg-poke-blue/15 text-poke-blue-light border-poke-blue/30 hover:bg-poke-blue/25 hover:border-poke-blue/60 hover:text-white transition-colors"
                 title="Use this exact build in calculator as Defender"
+                aria-label="Use this build as Defender"
               >
-                → Def
+                <ShieldIcon className="w-[14px] h-[14px]" />
               </button>
-              <button onClick={() => setExpanded(!expanded)} className="text-sm px-2 py-1 text-slate-500 hover:text-white transition-colors">
-                {expanded ? '▲' : '▼'}
+              <button
+                onClick={() => setExpanded(!expanded)}
+                className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-white transition-colors"
+                aria-label={expanded ? 'Collapse' : 'Expand'}
+              >
+                <svg className={`w-4 h-4 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
               </button>
             </div>
           )}
@@ -183,7 +203,8 @@ function TeamSlot({
         {/* Mini summary when collapsed */}
         {pokemon.species && !expanded && data && (
           <div className="space-y-0.5 mt-1">
-            <div className="flex gap-1 text-[9px] text-slate-500">
+            <div className="flex items-center gap-1 text-[9px] text-slate-500">
+              <GenBadge species={pokemon.species} />
               <span>{pokemon.nature}</span>
               <span>|</span>
               <span>{pokemon.ability || '—'}</span>
@@ -336,9 +357,10 @@ function TeamSlot({
 export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose }: TeamBuilderPanelProps) {
   const [importText, setImportText] = useState('');
   const [showImport, setShowImport] = useState(false);
+  const [format, setFormat] = useState<BattleFormat>(DEFAULT_FORMAT);
   const { stats: liveStats } = useLiveData();
 
-  const audit = useMemo<TeamAudit>(() => auditTeam(team), [team]);
+  const audit = useMemo<TeamAudit>(() => auditTeam(team, format), [team, format]);
 
   const updateSlot = useCallback((index: number, state: PokemonState) => {
     const next = [...team];
@@ -381,22 +403,22 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
 
   // Build a full optimal team from scratch (fills empty slots)
   const handleBuildTeam = useCallback(() => {
-    const built = buildOptimalTeam(team);
+    const built = buildOptimalTeam(team, 6, format);
     onChange(built);
-  }, [team, onChange]);
+  }, [team, onChange, format]);
 
   // Fill all empty slots with next best picks
   const handleFillEmpty = useCallback(() => {
-    const built = buildOptimalTeam(team);
+    const built = buildOptimalTeam(team, 6, format);
     onChange(built);
-  }, [team, onChange]);
+  }, [team, onChange, format]);
 
   // Get suggestions for next pick
   const nextPicks = useMemo(() => {
     const hasEmpty = team.some(p => !p.species);
     if (!hasEmpty) return [];
-    return suggestNextPick(team, 6);
-  }, [team]);
+    return suggestNextPick(team, 6, format);
+  }, [team, format]);
 
   const scoreColor = audit.score >= 80 ? 'text-emerald-400' : audit.score >= 60 ? 'text-amber-400' : audit.score >= 40 ? 'text-orange-400' : 'text-red-400';
   const criticals = audit.issues.filter(i => i.severity === 'critical');
@@ -424,12 +446,22 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
               </button>
             </div>
 
+            {/* Format selector — drives every recommendation below.
+                Prominent placement because Singles vs Doubles is a
+                context-defining decision, not a side filter. */}
+            <div className="mb-4">
+              <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-2">
+                Battle Format
+              </div>
+              <FormatSelector value={format.id} onChange={setFormat} />
+            </div>
+
             <div className="flex gap-2 flex-wrap">
               <button
                 onClick={handleBuildTeam}
                 className="text-sm px-4 py-1.5 bg-gradient-to-r from-poke-red to-poke-red-dark text-white rounded-lg font-bold hover:from-poke-red-light hover:to-poke-red transition-all shadow-lg shadow-poke-red/20"
               >
-                Build Optimal Team
+                Build Optimal {format.label} Team
               </button>
               <button onClick={handleFillEmpty} className="text-xs px-3 py-1.5 bg-poke-gold/10 border border-poke-gold/30 text-poke-gold rounded-lg hover:bg-poke-gold/20 transition-colors">
                 Fill Empty Slots
@@ -615,8 +647,139 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
               </div>
             ))}
           </div>
+
+          {/* Lineup Flexibility — pick-N subset analysis */}
+          {audit.lineupReport && audit.lineupReport.lineups.length > 0 && (
+            <LineupFlexibilitySection report={audit.lineupReport} format={format} />
+          )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Lineup Flexibility Section ────────────────────────────────────
+// Surfaces the pick-3 subset evaluation: best lineups, worst lineup,
+// load-bearing members, and a flexibility score. This is the piece
+// that tells a player "which 3 should I bring to team preview" at a
+// glance instead of just showing the whole 6.
+
+function LineupFlexibilitySection({
+  report,
+  format,
+}: {
+  report: import('../calc/lineupAnalysis').TeamFlexibilityReport;
+  format: BattleFormat;
+}) {
+  const topLineups = report.lineups.slice(0, 4);
+  const scoreColor = report.score >= 75 ? 'text-emerald-400'
+    : report.score >= 55 ? 'text-amber-400'
+    : report.score >= 35 ? 'text-orange-400'
+    : 'text-red-400';
+
+  return (
+    <div className="mt-4 pt-4 border-t border-poke-border">
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <h3 className="text-sm font-bold text-white">{format.label} Lineup Flexibility</h3>
+          <p className="text-[10px] text-slate-500">Bring {format.rosterSize}, pick {format.battleSize} — your best {format.battleSize}-mon sub-selections</p>
+        </div>
+        <div className="flex items-baseline gap-1">
+          <span className={`text-lg font-black ${scoreColor}`}>{report.score}</span>
+          <span className="text-[10px] text-slate-500">/100</span>
+        </div>
+      </div>
+
+      {/* Diagnostics */}
+      {report.diagnostics.length > 0 && (
+        <div className="space-y-1 mb-3">
+          {report.diagnostics.map((d, i) => (
+            <p key={i} className="text-[10px] text-slate-400 leading-relaxed">
+              <span className="text-poke-gold mr-1">→</span>
+              {d}
+            </p>
+          ))}
+        </div>
+      )}
+
+      {/* Top lineups */}
+      <div className="space-y-1.5 mb-3">
+        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Best {format.battleSize}-Mon Picks</div>
+        {topLineups.map((lineup, i) => {
+          const rankColor = i === 0 ? 'text-emerald-400'
+            : i === 1 ? 'text-amber-400'
+            : 'text-slate-500';
+          return (
+            <div key={i} className="p-2 rounded-lg border border-poke-border bg-poke-surface">
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`text-[10px] font-bold ${rankColor} w-4`}>#{i + 1}</span>
+                <div className="flex gap-1 flex-1 min-w-0">
+                  {lineup.members.map(species => (
+                    <div key={species} className="flex items-center gap-1 px-1.5 py-0.5 bg-poke-panel rounded text-[10px] text-white">
+                      <Sprite species={species} size="sm" />
+                      <span className="truncate max-w-[80px]">{species}</span>
+                    </div>
+                  ))}
+                </div>
+                <span className="text-[10px] text-poke-gold font-mono shrink-0">{lineup.total}</span>
+              </div>
+              {lineup.commentary.length > 0 && (
+                <p className="text-[9px] text-slate-500 leading-snug ml-5">{lineup.commentary[0]}</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Weakest viable subset — the team's worst-case forced pick */}
+      {report.weakestLineup && report.weakestLineup.total < (report.bestLineup?.total ?? 0) - 20 && (
+        <div className="p-2 rounded-lg border border-red-500/20 bg-red-500/5 mb-3">
+          <div className="text-[10px] font-bold text-red-400 uppercase tracking-wider mb-1">Worst Viable Lineup</div>
+          <div className="flex items-center gap-1 flex-wrap">
+            {report.weakestLineup.members.map(species => (
+              <div key={species} className="flex items-center gap-1 px-1.5 py-0.5 bg-poke-panel rounded text-[10px] text-slate-300">
+                <Sprite species={species} size="sm" />
+                <span>{species}</span>
+              </div>
+            ))}
+            <span className="text-[10px] text-red-400 font-mono ml-auto">{report.weakestLineup.total}</span>
+          </div>
+          <p className="text-[9px] text-slate-500 mt-1">If forced into this pick, the team is much weaker.</p>
+        </div>
+      )}
+
+      {/* Load-bearing + underused callouts */}
+      {(report.loadBearing.length > 0 || report.underused.length > 0) && (
+        <div className="grid grid-cols-2 gap-2">
+          {report.loadBearing.length > 0 && (
+            <div>
+              <div className="text-[10px] font-bold text-poke-gold uppercase tracking-wider mb-1">Load-bearing</div>
+              <div className="flex flex-wrap gap-1">
+                {report.loadBearing.map(lb => (
+                  <div key={lb.species} className="flex items-center gap-1 text-[10px] text-white">
+                    <Sprite species={lb.species} size="sm" />
+                    <span className="truncate max-w-[60px]">{lb.species}</span>
+                    <span className="text-slate-500">×{lb.appearances}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {report.underused.length > 0 && (
+            <div>
+              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Rarely picked</div>
+              <div className="flex flex-wrap gap-1">
+                {report.underused.map(u => (
+                  <div key={u.species} className="flex items-center gap-1 text-[10px] text-slate-400">
+                    <Sprite species={u.species} size="sm" />
+                    <span className="truncate max-w-[60px]">{u.species}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

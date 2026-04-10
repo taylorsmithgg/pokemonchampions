@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Sprite } from './Sprite';
 import { QuickAdd } from './QuickAdd';
 import { TEAMS, TEAM_ARCHETYPES, type TeamComp, type TeamMember } from '../data/teams';
+import { DEFAULT_FORMAT, type FormatId } from '../calc/lineupAnalysis';
+import { FormatSelector } from './FormatSelector';
+import { generateDoublesTeams, type GeneratedDoublesTeam } from '../calc/teamCompGenerator';
 
 interface TeamsPanelProps {
   onLoadMember: (member: TeamMember, side: 'attacker' | 'defender') => void;
@@ -93,6 +96,11 @@ function TeamCard({ team, onLoadMember, onLoadFullTeam }: { team: TeamComp; onLo
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-bold text-white">{team.name}</h3>
+            {(team as GeneratedDoublesTeam).generated && (
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-poke-gold/15 text-poke-gold border border-poke-gold/30 font-bold uppercase tracking-wider">
+                Projected
+              </span>
+            )}
             <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${archetype?.bg} ${archetype?.color} font-semibold`}>
               {archetype?.label}
             </span>
@@ -101,6 +109,18 @@ function TeamCard({ team, onLoadMember, onLoadFullTeam }: { team: TeamComp; onLo
             } font-semibold`}>
               {team.gimmick}
             </span>
+            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
+              (team.format ?? 'doubles') === 'doubles'
+                ? 'bg-poke-red/10 text-poke-red-light'
+                : 'bg-sky-500/10 text-sky-400'
+            }`}>
+              {(team.format ?? 'doubles') === 'doubles' ? 'Doubles · pick 4' : 'Singles · pick 3'}
+            </span>
+            {(team as GeneratedDoublesTeam).generated && (
+              <span className="text-[9px] text-slate-500 font-mono ml-auto">
+                flex {(team as GeneratedDoublesTeam).flexScore}/100
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {onLoadFullTeam && (
@@ -203,12 +223,33 @@ function TeamCard({ team, onLoadMember, onLoadFullTeam }: { team: TeamComp; onLo
 export function TeamsPanel({ onLoadMember, onLoadFullTeam, isOpen, onClose }: TeamsPanelProps) {
   const [filterArchetype, setFilterArchetype] = useState<string>('all');
   const [filterGimmick, setFilterGimmick] = useState<string>('all');
+  const [filterFormat, setFilterFormat] = useState<FormatId>(DEFAULT_FORMAT.id);
 
-  const filtered = TEAMS.filter(t => {
+  // Generated doubles comps built from the first-principles
+  // projection engine. These replace the need for curated VGC teams
+  // for the doubles ladder — they're derived from Champions mechanics,
+  // not imported from mainline VGC.
+  const generatedDoubles = useMemo<GeneratedDoublesTeam[]>(() => generateDoublesTeams(), []);
+
+  // Combined pool: generated teams shown first for the active format,
+  // followed by any curated teams of that format (currently just the
+  // VGC-imported doubles templates).
+  const allTeams: TeamComp[] = useMemo(() => {
+    const generatedForFormat = filterFormat === 'doubles' ? generatedDoubles : [];
+    const curated = TEAMS.filter(t => (t.format ?? 'doubles') === filterFormat);
+    return [...generatedForFormat, ...curated];
+  }, [filterFormat, generatedDoubles]);
+
+  const filtered = allTeams.filter(t => {
     if (filterArchetype !== 'all' && t.archetype !== filterArchetype) return false;
     if (filterGimmick !== 'all' && t.gimmick !== filterGimmick) return false;
     return true;
   });
+
+  const formatCounts: Record<FormatId, number> = {
+    doubles: generatedDoubles.length + TEAMS.filter(t => (t.format ?? 'doubles') === 'doubles').length,
+    singles: TEAMS.filter(t => (t.format ?? 'doubles') === 'singles').length,
+  };
 
   if (!isOpen) return null;
 
@@ -222,13 +263,27 @@ export function TeamsPanel({ onLoadMember, onLoadFullTeam, isOpen, onClose }: Te
           <div className="flex items-center justify-between mb-3">
             <div>
               <h2 className="text-lg font-bold text-white">Meta Team Comps</h2>
-              <p className="text-[10px] text-slate-500 mt-0.5">Full teams with optimal SP spreads, items, and strategy breakdowns</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">
+                Doubles comps generated from the first-principles projection engine — built around the meta archetypes our engine identifies, not copied from VGC data.
+              </p>
             </div>
             <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors p-1">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
+          </div>
+
+          {/* Format selector — Singles vs Doubles is a context-
+              defining choice (different meta, different lead logic,
+              different item priorities), so it gets card-level
+              prominence at the top of the panel. */}
+          <div className="mb-4">
+            <FormatSelector
+              value={filterFormat}
+              onChange={(f) => setFilterFormat(f.id)}
+              counts={formatCounts}
+            />
           </div>
 
           {/* Filters */}

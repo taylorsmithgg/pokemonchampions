@@ -1,5 +1,9 @@
-// Meta team archetypes for Pokemon Champions VGC 2026
+// Meta team archetypes for Pokemon Champions
 // Each team includes 6 Pokemon with full sets and a strategic breakdown.
+//
+// Each team is tagged with its intended format (singles or doubles).
+// The TeamsPanel filters by the currently-selected format so the
+// recommendations match the user's target metagame.
 //
 // The raw data below was seeded from VGC 2026 meta teams. Some members
 // (Amoonguss, Rillaboom, Kingdra, Gholdengo) are legal in VGC but not in
@@ -9,6 +13,7 @@
 import type { NatureName } from '../types';
 import type { StatsTable } from '@smogon/calc';
 import { isChampionsPokemon } from './champions';
+import type { FormatId } from '../calc/lineupAnalysis';
 
 export interface TeamMember {
   species: string;
@@ -26,6 +31,14 @@ export interface TeamComp {
   name: string;
   archetype: string;
   gimmick: 'Mega' | 'Flexible';
+  /**
+   * Battle format this team is designed for. Defaults to 'doubles'
+   * for backward compatibility with VGC-era entries. Singles teams
+   * emphasize individual Pokemon bulk, hazards, and setup sweeps;
+   * Doubles teams revolve around lead pairs, redirection, and spread
+   * pressure.
+   */
+  format?: FormatId;
   description: string;
   strategy: string;
   leadOptions: string[];
@@ -798,7 +811,9 @@ const TEAMS_RAW: TeamComp[] = [
 // ─── Filter teams to Champions-legal members ──────────────────────
 // Drops individual members not in the Champions roster. Teams with
 // fewer than 4 legal members are dropped entirely (too broken to
-// present as a meta comp).
+// present as a meta comp). Every team is also normalized to a
+// format — entries without an explicit format default to 'doubles'
+// since the curated list was seeded from VGC 2026.
 const MIN_TEAM_SIZE = 4;
 
 export const TEAMS: TeamComp[] = TEAMS_RAW.reduce<TeamComp[]>((acc, team) => {
@@ -810,7 +825,11 @@ export const TEAMS: TeamComp[] = TEAMS_RAW.reduce<TeamComp[]>((acc, team) => {
     return false;
   });
   if (legalMembers.length >= MIN_TEAM_SIZE) {
-    acc.push({ ...team, members: legalMembers });
+    acc.push({
+      ...team,
+      members: legalMembers,
+      format: team.format ?? 'doubles',
+    });
   } else if (typeof console !== 'undefined') {
     console.warn(`[teams.ts] Dropping team "${team.name}" — only ${legalMembers.length} legal members after filtering.`);
   }
@@ -820,6 +839,10 @@ export const TEAMS: TeamComp[] = TEAMS_RAW.reduce<TeamComp[]>((acc, team) => {
 // Helpers
 export function getTeamsByArchetype(archetype: string): TeamComp[] {
   return TEAMS.filter(t => t.archetype === archetype);
+}
+
+export function getTeamsByFormat(format: FormatId): TeamComp[] {
+  return TEAMS.filter(t => (t.format ?? 'doubles') === format);
 }
 
 export function getTeamById(id: string): TeamComp | undefined {

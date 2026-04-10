@@ -2,11 +2,12 @@
 // Given your team and an opponent Pokemon (or team), determines:
 // 1. Type matchup scores for each member
 // 2. Which of your Pokemon best handle each threat
-// 3. Optimal 4-Pokemon selection (bring list)
-// 4. Best lead pair based on matchup
+// 3. Optimal pick-N selection (bring list) for the chosen format
+// 4. Best lead pair (Doubles) or lead Pokemon (Singles) based on matchup
 
 import { Move } from '@smogon/calc';
 import { getPokemonData, getDefensiveMultiplier } from '../data/champions';
+import { DEFAULT_FORMAT, type BattleFormat } from './lineupAnalysis';
 import type { PokemonState } from '../types';
 
 
@@ -35,10 +36,14 @@ export interface MatchupAnalysis {
 }
 
 export interface BringListRecommendation {
-  bring: string[];           // 4 Pokemon to bring
-  bench: string[];           // 2 to leave behind
-  leads: [string, string];   // recommended lead pair
-  back: [string, string];    // recommended back pair
+  /** The format-appropriate pick count — 3 for Singles, 4 for Doubles. */
+  bring: string[];
+  /** Members left in the roster but not brought into this match. */
+  bench: string[];
+  /** Active-slot leads: 1 Pokemon in Singles, 2 in Doubles. */
+  leads: string[];
+  /** Reserve picks after the active leads — the rest of the bring list. */
+  back: string[];
   reasoning: string[];
 }
 
@@ -155,7 +160,11 @@ export function analyzeMatchup(team: PokemonState[], targetSpecies: string): Mat
 
 // ─── Analyze vs Multiple Opponents ──────────────────────────────────
 
-export function analyzeVsTeam(myTeam: PokemonState[], opponentTeam: PokemonState[]): {
+export function analyzeVsTeam(
+  myTeam: PokemonState[],
+  opponentTeam: PokemonState[],
+  format: BattleFormat = DEFAULT_FORMAT,
+): {
   matchups: MatchupAnalysis[];
   bringList: BringListRecommendation;
 } {
@@ -164,22 +173,30 @@ export function analyzeVsTeam(myTeam: PokemonState[], opponentTeam: PokemonState
 
   const matchups = opponents.map(opp => analyzeMatchup(myTeam, opp.species));
 
-  // Calculate bring list
-  const bringList = calculateBringList(members, matchups);
+  // Calculate bring list for the chosen format
+  const bringList = calculateBringList(members, matchups, format);
 
   return { matchups, bringList };
 }
 
 // ─── Bring List Calculator ──────────────────────────────────────────
 
-function calculateBringList(team: PokemonState[], matchups: MatchupAnalysis[]): BringListRecommendation {
-  if (team.length <= 4) {
+function calculateBringList(
+  team: PokemonState[],
+  matchups: MatchupAnalysis[],
+  format: BattleFormat,
+): BringListRecommendation {
+  const pickCount = format.battleSize;
+  const activeSlots = format.activeSlots;
+
+  if (team.length <= pickCount) {
+    const bring = team.map(p => p.species);
     return {
-      bring: team.map(p => p.species),
+      bring,
       bench: [],
-      leads: [team[0]?.species || '', team[1]?.species || ''],
-      back: [team[2]?.species || '', team[3]?.species || ''],
-      reasoning: ['Team has 4 or fewer Pokemon — bring all'],
+      leads: bring.slice(0, activeSlots),
+      back: bring.slice(activeSlots),
+      reasoning: [`Team has ${team.length} Pokemon — bring all (${format.label} ${pickCount}-pick)`],
     };
   }
 
@@ -208,60 +225,81 @@ function calculateBringList(team: PokemonState[], matchups: MatchupAnalysis[]): 
     .sort((a, b) => {
       const sa = memberScores.get(a.species)!;
       const sb = memberScores.get(b.species)!;
-      // Primary: total score, secondary: counters, tertiary: fewer dangers
       if (sb.total !== sa.total) return sb.total - sa.total;
       if (sb.counters !== sa.counters) return sb.counters - sa.counters;
       return sa.dangers - sb.dangers;
     });
 
-  const bring = ranked.slice(0, 4).map(p => p.species);
-  const bench = ranked.slice(4).map(p => p.species);
+  const bring = ranked.slice(0, pickCount).map(p => p.species);
+  const bench = ranked.slice(pickCount).map(p => p.species);
 
-  // Lead selection: want speed control + immediate pressure
   const hasData = (name: string) => {
     const p = team.find(t => t.species === name);
     return p ? getPokemonData(p.species) : null;
   };
 
-  // Lead = fastest + most counters, Back = tankiest + setup
-  const bringPokemon = ranked.slice(0, 4);
-  const sortedBySpeed = [...bringPokemon].sort((a, b) => {
-    const da = hasData(a.species);
-    const db = hasData(b.species);
-    return (db?.baseStats.spe || 0) - (da?.baseStats.spe || 0);
-  });
-
-  // Check for Fake Out / Tailwind users — they should lead
-  const fakeOutUser = bringPokemon.find(p =>
-    p.moves.some(m => m?.toLowerCase() === 'fake out')
-  );
-  const tailwindUser = bringPokemon.find(p =>
-    p.moves.some(m => m?.toLowerCase() === 'tailwind')
-  );
-
-  let lead1 = sortedBySpeed[0]?.species || bring[0];
-  let lead2 = sortedBySpeed[1]?.species || bring[1];
-
-  // Prioritize Fake Out + speed control as lead
-  if (fakeOutUser) lead1 = fakeOutUser.species;
-  if (tailwindUser && tailwindUser.species !== lead1) lead2 = tailwindUser.species;
-
-  const leads: [string, string] = [lead1, lead2];
-  const back: [string, string] = [
-    bring.find(s => s !== lead1 && s !== lead2) || bring[2],
-    bring.filter(s => s !== lead1 && s !== lead2)[1] || bring[3],
-  ];
-
+  // Lead selection is format-sensitive:
+  //   - Singles: 1 lead on the field — pick the single best matchup
+  //   - Doubles: 2 leads — prioritize Fake Out + Tailwind pairing
+  const bringPokemon = ranked.slice(0, pickCount);
   const reasoning: string[] = [];
-  if (fakeOutUser) reasoning.push(`Lead ${fakeOutUser.species} for Fake Out pressure`);
-  if (tailwindUser) reasoning.push(`Lead ${tailwindUser.species} for Tailwind speed control`);
+  let leads: string[];
+  let back: string[];
+
+  if (format.id === 'singles') {
+    // Best individual matchup leads; pivots and setup sweepers are
+    // valuable on the back row as answers to what the opponent sends.
+    const lead1 = bringPokemon[0]?.species || bring[0];
+    leads = [lead1];
+    back = bring.filter(s => s !== lead1);
+    reasoning.push(`Lead ${lead1} — best individual matchup across threats`);
+    const setupUser = bringPokemon.find(p =>
+      p.moves.some(m => ['swords dance', 'dragon dance', 'nasty plot', 'calm mind', 'quiver dance'].includes(m?.toLowerCase() || ''))
+    );
+    if (setupUser && setupUser.species !== lead1) {
+      reasoning.push(`${setupUser.species} in reserve — bring in after forcing a switch to set up`);
+    }
+  } else {
+    // Doubles: prioritize Fake Out + Tailwind pairing
+    const sortedBySpeed = [...bringPokemon].sort((a, b) => {
+      const da = hasData(a.species);
+      const db = hasData(b.species);
+      return (db?.baseStats.spe || 0) - (da?.baseStats.spe || 0);
+    });
+    const fakeOutUser = bringPokemon.find(p =>
+      p.moves.some(m => m?.toLowerCase() === 'fake out')
+    );
+    const tailwindUser = bringPokemon.find(p =>
+      p.moves.some(m => m?.toLowerCase() === 'tailwind')
+    );
+    const trUser = bringPokemon.find(p =>
+      p.moves.some(m => m?.toLowerCase() === 'trick room')
+    );
+
+    let lead1 = sortedBySpeed[0]?.species || bring[0];
+    let lead2 = sortedBySpeed[1]?.species || bring[1];
+
+    if (fakeOutUser) {
+      lead1 = fakeOutUser.species;
+      reasoning.push(`Lead ${fakeOutUser.species} for Fake Out pressure`);
+    }
+    if (tailwindUser && tailwindUser.species !== lead1) {
+      lead2 = tailwindUser.species;
+      reasoning.push(`Lead ${tailwindUser.species} for Tailwind speed control`);
+    } else if (trUser && trUser.species !== lead1) {
+      lead2 = trUser.species;
+      reasoning.push(`Lead ${trUser.species} for Trick Room setup`);
+    }
+
+    leads = [lead1, lead2];
+    back = bring.filter(s => s !== lead1 && s !== lead2);
+  }
 
   const criticalMatchups = matchups.filter(m => m.dangerLevel === 'critical' || m.dangerLevel === 'dangerous');
   if (criticalMatchups.length > 0) {
     reasoning.push(`Watch out for: ${criticalMatchups.map(m => m.target).join(', ')}`);
   }
 
-  // Check if any benched Pokemon would be needed
   for (const b of bench) {
     const bScores = memberScores.get(b);
     if (bScores && bScores.counters > 0) {
