@@ -4,6 +4,7 @@
 import { Generations, Pokemon as CalcPokemon } from '@smogon/calc';
 import type { StatID } from '@smogon/calc';
 import type { NatureName, TypeName } from '../types';
+import { CHAMPIONS_POKEMON_LIST, CHAMPIONS_MEGA_LIST } from './championsRoster';
 
 const gen9 = Generations.get(9);
 
@@ -81,110 +82,85 @@ export function getNatureLabel(nature: NatureName): string {
 }
 
 // ─── Available Pokemon in Champions ─────────────────────────────────
-// ~251 fully evolved Pokemon + Pikachu from Gens 1-9
-// We pull from @smogon/calc's Gen 9 data and filter
-
-// Legendaries, Mythicals, Paradox, Ultra Beasts — excluded from Champions
-const EXCLUDED_POKEMON = new Set([
-  // Box legendaries
-  'Mewtwo', 'Lugia', 'Ho-Oh', 'Kyogre', 'Groudon', 'Rayquaza',
-  'Dialga', 'Palkia', 'Giratina', 'Reshiram', 'Zekrom', 'Kyurem',
-  'Xerneas', 'Yveltal', 'Zygarde', 'Cosmog', 'Cosmoem', 'Solgaleo',
-  'Lunala', 'Necrozma', 'Zacian', 'Zamazenta', 'Eternatus',
-  'Calyrex', 'Koraidon', 'Miraidon', 'Terapagos',
-  // Sub-legendaries
-  'Articuno', 'Zapdos', 'Moltres', 'Raikou', 'Entei', 'Suicune',
-  'Regirock', 'Regice', 'Registeel', 'Regigigas', 'Regieleki', 'Regidrago',
-  'Latios', 'Latias', 'Heatran', 'Cresselia',
-  'Uxie', 'Mesprit', 'Azelf', 'Cobalion', 'Terrakion', 'Virizion',
-  'Tornadus', 'Tornadus-Therian', 'Thundurus', 'Thundurus-Therian',
-  'Landorus', 'Landorus-Therian', 'Enamorus',
-  'Tapu Koko', 'Tapu Lele', 'Tapu Bulu', 'Tapu Fini',
-  'Type: Null', 'Silvally',
-  'Kubfu', 'Urshifu', 'Urshifu-Rapid-Strike',
-  'Glastrier', 'Spectrier',
-  'Wo-Chien', 'Chien-Pao', 'Ting-Lu', 'Chi-Yu',
-  'Ogerpon', 'Ogerpon-Hearthflame', 'Ogerpon-Wellspring', 'Ogerpon-Cornerstone',
-  // Mythicals
-  'Mew', 'Celebi', 'Jirachi', 'Deoxys', 'Phione', 'Manaphy',
-  'Darkrai', 'Shaymin', 'Arceus', 'Victini', 'Keldeo', 'Meloetta',
-  'Genesect', 'Diancie', 'Hoopa', 'Volcanion', 'Magearna',
-  'Marshadow', 'Zeraora', 'Meltan', 'Melmetal', 'Zarude', 'Pecharunt',
-  // Paradox Pokemon (not in Champions)
-  'Great Tusk', 'Scream Tail', 'Brute Bonnet', 'Flutter Mane',
-  'Slither Wing', 'Sandy Shocks', 'Roaring Moon', 'Walking Wake',
-  'Gouging Fire', 'Raging Bolt',
-  'Iron Treads', 'Iron Bundle', 'Iron Hands', 'Iron Jugulis',
-  'Iron Moth', 'Iron Thorns', 'Iron Valiant', 'Iron Leaves',
-  'Iron Boulder', 'Iron Crown',
-  // Ultra Beasts
-  'Nihilego', 'Buzzwole', 'Pheromosa', 'Xurkitree', 'Celesteela',
-  'Kartana', 'Guzzlord', 'Poipole', 'Naganadel', 'Stakataka', 'Blacephalon',
-  // Other exclusions
-  'Dondozo', 'Tatsugiri', // Commander gimmick not confirmed in Champions
-  'Ursaluna', 'Ursaluna-Bloodmoon', // Legends Arceus exclusive form
-  'Farigiraf', 'Annihilape', 'Dudunsparce', // Paldea evolutions TBD
-  // Smogon CAP (Create-A-Pokemon) — fake Pokemon, not real
-  'Syclant', 'Syclar', 'Revenankh', 'Pyroak', 'Flarelm', 'Fidgit', 'Breezi',
-  'Stratagem', 'Privatyke', 'Arghonaut', 'Kitsunoh', 'Cyclohm', 'Colossoil',
-  'Krilowatt', 'Voodoom', 'Tomohawk', 'Necturna', 'Mollux', 'Aurumoth',
-  'Malaconda', 'Cawmodore', 'Volkraken', 'Plasmanta', 'Naviathan',
-  'Crucibelle', 'Crucibelle-Mega', 'Kerfluffle', 'Pajantom', 'Jumbao',
-  'Caribolt', 'Smokomodo', 'Snaelstrom', 'Equilibra', 'Astrolotl',
-  'Chromera', 'Saharaja', 'Hemogoblin', 'Venomicon', 'Venomicon-Epilogue',
-  // Legendary/Mythical Mega forms
-  'Mewtwo-Mega-X', 'Mewtwo-Mega-Y', 'Latias-Mega', 'Latios-Mega',
-  'Rayquaza-Mega', 'Diancie-Mega', 'Darkrai-Mega', 'Zeraora-Mega',
-  'Heatran-Mega', 'Magearna-Mega', 'Magearna-Original-Mega', 'Zygarde-Mega',
-  // Z-A exclusive Mega-Z forms (unconfirmed in Champions)
-  'Absol-Mega-Z', 'Garchomp-Mega-Z', 'Lucario-Mega-Z',
-  // Primal/Ultra/special forms of banned Pokemon
-  'Groudon-Primal', 'Kyogre-Primal', 'Necrozma-Ultra',
-  'Giratina-Origin', 'Dialga-Origin', 'Palkia-Origin',
-  'Zacian-Crowned', 'Zamazenta-Crowned', 'Eternatus-Eternamax',
-  'Zygarde-Complete', 'Keldeo-Resolute', 'Meloetta-Pirouette',
-  'Kyurem-Black', 'Kyurem-White', 'Darmanitan-Zen', 'Darmanitan-Galar-Zen',
-  // Unconfirmed Z-A forms
-  'Ramnarok-Radiant', 'Magearna-Original',
-  // Mega forms of banned/CAP/unavailable Pokemon
-  'Blaziken-Mega', 'Sceptile-Mega', 'Swampert-Mega', 'Metagross-Mega',
-  'Salamence-Mega', 'Mawile-Mega',
-  // Tatsugiri Megas (Tatsugiri banned)
-  'Tatsugiri-Curly-Mega', 'Tatsugiri-Droopy-Mega', 'Tatsugiri-Stretchy-Mega',
-  // Other unconfirmed forms
-  'Falinks-Mega', 'Eelektross-Mega', 'Golisopod-Mega', 'Malamar-Mega',
-  'Pyroar-Mega', 'Raichu-Mega-X', 'Raichu-Mega-Y', 'Scolipede-Mega',
-  'Scrafty-Mega', 'Staraptor-Mega', 'Barbaracle-Mega', 'Baxcalibur-Mega',
-  'Dragalge-Mega',
-]);
+// Single source of truth is a WHITELIST of ~186 species from
+// src/data/championsRoster.ts (synced from Bulbapedia).
+//
+// Every Pokemon-facing surface in the app routes through
+// getAvailablePokemon() / isChampionsPokemon() to filter. This
+// guarantees an entry can only appear if Bulbapedia says so.
 
 const CHAMPIONS_POKEMON_SET = new Set<string>();
+const CHAMPIONS_MEGA_SET = new Set<string>();
 
 function initChampionsPokemon() {
   if (CHAMPIONS_POKEMON_SET.size > 0) return;
 
-  for (const species of gen9.species) {
-    const name = species.name;
-    // Skip excluded Pokemon
-    if (EXCLUDED_POKEMON.has(name)) continue;
-    // Skip alternate forms of excluded Pokemon
-    if (species.baseSpecies && EXCLUDED_POKEMON.has(species.baseSpecies as string)) continue;
-    // Skip Mega forms — these auto-resolve when Mega Stone is equipped
-    if (name.includes('-Mega')) continue;
-    // Skip Gigantamax forms — Dynamax not in Champions
-    if (name.includes('-Gmax')) continue;
-    // Skip Totem forms
-    if (name.includes('-Totem')) continue;
-    // Include fully evolved Pokemon (not NFE) and Pikachu
-    if (name === 'Pikachu' || !species.nfe) {
-      CHAMPIONS_POKEMON_SET.add(name);
+  // Validate every roster entry resolves against Smogon's Gen 9 data.
+  // If a name fails we log a warning so mismatches are caught early
+  // instead of silently disappearing.
+  for (const name of CHAMPIONS_POKEMON_LIST) {
+    const data = gen9.species.get(name.toLowerCase().replace(/[^a-z0-9]/g, '') as any);
+    if (!data) {
+      if (typeof console !== 'undefined') {
+        console.warn(`[champions.ts] Roster entry "${name}" did not resolve in Smogon Gen 9 data — skipping.`);
+      }
+      continue;
     }
+    CHAMPIONS_POKEMON_SET.add(name);
   }
+
+  for (const name of CHAMPIONS_MEGA_LIST) CHAMPIONS_MEGA_SET.add(name);
 }
 
 export function getAvailablePokemon(): string[] {
   initChampionsPokemon();
   return Array.from(CHAMPIONS_POKEMON_SET).sort();
+}
+
+/**
+ * Predicate for filtering any external data source (tier list entries,
+ * live Smogon usage stats, preset species, team members, etc.) against
+ * the Champions roster.
+ *
+ * Regional variants (Alolan, Galarian, Hisuian, Paldean) are NOT
+ * automatically allowed — only the base species. Mega forms are only
+ * allowed when the base is in CHAMPIONS_MEGA_LIST. Rotom appliance forms
+ * and Basculegion gender forms are allowed as in-game transformations
+ * of a whitelisted base.
+ */
+export function isChampionsPokemon(name: string): boolean {
+  initChampionsPokemon();
+  if (!name) return false;
+  if (CHAMPIONS_POKEMON_SET.has(name)) return true;
+
+  // Mega forms (Foo-Mega, Foo-Mega-X, Foo-Mega-Y)
+  const megaMatch = name.match(/^(.+?)-Mega(?:-[XY])?$/);
+  if (megaMatch && CHAMPIONS_MEGA_SET.has(megaMatch[1])) return true;
+
+  // "Mega Foo" / "Mega Foo X" display-name format (used in tier list)
+  const megaDisplayMatch = name.match(/^Mega (.+?)(?: [XY])?$/);
+  if (megaDisplayMatch && CHAMPIONS_MEGA_SET.has(megaDisplayMatch[1])) return true;
+
+  // Rotom appliance forms — Rotom itself is whitelisted, these are
+  // in-battle transformations of the base species.
+  if (/^Rotom-(Wash|Heat|Mow|Fan|Frost)$/.test(name) && CHAMPIONS_POKEMON_SET.has('Rotom')) return true;
+
+  // Basculegion gender forms.
+  if (/^Basculegion-[FM]$/.test(name) && CHAMPIONS_POKEMON_SET.has('Basculegion')) return true;
+
+  // Aegislash Stance Change forms — in-battle transformation of one species.
+  if (/^Aegislash(-Blade|-Both)?$/.test(name) && CHAMPIONS_POKEMON_SET.has('Aegislash-Shield')) return true;
+
+  return false;
+}
+
+/**
+ * Returns true if the given species has a Mega Evolution available in
+ * Champions. Used to gate Mega Stone item suggestions and resolveForm.
+ */
+export function hasChampionsMega(species: string): boolean {
+  initChampionsPokemon();
+  return CHAMPIONS_MEGA_SET.has(species);
 }
 
 export function getPokemonData(name: string) {
@@ -193,6 +169,9 @@ export function getPokemonData(name: string) {
 
 // Resolve the effective form based on held item (detects Mega Stones)
 // Returns { species data for the correct form, the form name, isMega flag }
+// Only species present in CHAMPIONS_MEGA_LIST can actually Mega Evolve —
+// this prevents an accidental Mega Stone equip from fake-evolving a
+// Pokemon whose Mega form isn't in Champions.
 export function resolveForm(species: string, item: string): {
   data: ReturnType<typeof getPokemonData>;
   formName: string;
@@ -201,9 +180,11 @@ export function resolveForm(species: string, item: string): {
   const baseData = getPokemonData(species);
   if (!baseData) return { data: undefined, formName: species, isMega: false };
 
-  // Check if item is a Mega Stone
-  if (item && (item.endsWith('ite') || item.endsWith('ite X') || item.endsWith('ite Y'))) {
-    // Use @smogon/calc's getForme to resolve the Mega form name
+  if (
+    item &&
+    hasChampionsMega(species) &&
+    (item.endsWith('ite') || item.endsWith('ite X') || item.endsWith('ite Y'))
+  ) {
     try {
       const megaFormName = CalcPokemon.getForme(9, species, item as any);
       if (megaFormName && megaFormName !== species) {
@@ -282,22 +263,30 @@ const CHAMPIONS_ITEMS = new Set([
   'Coba Berry', 'Payapa Berry', 'Tanga Berry', 'Charti Berry',
   'Kasib Berry', 'Haban Berry', 'Colbur Berry', 'Babiri Berry',
   'Chilan Berry', 'Roseli Berry',
-  // Mega Stones
-  'Charizardite X', 'Charizardite Y', 'Venusaurite', 'Blastoisinite',
-  'Gengarite', 'Kangaskhanite', 'Gyaradosite', 'Scizorite', 'Pinsirite',
-  'Aerodactylite', 'Ampharosite', 'Steelixite', 'Heracronite',
-  'Tyranitarite', 'Gardevoirite', 'Galladite', 'Alakazite', 'Aggronite',
-  'Medichamite', 'Banettite', 'Absolite', 'Glalitite', 'Sablenite',
-  'Sharpedonite', 'Cameruptite', 'Lopunnite', 'Slowbronite', 'Pidgeotite',
-  'Altarianite', 'Lucarionite', 'Abomasite', 'Manectite', 'Houndoominite',
-  'Audinite', 'Beedrillite', 'Garchompite',
-  // New Z-A Mega Stones
-  'Meganiumite', 'Feraligite', 'Emboarite', 'Chesnaughtite',
-  'Delphoxite', 'Greninjite', 'Victreebelite', 'Dragoninite',
-  'Froslassite', 'Starminite', 'Floettite', 'Excadrite',
-  'Hawluchanite', 'Chimechite', 'Golurkite', 'Meowsticite',
-  'Crabominite', 'Glimmoranite', 'Scovillainite',
-  'Skarmorite', 'Clefablite', 'Drampanite', 'Chandelurite',
+  // ─── Mega Stones ──────────────────────────────────────────────
+  // IMPORTANT: Every stone here MUST have a corresponding base species
+  // in CHAMPIONS_MEGA_LIST (src/data/championsRoster.ts). Adding a stone
+  // without a valid Mega will let users "equip" a fake evolution.
+  // Original Mega Stones (Gens VI/VII)
+  'Venusaurite', 'Charizardite X', 'Charizardite Y', 'Blastoisinite',
+  'Beedrillite', 'Pidgeotite', 'Alakazite', 'Slowbronite', 'Gengarite',
+  'Kangaskhanite', 'Pinsirite', 'Gyaradosite', 'Aerodactylite',
+  'Ampharosite', 'Steelixite', 'Scizorite', 'Heracronite', 'Houndoominite',
+  'Tyranitarite', 'Gardevoirite', 'Sablenite', 'Aggronite', 'Medichamite',
+  'Manectite', 'Sharpedonite', 'Cameruptite', 'Altarianite', 'Banettite',
+  'Absolite', 'Glalitite', 'Lopunnite', 'Garchompite', 'Lucarionite',
+  'Abomasite', 'Galladite', 'Audinite',
+  // Z-A Mega Stones for Pokemon confirmed to have Megas in Champions
+  'Dragoninite',   // Mega Dragonite
+  'Meganiumite',   // Mega Meganium
+  'Feraligite',    // Mega Feraligatr
+  'Skarmorite',    // Mega Skarmory
+  'Clefablite',    // Mega Clefable
+  'Victreebelite', // Mega Victreebel
+  'Starminite',    // Mega Starmie
+  'Chimechite',    // Mega Chimecho
+  'Froslassite',   // Mega Froslass
+  'Emboarite',     // Mega Emboar
 ]);
 
 

@@ -1,5 +1,13 @@
 // Pokemon Champions VGC 2026 Tier List
-// Aggregated from Game8, Pikalytics, and community consensus
+// Aggregated from Game8, Pikalytics, and community consensus.
+//
+// This file's raw data may contain entries that are NOT in Champions
+// (e.g., Amoonguss, Gholdengo, Rillaboom — legal in VGC 2026 but absent
+// from the Champions roster). The exports are filtered through
+// isChampionsPokemon() at the bottom of this file, so only legal
+// entries are surfaced to the UI.
+
+import { isChampionsPokemon } from './champions';
 
 export type Tier = 'S' | 'A+' | 'A' | 'B' | 'C';
 
@@ -65,7 +73,7 @@ export const TIER_DEFINITIONS: TierDefinition[] = [
 ];
 
 // ─── Normal Pokemon Tier List ──────────────────────────────────────
-export const NORMAL_TIER_LIST: TierEntry[] = [
+const NORMAL_TIER_LIST_RAW: TierEntry[] = [
   // S Tier
   {
     name: 'Hippowdon',
@@ -379,7 +387,7 @@ export const NORMAL_TIER_LIST: TierEntry[] = [
 ];
 
 // ─── Mega Pokemon Tier List ────────────────────────────────────────
-export const MEGA_TIER_LIST: TierEntry[] = [
+const MEGA_TIER_LIST_RAW: TierEntry[] = [
   // S Tier
   {
     name: 'Mega Delphox',
@@ -662,6 +670,26 @@ export const MEGA_TIER_LIST: TierEntry[] = [
     isMega: true,
   },
 ];
+
+// ─── Champions-filtered exports ────────────────────────────────────
+// Every entry is validated against the Champions roster whitelist. A
+// warning is logged for any raw entry that fails the filter, so stale
+// tier-list data is caught in development.
+
+function filterToChampions(entries: TierEntry[], label: string): TierEntry[] {
+  const kept: TierEntry[] = [];
+  for (const e of entries) {
+    if (isChampionsPokemon(e.name)) {
+      kept.push(e);
+    } else if (typeof console !== 'undefined') {
+      console.warn(`[tierlist.ts] Dropping "${e.name}" from ${label} — not in Champions roster.`);
+    }
+  }
+  return kept;
+}
+
+export const NORMAL_TIER_LIST: TierEntry[] = filterToChampions(NORMAL_TIER_LIST_RAW, 'NORMAL_TIER_LIST');
+export const MEGA_TIER_LIST: TierEntry[] = filterToChampions(MEGA_TIER_LIST_RAW, 'MEGA_TIER_LIST');
 
 // ─── Combined + helpers ────────────────────────────────────────────
 

@@ -1,11 +1,8 @@
 import { useState } from 'react';
 import { useMetaRadar } from '../hooks/useMetaRadar';
 import { Sprite } from './Sprite';
+import { QuickAdd } from './QuickAdd';
 import type { MetaScore } from '../calc/metaRadar';
-
-interface MetaRadarPanelProps {
-  onLoadPokemon: (species: string, side: 'attacker' | 'defender') => void;
-}
 
 const TIER_COLORS: Record<string, string> = {
   S: 'text-red-400 bg-red-500/10 border-red-500/30',
@@ -30,7 +27,7 @@ function ScoreBar({ value, max, color }: { value: number; max: number; color: st
   );
 }
 
-function RankingCard({ score, onLoad }: { score: MetaScore; onLoad: () => void }) {
+function RankingCard({ score }: { score: MetaScore }) {
   const [expanded, setExpanded] = useState(false);
   const tierStyle = TIER_COLORS[score.tier] || TIER_COLORS.D;
   const trend = TREND_ICONS[score.trend] || TREND_ICONS.stable;
@@ -48,12 +45,7 @@ function RankingCard({ score, onLoad }: { score: MetaScore; onLoad: () => void }
           </div>
           {score.insight && <p className="text-xs text-slate-500 truncate">{score.insight}</p>}
         </div>
-        <button
-          onClick={(e) => { e.stopPropagation(); onLoad(); }}
-          className="text-xs px-2.5 py-1.5 bg-poke-red/15 text-poke-red-light border border-poke-red/30 rounded-lg hover:bg-poke-red/25 transition-colors shrink-0"
-        >
-          Use
-        </button>
+        <QuickAdd species={score.species} />
       </div>
       {expanded && (
         <div className="px-3 pb-3 border-t border-poke-border pt-2 space-y-2">
@@ -104,7 +96,7 @@ function RankingCard({ score, onLoad }: { score: MetaScore; onLoad: () => void }
   );
 }
 
-export function MetaRadarPanel({ onLoadPokemon }: MetaRadarPanelProps) {
+export function MetaRadarPanel() {
   const { report, loading, lastRefresh, refresh } = useMetaRadar();
   const [showAll, setShowAll] = useState(false);
 
@@ -151,12 +143,12 @@ export function MetaRadarPanel({ onLoadPokemon }: MetaRadarPanelProps) {
                 <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">↑ Rising</h4>
                 <div className="space-y-1">
                   {report.risingThreats.slice(0, 3).map(s => (
-                    <button key={s.species} onClick={() => onLoadPokemon(s.species, 'attacker')}
-                      className="w-full flex items-center gap-2 p-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 hover:border-emerald-500/40 transition-colors text-left">
+                    <div key={s.species} className="flex items-center gap-2 p-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
                       <Sprite species={s.species} size="sm" />
-                      <span className="text-sm text-white flex-1">{s.species}</span>
+                      <span className="text-sm text-white flex-1 truncate">{s.species}</span>
                       <span className="text-xs text-emerald-400">+{s.score}</span>
-                    </button>
+                      <QuickAdd species={s.species} />
+                    </div>
                   ))}
                 </div>
               </div>
@@ -166,12 +158,12 @@ export function MetaRadarPanel({ onLoadPokemon }: MetaRadarPanelProps) {
                 <h4 className="text-xs font-bold text-red-400 uppercase tracking-wider mb-2">↓ Falling</h4>
                 <div className="space-y-1">
                   {report.fallingPicks.slice(0, 3).map(s => (
-                    <button key={s.species} onClick={() => onLoadPokemon(s.species, 'attacker')}
-                      className="w-full flex items-center gap-2 p-2 rounded-lg border border-red-500/20 bg-red-500/5 hover:border-red-500/40 transition-colors text-left">
+                    <div key={s.species} className="flex items-center gap-2 p-2 rounded-lg border border-red-500/20 bg-red-500/5">
                       <Sprite species={s.species} size="sm" />
-                      <span className="text-sm text-white flex-1">{s.species}</span>
+                      <span className="text-sm text-white flex-1 truncate">{s.species}</span>
                       <span className="text-xs text-red-400">{s.score}</span>
-                    </button>
+                      <QuickAdd species={s.species} />
+                    </div>
                   ))}
                 </div>
               </div>
@@ -184,15 +176,21 @@ export function MetaRadarPanel({ onLoadPokemon }: MetaRadarPanelProps) {
               <h4 className="text-xs font-bold text-poke-gold uppercase tracking-wider mb-2">Emerging Cores</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {report.emergingCores.slice(0, 4).map((core, i) => (
-                  <div key={i} className="flex items-center gap-2 p-2 rounded-lg border border-poke-gold/20 bg-poke-gold/5">
-                    <Sprite species={core.pokemon[0]} size="sm" />
-                    <span className="text-xs text-slate-500">+</span>
-                    <Sprite species={core.pokemon[1]} size="sm" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs text-white font-semibold">{core.pokemon.join(' + ')}</div>
-                      <div className="text-xs text-slate-500">{core.winCondition} · {core.coverage}% coverage</div>
+                  <div key={i} className="p-2 rounded-lg border border-poke-gold/20 bg-poke-gold/5">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Sprite species={core.pokemon[0]} size="sm" />
+                      <span className="text-xs text-slate-500">+</span>
+                      <Sprite species={core.pokemon[1]} size="sm" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs text-white font-semibold truncate">{core.pokemon.join(' + ')}</div>
+                        <div className="text-xs text-slate-500 truncate">{core.winCondition} · {core.coverage}% coverage</div>
+                      </div>
+                      <span className="text-xs text-poke-gold font-mono">{core.pairing}%</span>
                     </div>
-                    <span className="text-xs text-poke-gold font-mono">{core.pairing}%</span>
+                    <div className="flex items-center gap-2 justify-between">
+                      <QuickAdd species={core.pokemon[0]} actions={['attacker', 'team']} />
+                      <QuickAdd species={core.pokemon[1]} actions={['defender', 'team']} />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -210,7 +208,7 @@ export function MetaRadarPanel({ onLoadPokemon }: MetaRadarPanelProps) {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         {shown.map(score => (
-          <RankingCard key={score.species} score={score} onLoad={() => onLoadPokemon(score.species, 'attacker')} />
+          <RankingCard key={score.species} score={score} />
         ))}
       </div>
 

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Sprite } from './Sprite';
+import { QuickAdd } from './QuickAdd';
 import { getRecommendations, type SynergyRecommendation, type SynergyReason } from '../data/synergies';
 import { suggestLeadPartners, type LeadScore } from '../calc/openerAnalysis';
 import type { PokemonState } from '../types';
@@ -7,7 +8,6 @@ import type { PokemonState } from '../types';
 interface SynergyPanelProps {
   attacker: PokemonState;
   defender: PokemonState;
-  onLoadPokemon: (species: string, side: 'attacker' | 'defender') => void;
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -33,13 +33,7 @@ function StrengthDots({ strength }: { strength: number }) {
   );
 }
 
-function RecommendationCard({
-  rec,
-  onLoad,
-}: {
-  rec: SynergyRecommendation;
-  onLoad: (species: string, side: 'attacker' | 'defender') => void;
-}) {
+function RecommendationCard({ rec }: { rec: SynergyRecommendation }) {
   const [expanded, setExpanded] = useState(false);
 
   // Group reasons by type and show the strongest
@@ -66,20 +60,7 @@ function RecommendationCard({
             )}
           </div>
         </div>
-        <div className="flex gap-0.5 shrink-0">
-          <button
-            onClick={e => { e.stopPropagation(); onLoad(rec.species, 'attacker'); }}
-            className="text-[8px] px-1.5 py-0.5 bg-poke-red/60 text-white rounded hover:bg-indigo-500 transition-colors"
-          >
-            ATK
-          </button>
-          <button
-            onClick={e => { e.stopPropagation(); onLoad(rec.species, 'defender'); }}
-            className="text-[8px] px-1.5 py-0.5 bg-rose-500/60 text-white rounded hover:bg-rose-500 transition-colors"
-          >
-            DEF
-          </button>
-        </div>
+        <QuickAdd species={rec.species} className="shrink-0" />
       </div>
 
       {expanded && (
@@ -103,7 +84,7 @@ function RecommendationCard({
   );
 }
 
-export function SynergyPanel({ attacker, defender, onLoadPokemon }: SynergyPanelProps) {
+export function SynergyPanel({ attacker, defender }: SynergyPanelProps) {
   const [activeTab, setActiveTab] = useState<'synergy' | 'openers'>('synergy');
   const [synergyFor, setSynergyFor] = useState<'attacker' | 'defender'>('attacker');
 
@@ -190,11 +171,7 @@ export function SynergyPanel({ attacker, defender, onLoadPokemon }: SynergyPanel
               Partners for <span className="text-white font-medium">{activeSpecies}</span> — click to expand, ATK/DEF to load
             </p>
             {activeRecs.map((rec: SynergyRecommendation) => (
-              <RecommendationCard
-                key={rec.species}
-                rec={rec}
-                onLoad={onLoadPokemon}
-              />
+              <RecommendationCard key={rec.species} rec={rec} />
             ))}
           </div>
         ) : activeSpecies ? (
@@ -233,20 +210,7 @@ export function SynergyPanel({ attacker, defender, onLoadPokemon }: SynergyPanel
                         />
                       </div>
                     </div>
-                    <div className="flex gap-0.5 shrink-0">
-                      <button
-                        onClick={() => onLoadPokemon(partner, 'attacker')}
-                        className="text-[8px] px-1.5 py-0.5 bg-poke-red/60 text-white rounded hover:bg-indigo-500"
-                      >
-                        ATK
-                      </button>
-                      <button
-                        onClick={() => onLoadPokemon(partner, 'defender')}
-                        className="text-[8px] px-1.5 py-0.5 bg-rose-500/60 text-white rounded hover:bg-rose-500"
-                      >
-                        DEF
-                      </button>
-                    </div>
+                    <QuickAdd species={partner} className="shrink-0" />
                   </div>
                   {/* Commentary */}
                   <div className="space-y-0.5">

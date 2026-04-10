@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Sprite } from './Sprite';
+import { QuickAdd } from './QuickAdd';
 import { TEAMS, TEAM_ARCHETYPES, type TeamComp, type TeamMember } from '../data/teams';
 
 interface TeamsPanelProps {
@@ -33,22 +34,7 @@ function MemberCard({ member, onLoad }: { member: TeamMember; onLoad: (side: 'at
           </div>
           <span className="text-[10px] text-indigo-400">{member.role}</span>
         </div>
-        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100">
-          <button
-            onClick={e => { e.stopPropagation(); onLoad('attacker'); }}
-            className="text-[8px] px-1.5 py-0.5 bg-indigo-500/80 text-white rounded hover:bg-indigo-500"
-            title="Set as attacker"
-          >
-            ATK
-          </button>
-          <button
-            onClick={e => { e.stopPropagation(); onLoad('defender'); }}
-            className="text-[8px] px-1.5 py-0.5 bg-rose-500/80 text-white rounded hover:bg-rose-500"
-            title="Set as defender"
-          >
-            DEF
-          </button>
-        </div>
+        <QuickAdd species={member.species} className="opacity-0 group-hover:opacity-100" />
         <svg className={`w-4 h-4 text-slate-600 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>

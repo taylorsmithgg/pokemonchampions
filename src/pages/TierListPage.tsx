@@ -13,6 +13,7 @@ import { useLiveData } from '../hooks/useLiveData';
 import { suggestSpreads } from '../calc/spOptimizer';
 import { discoverStrategies, type Discovery } from '../calc/metaDiscovery';
 import { MetaRadarPanel } from '../components/MetaRadarPanel';
+import { QuickAdd } from '../components/QuickAdd';
 import type { StatID } from '@smogon/calc';
 
 function StatBar({ stat, value, max = 200 }: { stat: StatID; value: number; max?: number }) {
@@ -182,17 +183,9 @@ function PokemonDetailCard({ entry, onClose }: { entry: TierEntry; onClose: () =
           </div>
         )}
 
-        {/* Action: Use in Calculator */}
-        <div className="pt-3 border-t border-poke-border">
-          <Link
-            to={`/?pokemon=${encodeURIComponent(speciesName)}`}
-            className="block w-full py-2.5 rounded-lg bg-gradient-to-r from-poke-red to-poke-red-dark text-white text-sm font-bold text-center hover:from-poke-red-light hover:to-poke-red transition-all shadow-lg shadow-poke-red/20"
-            onClick={() => {
-              sessionStorage.setItem('loadPokemon', speciesName);
-            }}
-          >
-            Use {entry.name} in Calculator
-          </Link>
+        {/* Quick actions */}
+        <div className="pt-3 border-t border-poke-border flex justify-center">
+          <QuickAdd species={speciesName} variant="full" />
         </div>
       </div>
     </div>
@@ -267,6 +260,11 @@ function TierCard({ entry, onClick }: { entry: TierEntry; onClick: () => void })
         </div>
       </div>
 
+      {/* Quick add actions */}
+      <div className="px-3 pb-2 pt-0 flex justify-end">
+        <QuickAdd species={speciesName} />
+      </div>
+
       {/* Note tooltip on hover */}
       {entry.note && (
         <div className="px-3 pb-2 pt-0 hidden group-hover:block">
@@ -326,18 +324,14 @@ function MetaDiscoveriesSection() {
                   </div>
                   <h4 className="text-sm font-bold text-white mb-1">{d.title}</h4>
                   <p className="text-xs text-slate-400 leading-relaxed mb-2">{d.description}</p>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="space-y-1">
                     {d.pokemon.map((species, idx) => {
                       const calcName = (d as any).calcPokemon?.[idx] || species.replace(/-Mega.*$/, '');
                       return (
-                      <Link
-                        key={species}
-                        to='/'
-                        className="text-xs px-2 py-1 bg-poke-surface border border-poke-border text-slate-400 rounded hover:border-poke-red/30 hover:text-poke-red-light transition-colors"
-                        onClick={() => sessionStorage.setItem('loadPokemon', calcName)}
-                      >
-                        Use {calcName}
-                      </Link>
+                        <div key={species} className="flex items-center gap-2">
+                          <span className="text-xs text-slate-400 flex-1 truncate">{species}</span>
+                          <QuickAdd species={calcName} />
+                        </div>
                       );
                     })}
                   </div>
@@ -349,11 +343,6 @@ function MetaDiscoveriesSection() {
       </div>
     </div>
   );
-}
-
-function handleLoadFromRadar(species: string, _side: 'attacker' | 'defender') {
-  sessionStorage.setItem('loadPokemon', species);
-  window.location.href = window.location.pathname.replace('/tier-list', '') || '/';
 }
 
 export function TierListPage() {
@@ -446,7 +435,7 @@ export function TierListPage() {
 
         {/* Meta Radar View */}
         {view === 'radar' && (
-          <MetaRadarPanel onLoadPokemon={handleLoadFromRadar} />
+          <MetaRadarPanel />
         )}
 
         {/* Static Tier List View */}

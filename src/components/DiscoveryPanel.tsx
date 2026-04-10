@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { discoverStrategies, type Discovery } from '../calc/metaDiscovery';
 import { Sprite } from './Sprite';
+import { QuickAdd } from './QuickAdd';
 
 const CATEGORY_STYLES: Record<string, { color: string; bg: string; label: string }> = {
   core: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', label: 'Core' },
@@ -11,10 +12,7 @@ const CATEGORY_STYLES: Record<string, { color: string; bg: string; label: string
   combo: { color: 'text-purple-400', bg: 'bg-purple-500/10', label: 'Combo' },
 };
 
-function DiscoveryCard({ discovery, onLoadPokemon }: {
-  discovery: Discovery;
-  onLoadPokemon: (species: string, side: 'attacker' | 'defender') => void;
-}) {
+function DiscoveryCard({ discovery }: { discovery: Discovery }) {
   const style = CATEGORY_STYLES[discovery.category] || CATEGORY_STYLES.core;
 
   return (
@@ -49,16 +47,16 @@ function DiscoveryCard({ discovery, onLoadPokemon }: {
             </div>
 
             {/* Quick load buttons */}
-            <div className="flex flex-wrap gap-1">
-              {discovery.pokemon.map((species, idx) => (
-                <button
-                  key={species}
-                  onClick={() => onLoadPokemon(discovery.calcPokemon?.[idx] || species, 'attacker')}
-                  className="text-xs px-2 py-1 bg-poke-surface border border-poke-border text-slate-400 rounded hover:border-poke-red/30 hover:text-poke-red-light transition-colors"
-                >
-                  {species}
-                </button>
-              ))}
+            <div className="space-y-1.5">
+              {discovery.pokemon.map((species, idx) => {
+                const calcName = discovery.calcPokemon?.[idx] || species;
+                return (
+                  <div key={species} className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400 flex-1 truncate">{species}</span>
+                    <QuickAdd species={calcName} />
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -67,11 +65,7 @@ function DiscoveryCard({ discovery, onLoadPokemon }: {
   );
 }
 
-interface DiscoveryPanelProps {
-  onLoadPokemon: (species: string, side: 'attacker' | 'defender') => void;
-}
-
-export function DiscoveryPanel({ onLoadPokemon }: DiscoveryPanelProps) {
+export function DiscoveryPanel() {
   const discoveries = useMemo(() => discoverStrategies(), []);
 
   if (discoveries.length === 0) return null;
@@ -86,7 +80,7 @@ export function DiscoveryPanel({ onLoadPokemon }: DiscoveryPanelProps) {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {discoveries.slice(0, 8).map(d => (
-          <DiscoveryCard key={d.id} discovery={d} onLoadPokemon={onLoadPokemon} />
+          <DiscoveryCard key={d.id} discovery={d} />
         ))}
       </div>
     </div>

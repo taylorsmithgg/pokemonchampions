@@ -1,5 +1,6 @@
 import type { NatureName } from '../types';
 import type { StatsTable } from '@smogon/calc';
+import { isChampionsPokemon } from './champions';
 
 export interface PokemonPreset {
   name: string;
@@ -13,7 +14,7 @@ export interface PokemonPreset {
   label: string;
 }
 
-export const PRESETS: PokemonPreset[] = [
+const PRESETS_RAW: PokemonPreset[] = [
   // ─── Mega Evolutions ──────────────────────────────────────────
   {
     name: 'Charizard (Mega X - Physical)',
@@ -475,6 +476,15 @@ export const PRESETS: PokemonPreset[] = [
     label: 'Special Wall',
   },
 ];
+
+// Filter presets to only species in the Champions roster.
+export const PRESETS: PokemonPreset[] = PRESETS_RAW.filter(p => {
+  if (isChampionsPokemon(p.species)) return true;
+  if (typeof console !== 'undefined') {
+    console.warn(`[presets.ts] Dropping preset "${p.name}" — species "${p.species}" not in Champions roster.`);
+  }
+  return false;
+});
 
 // Group presets by species
 export function getPresetsBySpecies(species: string): PokemonPreset[] {

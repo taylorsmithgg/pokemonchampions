@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { HashRouter, Routes, Route, Link } from 'react-router-dom';
 import { PokemonPanel } from './components/PokemonPanel';
 import { FieldPanel } from './components/FieldPanel';
@@ -13,35 +13,47 @@ import { TeamBuilderPanel } from './components/TeamBuilderPanel';
 import { DiscoveryPanel } from './components/DiscoveryPanel';
 import { FAQPage } from './pages/FAQPage';
 import { TierListPage } from './pages/TierListPage';
-import { getPokemonData } from './data/champions';
-import { getPresetsBySpecies } from './data/presets';
 import type { TeamMember } from './data/teams';
 import {
   createDefaultPokemonState,
   createDefaultFieldState,
 } from './types';
 import type { PokemonState, FieldState } from './types';
+import {
+  PokemonActionsProvider,
+  usePokemonActions,
+  buildPokemonFromSpecies,
+  PENDING_ACTION_KEY,
+  PENDING_SPECIES_KEY,
+} from './contexts/PokemonActions';
 
 function Calculator() {
+  const { registerHandlers } = usePokemonActions();
   const [attacker, setAttacker] = useState<PokemonState>(() => {
-    // Check if a Pokemon was selected from tier list page
-    const loadPokemon = sessionStorage.getItem('loadPokemon');
-    if (loadPokemon) {
+    // Legacy key + new pending action handoff from TierListPage / other routes.
+    const legacy = sessionStorage.getItem('loadPokemon');
+    if (legacy) {
       sessionStorage.removeItem('loadPokemon');
-      const data = getPokemonData(loadPokemon);
-      if (data) {
-        return {
-          ...createDefaultPokemonState(),
-          species: loadPokemon,
-          ability: (data.abilities?.[0] || '') as string,
-        };
-      }
+      return buildPokemonFromSpecies(legacy);
+    }
+    const pendingAction = sessionStorage.getItem(PENDING_ACTION_KEY);
+    const pendingSpecies = sessionStorage.getItem(PENDING_SPECIES_KEY);
+    if (pendingAction === 'attacker' && pendingSpecies) {
+      sessionStorage.removeItem(PENDING_ACTION_KEY);
+      sessionStorage.removeItem(PENDING_SPECIES_KEY);
+      return buildPokemonFromSpecies(pendingSpecies);
     }
     return createDefaultPokemonState();
   });
-  const [defender, setDefender] = useState<PokemonState>({
-    ...createDefaultPokemonState(),
-    nature: 'Bold',
+  const [defender, setDefender] = useState<PokemonState>(() => {
+    const pendingAction = sessionStorage.getItem(PENDING_ACTION_KEY);
+    const pendingSpecies = sessionStorage.getItem(PENDING_SPECIES_KEY);
+    if (pendingAction === 'defender' && pendingSpecies) {
+      sessionStorage.removeItem(PENDING_ACTION_KEY);
+      sessionStorage.removeItem(PENDING_SPECIES_KEY);
+      return { ...buildPokemonFromSpecies(pendingSpecies), nature: 'Bold' };
+    }
+    return { ...createDefaultPokemonState(), nature: 'Bold' };
   });
   const [field, setField] = useState<FieldState>(createDefaultFieldState());
   const [showField, setShowField] = useState(false);
@@ -58,6 +70,43 @@ function Calculator() {
     createDefaultPokemonState(),
   ]);
 
+  // Register live handlers so context-based QuickAdd flows can mutate this page's state directly.
+  useEffect(() => {
+    registerHandlers({
+      sendToAttacker: (species: string) => setAttacker(buildPokemonFromSpecies(species)),
+      sendToDefender: (species: string) => setDefender({ ...buildPokemonFromSpecies(species), nature: 'Bold' }),
+      addToTeam: (species: string) => {
+        setTeam(prev => {
+          const emptyIdx = prev.findIndex(p => !p.species);
+          if (emptyIdx === -1) return prev;
+          const next = [...prev];
+          next[emptyIdx] = buildPokemonFromSpecies(species);
+          return next;
+        });
+        setShowTeamBuilder(true);
+      },
+    });
+    return () => registerHandlers({});
+  }, [registerHandlers]);
+
+  // Handle a queued "team" action (attacker/defender queues are consumed in the useState initializers).
+  useEffect(() => {
+    const pendingAction = sessionStorage.getItem(PENDING_ACTION_KEY);
+    const pendingSpecies = sessionStorage.getItem(PENDING_SPECIES_KEY);
+    if (pendingAction === 'team' && pendingSpecies) {
+      sessionStorage.removeItem(PENDING_ACTION_KEY);
+      sessionStorage.removeItem(PENDING_SPECIES_KEY);
+      setTeam(prev => {
+        const emptyIdx = prev.findIndex(p => !p.species);
+        if (emptyIdx === -1) return prev;
+        const next = [...prev];
+        next[emptyIdx] = buildPokemonFromSpecies(pendingSpecies);
+        return next;
+      });
+      setShowTeamBuilder(true);
+    }
+  }, []);
+
   const handleSwap = useCallback(() => {
     setAttacker(defender);
     setDefender(attacker);
@@ -72,38 +121,6 @@ function Calculator() {
     setAttacker(createDefaultPokemonState());
     setDefender({ ...createDefaultPokemonState(), nature: 'Bold' });
     setField(createDefaultFieldState());
-  }, []);
-
-  const handleTierListSelect = useCallback((name: string, side: 'attacker' | 'defender') => {
-    const data = getPokemonData(name);
-    const presets = getPresetsBySpecies(name);
-
-    // If we have a preset for this Pokemon, use it
-    if (presets.length > 0) {
-      const preset = presets[0];
-      const newState: PokemonState = {
-        ...createDefaultPokemonState(),
-        species: preset.species,
-        nature: preset.nature,
-        ability: preset.ability,
-        item: preset.item,
-        teraType: '',
-        sps: { ...preset.sps },
-        moves: [...preset.moves],
-      };
-      if (side === 'attacker') setAttacker(newState);
-      else setDefender(newState);
-    } else {
-      // Just set the species
-      const newState: PokemonState = {
-        ...createDefaultPokemonState(),
-        species: name,
-        ability: (data?.abilities?.[0] || '') as string,
-        teraType: '',
-      };
-      if (side === 'attacker') setAttacker(newState);
-      else setDefender(newState);
-    }
   }, []);
 
   const handleTeamMemberLoad = useCallback((member: TeamMember, side: 'attacker' | 'defender') => {
@@ -244,12 +261,10 @@ function Calculator() {
             <TeamAuditPanel
               attacker={attacker}
               defender={defender}
-              onLoadPokemon={handleTierListSelect}
             />
             <SynergyPanel
               attacker={attacker}
               defender={defender}
-              onLoadPokemon={handleTierListSelect}
             />
           </div>
 
@@ -264,7 +279,7 @@ function Calculator() {
 
         {/* Meta Discoveries */}
         <div className="mt-8">
-          <DiscoveryPanel onLoadPokemon={handleTierListSelect} />
+          <DiscoveryPanel />
         </div>
 
         {/* Bottom SEO content */}
@@ -362,12 +377,14 @@ function Calculator() {
 function App() {
   return (
     <HashRouter>
-      <Routes>
-        <Route path="/" element={<Calculator />} />
-        <Route path="/tier-list" element={<TierListPage />} />
-        <Route path="/faq" element={<FAQPage />} />
-        <Route path="/faq/:slug" element={<FAQPage />} />
-      </Routes>
+      <PokemonActionsProvider>
+        <Routes>
+          <Route path="/" element={<Calculator />} />
+          <Route path="/tier-list" element={<TierListPage />} />
+          <Route path="/faq" element={<FAQPage />} />
+          <Route path="/faq/:slug" element={<FAQPage />} />
+        </Routes>
+      </PokemonActionsProvider>
     </HashRouter>
   );
 }

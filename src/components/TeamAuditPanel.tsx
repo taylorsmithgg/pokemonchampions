@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import { Sprite } from './Sprite';
+import { QuickAdd } from './QuickAdd';
 import { auditTeam, type TeamAudit, type AuditIssue, type Severity } from '../calc/teamAudit';
 import type { PokemonState } from '../types';
 
 interface TeamAuditPanelProps {
   attacker: PokemonState;
   defender: PokemonState;
-  onLoadPokemon: (species: string, side: 'attacker' | 'defender') => void;
 }
 
 const SEVERITY_STYLES: Record<Severity, { border: string; bg: string; icon: string; text: string }> = {
@@ -16,7 +16,7 @@ const SEVERITY_STYLES: Record<Severity, { border: string; bg: string; icon: stri
   good: { border: 'border-emerald-500/20', bg: 'bg-emerald-500/5', icon: '✓', text: 'text-emerald-400' },
 };
 
-function IssueCard({ issue, onLoadPokemon }: { issue: AuditIssue; onLoadPokemon: (species: string, side: 'attacker' | 'defender') => void }) {
+function IssueCard({ issue }: { issue: AuditIssue }) {
   const style = SEVERITY_STYLES[issue.severity];
 
   return (
@@ -33,20 +33,14 @@ function IssueCard({ issue, onLoadPokemon }: { issue: AuditIssue; onLoadPokemon:
             <p className="text-[10px] text-slate-500 mt-1 italic">{issue.suggestion}</p>
           )}
           {issue.suggestedPokemon && issue.suggestedPokemon.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1.5">
-              {issue.suggestedPokemon.map((name: string) => {
-                return (
-                  <button
-                    key={name}
-                    className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 bg-poke-surface border border-poke-border/50 text-slate-300 rounded hover:border-poke-red/50 hover:text-poke-red-light transition-colors"
-                    onClick={() => onLoadPokemon(name, 'attacker')}
-                    title={`Load ${name}`}
-                  >
-<Sprite species={name} size="sm" />
-                    {name}
-                  </button>
-                );
-              })}
+            <div className="space-y-1 mt-1.5">
+              {issue.suggestedPokemon.map((name: string) => (
+                <div key={name} className="flex items-center gap-2">
+                  <Sprite species={name} size="sm" />
+                  <span className="text-[10px] text-slate-300 flex-1 truncate">{name}</span>
+                  <QuickAdd species={name} />
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -78,7 +72,7 @@ function ScoreRing({ score }: { score: number }) {
   );
 }
 
-export function TeamAuditPanel({ attacker, defender, onLoadPokemon }: TeamAuditPanelProps) {
+export function TeamAuditPanel({ attacker, defender }: TeamAuditPanelProps) {
   const audit = useMemo<TeamAudit>(() => {
     return auditTeam([attacker, defender]);
   }, [attacker, defender]);
@@ -121,10 +115,10 @@ export function TeamAuditPanel({ attacker, defender, onLoadPokemon }: TeamAuditP
 
         {/* Issues */}
         <div className="space-y-1.5 ">
-          {criticals.map(i => <IssueCard key={i.id} issue={i} onLoadPokemon={onLoadPokemon} />)}
-          {warnings.map(i => <IssueCard key={i.id} issue={i} onLoadPokemon={onLoadPokemon} />)}
-          {goods.map(i => <IssueCard key={i.id} issue={i} onLoadPokemon={onLoadPokemon} />)}
-          {infos.map(i => <IssueCard key={i.id} issue={i} onLoadPokemon={onLoadPokemon} />)}
+          {criticals.map(i => <IssueCard key={i.id} issue={i} />)}
+          {warnings.map(i => <IssueCard key={i.id} issue={i} />)}
+          {goods.map(i => <IssueCard key={i.id} issue={i} />)}
+          {infos.map(i => <IssueCard key={i.id} issue={i} />)}
         </div>
 
         {/* Speed profile */}

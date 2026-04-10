@@ -1,8 +1,14 @@
 // Meta team archetypes for Pokemon Champions VGC 2026
-// Each team includes 6 Pokemon with full sets and a strategic breakdown
+// Each team includes 6 Pokemon with full sets and a strategic breakdown.
+//
+// The raw data below was seeded from VGC 2026 meta teams. Some members
+// (Amoonguss, Rillaboom, Kingdra, Gholdengo) are legal in VGC but not in
+// Champions — those members are filtered out before export, and any
+// team left with < 4 legal members is dropped entirely.
 
 import type { NatureName } from '../types';
 import type { StatsTable } from '@smogon/calc';
+import { isChampionsPokemon } from './champions';
 
 export interface TeamMember {
   species: string;
@@ -40,7 +46,7 @@ export const TEAM_ARCHETYPES = [
   { id: 'tailwind', label: 'Tailwind', color: 'text-violet-400', bg: 'bg-violet-500/10' },
 ] as const;
 
-export const TEAMS: TeamComp[] = [
+const TEAMS_RAW: TeamComp[] = [
   // ─── SUN: Mega Charizard Y Sun ─────────────────────────────────
   {
     id: 'sun-zard-y',
@@ -788,6 +794,28 @@ export const TEAMS: TeamComp[] = [
     ],
   },
 ];
+
+// ─── Filter teams to Champions-legal members ──────────────────────
+// Drops individual members not in the Champions roster. Teams with
+// fewer than 4 legal members are dropped entirely (too broken to
+// present as a meta comp).
+const MIN_TEAM_SIZE = 4;
+
+export const TEAMS: TeamComp[] = TEAMS_RAW.reduce<TeamComp[]>((acc, team) => {
+  const legalMembers = team.members.filter(m => {
+    if (isChampionsPokemon(m.species)) return true;
+    if (typeof console !== 'undefined') {
+      console.warn(`[teams.ts] Removing "${m.species}" from team "${team.name}" — not in Champions roster.`);
+    }
+    return false;
+  });
+  if (legalMembers.length >= MIN_TEAM_SIZE) {
+    acc.push({ ...team, members: legalMembers });
+  } else if (typeof console !== 'undefined') {
+    console.warn(`[teams.ts] Dropping team "${team.name}" — only ${legalMembers.length} legal members after filtering.`);
+  }
+  return acc;
+}, []);
 
 // Helpers
 export function getTeamsByArchetype(archetype: string): TeamComp[] {
