@@ -10,12 +10,14 @@
 // mechanics + new Z-A Mega abilities + roster reality.
 
 import { Fragment, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { generateDoublesProjection, type DoublesProjection, type DoublesRole } from '../calc/doublesMetaProjection';
 import { generateSinglesProjection, type SinglesProjection, type SinglesRole } from '../calc/singlesMetaProjection';
 import type { FormatId } from '../calc/lineupAnalysis';
 import { Sprite } from './Sprite';
 import { QuickAdd } from './QuickAdd';
 import { GenBadge } from './GenBadge';
+import { getArchetypeWikiSlug, wikiPath } from '../utils/wikiLinks';
 
 // ─── Normalized projection type for unified rendering ─────────────
 // The two engines return structurally similar reports with
@@ -319,14 +321,27 @@ export function MetaProjectionPanel({ format }: MetaProjectionPanelProps) {
             <p className="text-[10px] text-slate-500">Emerging {formatLabel} archetypes derived from ability synergies and role availability</p>
           </div>
           <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-            {report.cores.map((core, i) => (
+            {report.cores.map((core, i) => {
+              const wikiSlug = getArchetypeWikiSlug(core.name);
+              return (
               <div key={i} className="rounded-lg border border-poke-border bg-poke-surface p-3">
                 <div className="flex items-start gap-2 mb-2">
                   <div className="flex -space-x-2">
                     {core.anchors.slice(0, 2).map(s => <Sprite key={s} species={s} size="md" />)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-bold text-white">{core.name}</h4>
+                    {wikiSlug ? (
+                      <Link
+                        to={wikiPath(wikiSlug)}
+                        className="text-sm font-bold text-white hover:text-poke-red-light transition-colors inline-flex items-center gap-1 group"
+                        title={`Read the ${core.name} deep dive in the wiki`}
+                      >
+                        {core.name}
+                        <span className="text-[9px] text-slate-500 group-hover:text-poke-red-light transition-colors">↗</span>
+                      </Link>
+                    ) : (
+                      <h4 className="text-sm font-bold text-white">{core.name}</h4>
+                    )}
                     <p className="text-[10px] text-poke-gold">{core.winCondition}</p>
                   </div>
                 </div>
@@ -345,7 +360,8 @@ export function MetaProjectionPanel({ format }: MetaProjectionPanelProps) {
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

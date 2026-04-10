@@ -1,10 +1,12 @@
 import { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Sprite } from './Sprite';
 import { QuickAdd } from './QuickAdd';
 import { TEAMS, LEGACY_TEAMS, TEAM_ARCHETYPES, type TeamComp, type TeamMember } from '../data/teams';
 import { SINGLES_FORMAT, type FormatId } from '../calc/lineupAnalysis';
 import { FormatSelector } from './FormatSelector';
 import { generateDoublesTeams, generateSinglesTeams, type GeneratedTeam } from '../calc/teamCompGenerator';
+import { getTeamArchetypeWikiSlug, wikiPath } from '../utils/wikiLinks';
 
 interface TeamsPanelProps {
   onLoadMember: (member: TeamMember, side: 'attacker' | 'defender') => void;
@@ -128,9 +130,23 @@ function TeamCard({ team, onLoadMember, onLoadFullTeam }: { team: TeamComp; onLo
               Projected
             </span>
           )}
-          <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${archetype?.bg} ${archetype?.color} font-semibold whitespace-nowrap`}>
-            {archetype?.label}
-          </span>
+          {(() => {
+            const archetypeSlug = team.archetype ? getTeamArchetypeWikiSlug(team.archetype) : undefined;
+            const badgeClasses = `text-[9px] px-1.5 py-0.5 rounded-full ${archetype?.bg} ${archetype?.color} font-semibold whitespace-nowrap`;
+            if (archetypeSlug) {
+              return (
+                <Link
+                  to={wikiPath(archetypeSlug)}
+                  onClick={(e) => e.stopPropagation()}
+                  className={`${badgeClasses} hover:underline`}
+                  title={`Read the ${archetype?.label} archetype deep dive`}
+                >
+                  {archetype?.label}
+                </Link>
+              );
+            }
+            return <span className={badgeClasses}>{archetype?.label}</span>;
+          })()}
           <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold whitespace-nowrap ${
             team.gimmick === 'Mega' ? 'bg-purple-500/10 text-purple-400' : 'bg-cyan-500/10 text-cyan-400'
           }`}>
