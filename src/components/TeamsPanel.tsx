@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react';
 import { Sprite } from './Sprite';
 import { QuickAdd } from './QuickAdd';
-import { TEAMS, TEAM_ARCHETYPES, type TeamComp, type TeamMember } from '../data/teams';
+import { TEAMS, LEGACY_TEAMS, TEAM_ARCHETYPES, type TeamComp, type TeamMember } from '../data/teams';
 import { DEFAULT_FORMAT, type FormatId } from '../calc/lineupAnalysis';
 import { FormatSelector } from './FormatSelector';
-import { generateDoublesTeams, type GeneratedDoublesTeam } from '../calc/teamCompGenerator';
+import { generateDoublesTeams, generateSinglesTeams, type GeneratedTeam } from '../calc/teamCompGenerator';
 
 interface TeamsPanelProps {
   onLoadMember: (member: TeamMember, side: 'attacker' | 'defender') => void;
@@ -96,7 +96,7 @@ function TeamCard({ team, onLoadMember, onLoadFullTeam }: { team: TeamComp; onLo
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-bold text-white">{team.name}</h3>
-            {(team as GeneratedDoublesTeam).generated && (
+            {(team as GeneratedTeam).generated && (
               <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-poke-gold/15 text-poke-gold border border-poke-gold/30 font-bold uppercase tracking-wider">
                 Projected
               </span>
@@ -109,16 +109,22 @@ function TeamCard({ team, onLoadMember, onLoadFullTeam }: { team: TeamComp; onLo
             } font-semibold`}>
               {team.gimmick}
             </span>
-            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
-              (team.format ?? 'doubles') === 'doubles'
-                ? 'bg-poke-red/10 text-poke-red-light'
-                : 'bg-sky-500/10 text-sky-400'
-            }`}>
-              {(team.format ?? 'doubles') === 'doubles' ? 'Doubles · pick 4' : 'Singles · pick 3'}
-            </span>
-            {(team as GeneratedDoublesTeam).generated && (
+            {team.format ? (
+              <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
+                team.format === 'doubles'
+                  ? 'bg-poke-red/10 text-poke-red-light'
+                  : 'bg-sky-500/10 text-sky-400'
+              }`}>
+                {team.format === 'doubles' ? 'Doubles · pick 4' : 'Singles · pick 3'}
+              </span>
+            ) : (
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-500/10 text-slate-400 font-semibold">
+                Legacy · untagged
+              </span>
+            )}
+            {(team as GeneratedTeam).generated && (
               <span className="text-[9px] text-slate-500 font-mono ml-auto">
-                flex {(team as GeneratedDoublesTeam).flexScore}/100
+                flex {(team as GeneratedTeam).flexScore}/100
               </span>
             )}
           </div>
@@ -225,30 +231,41 @@ export function TeamsPanel({ onLoadMember, onLoadFullTeam, isOpen, onClose }: Te
   const [filterGimmick, setFilterGimmick] = useState<string>('all');
   const [filterFormat, setFilterFormat] = useState<FormatId>(DEFAULT_FORMAT.id);
 
-  // Generated doubles comps built from the first-principles
-  // projection engine. These replace the need for curated VGC teams
-  // for the doubles ladder — they're derived from Champions mechanics,
-  // not imported from mainline VGC.
-  const generatedDoubles = useMemo<GeneratedDoublesTeam[]>(() => generateDoublesTeams(), []);
+  // Generated comps built from the first-principles projection
+  // engines — one per format. These are the PRIMARY content of the
+  // format-filtered pool, not imported from VGC. Both formats use
+  // parallel pipelines: projection → archetype cores → team builder.
+  const generatedDoubles = useMemo<GeneratedTeam[]>(() => generateDoublesTeams(), []);
+  const generatedSingles = useMemo<GeneratedTeam[]>(() => generateSinglesTeams(), []);
 
-  // Combined pool: generated teams shown first for the active format,
-  // followed by any curated teams of that format (currently just the
-  // VGC-imported doubles templates).
-  const allTeams: TeamComp[] = useMemo(() => {
-    const generatedForFormat = filterFormat === 'doubles' ? generatedDoubles : [];
-    const curated = TEAMS.filter(t => (t.format ?? 'doubles') === filterFormat);
-    return [...generatedForFormat, ...curated];
-  }, [filterFormat, generatedDoubles]);
+  // Format-filtered pool contains ONLY explicitly-tagged teams:
+  //   - Generated projections for the selected format
+  //   - Any future curated teams with an explicit `format` field
+  // Legacy curated teams (no format tag) are shown separately below
+  // so they don't pollute the format selector.
+  const formatTeams: TeamComp[] = useMemo(() => {
+    const generatedForFormat = filterFormat === 'doubles' ? generatedDoubles : generatedSingles;
+    const taggedCurated = TEAMS.filter(t => t.format === filterFormat);
+    return [...generatedForFormat, ...taggedCurated];
+  }, [filterFormat, generatedDoubles, generatedSingles]);
 
-  const filtered = allTeams.filter(t => {
+  const filtered = formatTeams.filter(t => {
+    if (filterArchetype !== 'all' && t.archetype !== filterArchetype) return false;
+    if (filterGimmick !== 'all' && t.gimmick !== filterGimmick) return false;
+    return true;
+  });
+
+  // Legacy teams filtered by archetype/gimmick (but NOT by format,
+  // since they have no explicit format).
+  const legacyFiltered = LEGACY_TEAMS.filter(t => {
     if (filterArchetype !== 'all' && t.archetype !== filterArchetype) return false;
     if (filterGimmick !== 'all' && t.gimmick !== filterGimmick) return false;
     return true;
   });
 
   const formatCounts: Record<FormatId, number> = {
-    doubles: generatedDoubles.length + TEAMS.filter(t => (t.format ?? 'doubles') === 'doubles').length,
-    singles: TEAMS.filter(t => (t.format ?? 'doubles') === 'singles').length,
+    doubles: generatedDoubles.length + TEAMS.filter(t => t.format === 'doubles').length,
+    singles: generatedSingles.length + TEAMS.filter(t => t.format === 'singles').length,
   };
 
   if (!isOpen) return null;
@@ -264,7 +281,7 @@ export function TeamsPanel({ onLoadMember, onLoadFullTeam, isOpen, onClose }: Te
             <div>
               <h2 className="text-lg font-bold text-white">Meta Team Comps</h2>
               <p className="text-[10px] text-slate-500 mt-0.5">
-                Doubles comps generated from the first-principles projection engine — built around the meta archetypes our engine identifies, not copied from VGC data.
+                Teams generated from our first-principles projection engines — separate models for Doubles (VGC) and Singles, each built around the archetype cores the engine identifies.
               </p>
             </div>
             <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors p-1">
@@ -311,14 +328,57 @@ export function TeamsPanel({ onLoadMember, onLoadFullTeam, isOpen, onClose }: Te
 
         {/* Content */}
         <div className="p-4 space-y-4">
-          {filtered.map(team => (
-            <TeamCard key={team.id} team={team} onLoadMember={onLoadMember} onLoadFullTeam={onLoadFullTeam} />
-          ))}
+          {/* Format-filtered pool — projection-generated + any
+              explicitly-tagged curated teams */}
+          {filtered.length > 0 && (
+            <>
+              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                {filterFormat === 'doubles' ? 'Doubles Projections' : 'Singles Projections'}
+                <span className="ml-2 text-slate-600 font-mono normal-case">{filtered.length}</span>
+              </div>
+              {filtered.map(team => (
+                <TeamCard key={team.id} team={team} onLoadMember={onLoadMember} onLoadFullTeam={onLoadFullTeam} />
+              ))}
+            </>
+          )}
 
           {filtered.length === 0 && (
-            <div className="text-center py-12 text-slate-600">
-              No teams match your filters.
+            <div className="py-10 px-6 rounded-xl border border-dashed border-poke-border bg-poke-surface/50 text-center">
+              <p className="text-sm text-slate-500">No format-tagged teams match your filters.</p>
+              {(filterArchetype !== 'all' || filterGimmick !== 'all') && (
+                <button
+                  onClick={() => { setFilterArchetype('all'); setFilterGimmick('all'); }}
+                  className="mt-3 text-xs px-3 py-1.5 rounded-lg bg-poke-surface border border-poke-border text-slate-400 hover:text-white transition-colors"
+                >
+                  Clear filters
+                </button>
+              )}
             </div>
+          )}
+
+          {/* Legacy reference section — curated VGC imports that
+              aren't tagged with a format. Shown regardless of the
+              format selector so users can still reference them, but
+              clearly separated from the projection-driven content. */}
+          {legacyFiltered.length > 0 && (
+            <>
+              <div className="pt-4 mt-4 border-t border-poke-border">
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    Legacy VGC Reference
+                  </span>
+                  <span className="text-[10px] text-slate-600">(not format-tagged — imported from mainline VGC)</span>
+                </div>
+                <p className="text-[11px] text-slate-500 mb-3 leading-relaxed">
+                  These curated team templates were seeded from VGC 2026 before the projection engine existed.
+                  They aren&apos;t explicitly tuned for Champions Doubles or Singles — treat them as a reference
+                  rather than a recommendation.
+                </p>
+              </div>
+              {legacyFiltered.map(team => (
+                <TeamCard key={team.id} team={team} onLoadMember={onLoadMember} onLoadFullTeam={onLoadFullTeam} />
+              ))}
+            </>
           )}
         </div>
       </div>

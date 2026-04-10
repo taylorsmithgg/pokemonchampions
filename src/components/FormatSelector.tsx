@@ -102,19 +102,23 @@ function FullSelector({
         const isActive = f.id === value;
         const theme = FORMAT_THEMES[f.id];
         const count = counts?.[f.id];
-        const disabled = count === 0;
+        // Zero-count formats used to be disabled, but that made the
+        // selector feel broken — users clicked Singles and nothing
+        // happened. We now always allow the switch so the caller can
+        // render an empty state (and so Doubles stays clickable even
+        // if its count is briefly 0 during loading).
+        const isEmpty = count === 0;
 
         return (
           <button
             key={f.id}
-            onClick={() => !disabled && onChange(f)}
-            disabled={disabled}
+            onClick={() => onChange(f)}
             aria-pressed={isActive}
             className={`group relative overflow-hidden rounded-xl border-2 p-4 text-left transition-all duration-200 ${
               isActive
                 ? `${theme.activeBg} ${theme.activeBorder} ${theme.activeGlow}`
-                : disabled
-                  ? 'border-poke-border bg-poke-surface opacity-40 cursor-not-allowed'
+                : isEmpty
+                  ? 'border-poke-border bg-poke-surface opacity-60 hover:opacity-90 hover:border-poke-border-light'
                   : 'border-poke-border bg-poke-surface hover:border-poke-border-light hover:bg-poke-panel'
             }`}
           >
@@ -192,19 +196,18 @@ function CompactSelector({
         const isActive = f.id === value;
         const theme = FORMAT_THEMES[f.id];
         const count = counts?.[f.id];
-        const disabled = count === 0;
+        const isEmpty = count === 0;
 
         return (
           <button
             key={f.id}
-            onClick={() => !disabled && onChange(f)}
-            disabled={disabled}
+            onClick={() => onChange(f)}
             aria-pressed={isActive}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
               isActive
                 ? `${theme.activeBg} ${theme.activeText} ${theme.activeGlow}`
-                : disabled
-                  ? 'text-slate-700 cursor-not-allowed'
+                : isEmpty
+                  ? 'text-slate-500 hover:text-white hover:bg-poke-panel'
                   : 'text-slate-400 hover:text-white hover:bg-poke-panel'
             }`}
             title={f.description}

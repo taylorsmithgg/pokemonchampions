@@ -811,9 +811,15 @@ const TEAMS_RAW: TeamComp[] = [
 // ─── Filter teams to Champions-legal members ──────────────────────
 // Drops individual members not in the Champions roster. Teams with
 // fewer than 4 legal members are dropped entirely (too broken to
-// present as a meta comp). Every team is also normalized to a
-// format — entries without an explicit format default to 'doubles'
-// since the curated list was seeded from VGC 2026.
+// present as a meta comp).
+//
+// IMPORTANT: teams are NOT auto-assigned a format. The curated list
+// below is imported from VGC 2026 — historically Doubles — but we
+// don't claim to know whether each template is actually tuned for
+// Champions Doubles (vs. a generic goodstuffs build that could
+// work in either format). Teams without an explicit `format` field
+// are treated as "legacy" and shown in a dedicated reference
+// section, separate from the format-filtered comp browser.
 const MIN_TEAM_SIZE = 4;
 
 export const TEAMS: TeamComp[] = TEAMS_RAW.reduce<TeamComp[]>((acc, team) => {
@@ -825,16 +831,16 @@ export const TEAMS: TeamComp[] = TEAMS_RAW.reduce<TeamComp[]>((acc, team) => {
     return false;
   });
   if (legalMembers.length >= MIN_TEAM_SIZE) {
-    acc.push({
-      ...team,
-      members: legalMembers,
-      format: team.format ?? 'doubles',
-    });
+    acc.push({ ...team, members: legalMembers });
   } else if (typeof console !== 'undefined') {
     console.warn(`[teams.ts] Dropping team "${team.name}" — only ${legalMembers.length} legal members after filtering.`);
   }
   return acc;
 }, []);
+
+/** Curated teams without an explicit format — shown as legacy
+ *  references rather than in the format-filtered pool. */
+export const LEGACY_TEAMS: TeamComp[] = TEAMS.filter(t => !t.format);
 
 // Helpers
 export function getTeamsByArchetype(archetype: string): TeamComp[] {
@@ -842,7 +848,7 @@ export function getTeamsByArchetype(archetype: string): TeamComp[] {
 }
 
 export function getTeamsByFormat(format: FormatId): TeamComp[] {
-  return TEAMS.filter(t => (t.format ?? 'doubles') === format);
+  return TEAMS.filter(t => t.format === format);
 }
 
 export function getTeamById(id: string): TeamComp | undefined {

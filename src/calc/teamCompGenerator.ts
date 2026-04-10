@@ -21,7 +21,13 @@ import {
   type ArchetypeCore,
   type ProjectionReport,
 } from './doublesMetaProjection';
-import { analyzeTeamLineups, DOUBLES_FORMAT } from './lineupAnalysis';
+import {
+  generateSinglesProjection,
+  type SinglesProjection,
+  type SinglesArchetypeCore,
+  type SinglesProjectionReport,
+} from './singlesMetaProjection';
+import { analyzeTeamLineups, DOUBLES_FORMAT, SINGLES_FORMAT } from './lineupAnalysis';
 import { getPokemonData } from '../data/champions';
 import { MEGA_STONE_MAP } from '../data/championsRoster';
 import { getPresetsBySpecies } from '../data/presets';
@@ -32,16 +38,19 @@ import type { TeamMember, TeamComp } from '../data/teams';
 
 // ─── Types ─────────────────────────────────────────────────────────
 
-export interface GeneratedDoublesTeam extends TeamComp {
+export interface GeneratedTeam extends TeamComp {
   /** True marker so the UI can distinguish generated from curated. */
   generated: true;
   /** Which archetype core this team was built around. */
   basedOnCore: string;
   /** Lineup-analysis score for the generated team. */
   flexScore: number;
-  /** Top 3 strongest 4-pick subsets for this team (bring 6, pick 4). */
+  /** Top 3 strongest pick-N subsets for this team. */
   topPickLineups: Array<{ members: string[]; score: number }>;
 }
+
+/** Legacy alias — existing consumers still import this name. */
+export type GeneratedDoublesTeam = GeneratedTeam;
 
 // ─── Team-building helpers ─────────────────────────────────────────
 
@@ -182,6 +191,10 @@ const KNOWN_TRICK_ROOM = new Set([
 ]);
 const KNOWN_REDIRECTION = new Set([
   'Clefable', 'Togekiss', 'Audino', 'Volcarona', 'Vivillon',
+]);
+const KNOWN_PIVOT_MOVES = new Set([
+  'Incineroar', 'Corviknight', 'Scizor', 'Hydreigon', 'Greninja',
+  'Rotom', 'Dragapult', 'Whimsicott', 'Gengar',
 ]);
 
 function detectGaps(members: readonly string[]): RoleGaps {
@@ -504,6 +517,226 @@ export function generateDoublesTeams(): GeneratedDoublesTeam[] {
   if (goodstuffs) teams.push(goodstuffs);
 
   // Sort by flex score descending — the best-projected teams surface first
+  teams.sort((a, b) => b.flexScore - a.flexScore);
+  return teams;
+}
+
+// ═══ Singles team generation ══════════════════════════════════════
+//
+// Parallel pipeline for Singles comps. Singles has a completely
+// different role shape — no Fake Out / redirection / spread pressure,
+// but hazards / setup / pivoting / phazing. The generator reuses the
+// same building blocks (buildMember, isMegaStone, one-Mega-per-team
+// enforcement) but pulls anchors and partners from the Singles
+// projection engine.
+
+const SINGLES_HAZARD_SETTERS = new Set([
+  'Hippowdon', 'Tyranitar', 'Garchomp', 'Skarmory', 'Forretress',
+  'Glimmora', 'Sandaconda', 'Aerodactyl', 'Excadrill', 'Empoleon',
+  'Kingambit', 'Archaludon',
+]);
+
+const SINGLES_HAZARD_REMOVERS = new Set([
+  'Corviknight', 'Dragapult', 'Scizor', 'Hatterene', 'Excadrill',
+  'Forretress',
+]);
+
+const SINGLES_SETUP_SWEEPERS = new Set([
+  'Garchomp', 'Gyarados', 'Dragonite', 'Volcarona', 'Mimikyu',
+  'Lucario', 'Gengar', 'Tyranitar', 'Weavile', 'Scizor',
+  'Meowscarada', 'Kingambit', 'Feraligatr', 'Baxcalibur',
+  'Sneasler', 'Ceruledge', 'Armarouge', 'Hydreigon',
+]);
+
+interface SinglesRoleGaps {
+  needsHazards: boolean;
+  needsHazardRemoval: boolean;
+  needsSweeper: boolean;
+  needsWall: boolean;
+  needsPivot: boolean;
+}
+
+function detectSinglesGaps(members: readonly string[]): SinglesRoleGaps {
+  return {
+    needsHazards: !members.some(s => SINGLES_HAZARD_SETTERS.has(s)),
+    needsHazardRemoval: !members.some(s => SINGLES_HAZARD_REMOVERS.has(s)),
+    needsSweeper: !members.some(s => SINGLES_SETUP_SWEEPERS.has(s)),
+    needsWall: !members.some(s => {
+      const d = getPokemonData(s);
+      if (!d) return false;
+      return d.baseStats.hp + (d.baseStats.def + d.baseStats.spd) / 2 > 200;
+    }),
+    needsPivot: !members.some(s => KNOWN_PIVOT_MOVES.has(s)),
+  };
+}
+
+function buildSinglesTeamForCore(
+  core: SinglesArchetypeCore,
+  report: SinglesProjectionReport,
+): GeneratedTeam | null {
+  const picks: string[] = [];
+  const seen = new Set<string>();
+
+  const add = (name: string) => {
+    if (seen.has(name) || picks.length >= 6) return;
+    if (!report.rankings.some(r => r.species === name)) return;
+    seen.add(name);
+    picks.push(name);
+  };
+
+  for (const a of core.anchors) add(a);
+  let partnerCount = 0;
+  for (const p of core.partners) {
+    if (partnerCount >= 3) break;
+    if (!seen.has(p)) {
+      add(p);
+      partnerCount++;
+    }
+  }
+
+  // Fill singles-specific role gaps
+  const gaps = detectSinglesGaps(picks);
+  const rankingOrder = [...report.rankings]
+    .filter(r => !seen.has(r.species))
+    .sort((a, b) => b.score - a.score);
+
+  const gapResolvers: Array<{ need: keyof SinglesRoleGaps; test: (r: SinglesProjection) => boolean }> = [
+    { need: 'needsHazards', test: r => SINGLES_HAZARD_SETTERS.has(r.species) },
+    { need: 'needsHazardRemoval', test: r => SINGLES_HAZARD_REMOVERS.has(r.species) },
+    { need: 'needsSweeper', test: r => SINGLES_SETUP_SWEEPERS.has(r.species) },
+    { need: 'needsPivot', test: r => KNOWN_PIVOT_MOVES.has(r.species) },
+    { need: 'needsWall', test: r => {
+      const d = getPokemonData(r.species);
+      if (!d) return false;
+      return d.baseStats.hp + (d.baseStats.def + d.baseStats.spd) / 2 > 200;
+    }},
+  ];
+  for (const { need, test } of gapResolvers) {
+    if (!gaps[need] || picks.length >= 6) continue;
+    const found = rankingOrder.find(r => test(r) && !seen.has(r.species));
+    if (found) add(found.species);
+  }
+
+  // Fill remaining slots with highest-projected Pokemon
+  for (const r of rankingOrder) {
+    if (picks.length >= 6) break;
+    if (!seen.has(r.species)) add(r.species);
+  }
+
+  if (picks.length < 6) return null;
+
+  // Build members with one-Mega-per-team enforcement
+  const members: TeamMember[] = [];
+  const usedItems = new Set<string>();
+
+  let megaSlotIdx = -1;
+  for (let i = 0; i < picks.length; i++) {
+    if (MEGA_STONE_MAP[picks[i]]) {
+      megaSlotIdx = i;
+      break;
+    }
+  }
+
+  for (let i = 0; i < picks.length; i++) {
+    const species = picks[i];
+    const isAnchor = i < core.anchors.length;
+    const roleHint = isAnchor ? `${core.name} anchor` : undefined;
+
+    let member = buildMember(species, usedItems, roleHint);
+    if (!member) continue;
+
+    if (i === megaSlotIdx && MEGA_STONE_MAP[species]) {
+      const stones = MEGA_STONE_MAP[species];
+      const availableStone = stones.find(s => !usedItems.has(s));
+      if (availableStone) {
+        member = { ...member, item: availableStone };
+      }
+    } else if (isMegaStone(member.item)) {
+      member = stripMegaStone(member, usedItems);
+    }
+
+    if (member.item) usedItems.add(member.item);
+    members.push(member);
+  }
+
+  if (members.length < 6) return null;
+
+  const team: PokemonState[] = members.map(m => ({
+    ...createDefaultPokemonState(),
+    species: m.species,
+    nature: m.nature,
+    ability: m.ability,
+    item: m.item,
+    sps: { ...m.sps },
+    moves: [...m.moves, '', '', '', ''].slice(0, 4),
+  }));
+  const flexReport = analyzeTeamLineups(team, SINGLES_FORMAT);
+
+  const topPickLineups = flexReport.lineups.slice(0, 3).map(l => ({
+    members: l.members,
+    score: l.total,
+  }));
+
+  const leadOptions = topPickLineups
+    .slice(0, 3)
+    .map(l => l.members.slice(0, 1).join(' · ')); // Singles leads are 1 mon
+
+  const keyInteractions: string[] = [];
+  keyInteractions.push(`${core.anchors.join(' + ')} as the ${core.name.toLowerCase()} core`);
+  keyInteractions.push(core.winCondition);
+  const hazardSetter = members.find(m => SINGLES_HAZARD_SETTERS.has(m.species));
+  if (hazardSetter) keyInteractions.push(`Hazards from ${hazardSetter.species} chip every switch-in`);
+  const sweeper = members.find(m => SINGLES_SETUP_SWEEPERS.has(m.species));
+  if (sweeper) keyInteractions.push(`Setup sweeper ${sweeper.species} wins the endgame`);
+
+  const threats: string[] = [];
+  const name = core.name.toLowerCase();
+  if (name.includes('hyper')) threats.push('Faster offense + Focus Sash leads', 'Priority users before setup');
+  if (name.includes('balance')) threats.push('Dedicated wallbreakers with Choice Band/Specs', 'Status spam that bypasses pivots');
+  if (name.includes('stall')) threats.push('Taunt users', 'Magic Guard breakers', 'Setup sweepers that outpace Toxic chip');
+  if (name.includes('rain')) threats.push('Opposing weather setters', 'Grass-types immune to Swift Swim abuse');
+  if (name.includes('sand')) threats.push('Rain cores', 'Fighting + Water coverage');
+  if (name.includes('sun')) threats.push('Rain', 'Rock-type priority');
+  if (name.includes('trick room')) threats.push('Taunt setup blockers', 'Slow attackers you outspeed without TR');
+  if (name.includes('volt')) threats.push('Ground-types immune to Volt Switch', 'Phazers that reset your momentum');
+  if (threats.length === 0) threats.push('Unorthodox offensive pressure', 'Hazard stacking beyond your removal');
+
+  return {
+    id: `gen-singles-${core.name.toLowerCase().replace(/\s+/g, '-')}`,
+    name: core.name,
+    archetype: name.includes('hyper') ? 'hyper-offense'
+      : name.includes('balance') ? 'balance'
+      : name.includes('stall') ? 'balance'
+      : name.includes('rain') ? 'rain'
+      : name.includes('sand') ? 'sand'
+      : name.includes('sun') ? 'sun'
+      : name.includes('trick') ? 'trick-room'
+      : 'balance',
+    gimmick: core.anchors.some(a => MEGA_STONE_MAP[a]) ? 'Mega' : 'Flexible',
+    format: 'singles',
+    description: core.description,
+    strategy: `${core.description} ${core.winCondition}.`,
+    leadOptions,
+    keyInteractions,
+    threats,
+    members,
+    tags: ['generated', 'singles', core.name.toLowerCase().replace(/\s+/g, '-')],
+    generated: true,
+    basedOnCore: core.name,
+    flexScore: flexReport.score,
+    topPickLineups,
+  };
+}
+
+export function generateSinglesTeams(): GeneratedTeam[] {
+  const report = generateSinglesProjection();
+  const teams: GeneratedTeam[] = [];
+
+  for (const core of report.cores) {
+    const team = buildSinglesTeamForCore(core, report);
+    if (team) teams.push(team);
+  }
+
   teams.sort((a, b) => b.flexScore - a.flexScore);
   return teams;
 }
