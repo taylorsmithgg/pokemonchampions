@@ -24,6 +24,7 @@
 
 import { getAvailablePokemon, getPokemonData, getDefensiveMultiplier, hasChampionsMega } from '../data/champions';
 import { MEGA_STONE_MAP } from '../data/championsRoster';
+import { buildMoveRoleSet, REDIRECT_MOVES } from '../data/moveIndex';
 
 // ─── Types ─────────────────────────────────────────────────────────
 
@@ -161,48 +162,41 @@ const VACANT_ROLES: { role: string; missing: string; fillers: string[]; bonus: n
 // allowlist — it's fine for projection since we only care about
 // "can this Pokemon plausibly run X in Champions".
 
-const KNOWN_FAKE_OUT: Set<string> = new Set([
-  'Incineroar', 'Kangaskhan', 'Meowscarada', 'Lopunny', 'Infernape',
-  'Lycanroc', 'Weavile', 'Glalie', 'Meowstic', 'Mr. Rime',
-  'Pangoro', 'Raichu', 'Persian', 'Purugly', 'Salazzle',
-]);
+// ─── Dynamic Doubles role sets ─────────────────────────────────────
+// Derived from presets + live data via moveIndex.ts. NO hardcoded
+// species lists. Adding a preset with Fake Out auto-enrolls the
+// species as a Fake Out user for projection scoring.
 
-const KNOWN_RAGE_POWDER: Set<string> = new Set([
-  // Rage Powder requires Butterfree/Vivillon/Venomoth/Vespiquen etc.
-  'Vivillon', 'Volcarona',
-]);
+const FAKE_OUT_SET = new Set(['Fake Out']);
+const TAILWIND_SET = new Set(['Tailwind']);
+const TRICK_ROOM_SET = new Set(['Trick Room']);
+const ICY_WIND_SET = new Set(['Icy Wind']);
+const WIDE_GUARD_SET = new Set(['Wide Guard']);
+const HELPING_HAND_SET = new Set(['Helping Hand']);
 
-const KNOWN_FOLLOW_ME: Set<string> = new Set([
-  'Clefable', 'Togekiss', 'Audino', 'Castform', 'Sinistcha',
-]);
+let _dblFakeOut: Set<string> | null = null;
+let _dblRedirectors: Set<string> | null = null;
+let _dblTailwind: Set<string> | null = null;
+let _dblTrickRoom: Set<string> | null = null;
+let _dblIcyWind: Set<string> | null = null;
+let _dblWideGuard: Set<string> | null = null;
+let _dblHelpingHand: Set<string> | null = null;
 
-const KNOWN_TAILWIND: Set<string> = new Set([
-  'Whimsicott', 'Talonflame', 'Pelipper', 'Pidgeot', 'Noivern',
-  'Corviknight', 'Altaria', 'Dragonite', 'Aerodactyl', 'Gyarados',
-  'Staraptor', 'Skarmory',
-]);
+const KNOWN_FAKE_OUT    = { has: (s: string) => { if (!_dblFakeOut) _dblFakeOut = buildMoveRoleSet(FAKE_OUT_SET); return _dblFakeOut.has(s); } };
+const KNOWN_TAILWIND    = { has: (s: string) => { if (!_dblTailwind) _dblTailwind = buildMoveRoleSet(TAILWIND_SET); return _dblTailwind.has(s); } };
+const KNOWN_TRICK_ROOM  = { has: (s: string) => { if (!_dblTrickRoom) _dblTrickRoom = buildMoveRoleSet(TRICK_ROOM_SET); return _dblTrickRoom.has(s); } };
+const KNOWN_ICY_WIND    = { has: (s: string) => { if (!_dblIcyWind) _dblIcyWind = buildMoveRoleSet(ICY_WIND_SET); return _dblIcyWind.has(s); } };
+const KNOWN_WIDE_GUARD  = { has: (s: string) => { if (!_dblWideGuard) _dblWideGuard = buildMoveRoleSet(WIDE_GUARD_SET); return _dblWideGuard.has(s); } };
+const KNOWN_HELPING_HAND = { has: (s: string) => { if (!_dblHelpingHand) _dblHelpingHand = buildMoveRoleSet(HELPING_HAND_SET); return _dblHelpingHand.has(s); } };
 
-const KNOWN_TRICK_ROOM: Set<string> = new Set([
-  'Hatterene', 'Mimikyu', 'Reuniclus', 'Cofagrigus', 'Polteageist',
-  'Runerigus', 'Gourgeist', 'Slowking', 'Slowbro', 'Alcremie',
-  'Musharna', 'Porygon2', 'Farigiraf',
-]);
-
-const KNOWN_ICY_WIND: Set<string> = new Set([
-  'Weavile', 'Mamoswine', 'Abomasnow', 'Glaceon', 'Beartic',
-  'Avalugg', 'Vanilluxe', 'Delibird', 'Glalie', 'Froslass',
-  'Walrein', 'Lapras',
-]);
-
-const KNOWN_WIDE_GUARD: Set<string> = new Set([
-  'Scrafty', 'Conkeldurr', 'Machamp', 'Aegislash-Shield', 'Lucario',
-  'Mienshao', 'Heracross', 'Gallade', 'Passimian', 'Hariyama',
-]);
-
-const KNOWN_HELPING_HAND: Set<string> = new Set([
-  'Pikachu', 'Raichu', 'Togekiss', 'Mr. Rime', 'Hatterene',
-  'Dragonite', 'Clefable', 'Alcremie', 'Audino', 'Sinistcha',
-]);
+// Redirectors scan presets for Follow Me, Rage Powder, Ally Switch
+function getRedirectors(): Set<string> {
+  if (!_dblRedirectors) _dblRedirectors = buildMoveRoleSet(REDIRECT_MOVES);
+  return _dblRedirectors;
+}
+// Backward-compat alias objects used by scoring functions:
+const KNOWN_FOLLOW_ME   = { has: (s: string) => getRedirectors().has(s) };
+const KNOWN_RAGE_POWDER = { has: (s: string) => getRedirectors().has(s) };
 
 // Spread-move learners — a rough allowlist of Pokemon that run
 // major spread attacks in Doubles. We use BST/types/signature to

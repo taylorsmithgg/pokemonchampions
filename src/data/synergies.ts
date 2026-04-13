@@ -1,10 +1,18 @@
 // Dynamic synergy recommendation engine
-// All analysis is algorithmic — derived from @smogon/calc type chart, stats, and ability data
-// No hardcoded pairings
+// All analysis is algorithmic — derived from @smogon/calc type chart,
+// stats, ability data, preset movesets, and live usage stats.
+// NO hardcoded species lists. Every classification is derived from
+// the data so it stays correct as the roster / preset library evolves.
 
 import { getAvailablePokemon, getPokemonData, getTypeEffectiveness, getDefensiveMultiplier } from './champions';
 import { PRESETS, type PokemonPreset } from './presets';
 import { NORMAL_TIER_LIST } from './tierlist';
+import {
+  speciesRunsMove, speciesHasAbility as sharedSpeciesHasAbility,
+  likelyHasSpreadEQ as sharedLikelyHasSpreadEQ,
+  SETUP_MOVES, SUB_PASS_MOVES, PIVOT_MOVES, PRIORITY_MOVES,
+  SACRIFICE_SCALE_MOVES, SACRIFICE_SCALE_ABILITIES,
+} from './moveIndex';
 
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -463,31 +471,55 @@ function scoreSupportSynergy(a: AnalyzedPokemon, b: AnalyzedPokemon): SynergyRea
 // Detects emergent synergies that go beyond type chart coverage:
 // spread-move + ability-immunity healing, Sub-passing + setup,
 // sacrifice scaling, priority chains, and weather-stacking.
+//
+// ALL classification is derived dynamically from:
+//   1. Abilities via getPokemonData().abilities
+//   2. Competitive moves via PRESETS + live usage stats
+//   3. Base stats + typing as heuristic fallback
+// NO hardcoded species lists. Adding a preset or updating a roster
+// entry automatically enrolls species into synergy detection.
 
-// Species known to carry specific Doubles-combo moves. Since we lack
-// full learnset data we maintain a compact lookup here.
-const SHED_TAIL_USERS = new Set(['Orthworm', 'Cyclizar']);
-const LAST_RESPECTS_USERS = new Set(['Basculegion', 'Houndstone']);
-const SUPREME_OVERLORD_USERS = new Set(['Kingambit']);
-const SPREAD_EQ_USERS = new Set([
-  'Garchomp', 'Excadrill', 'Hippowdon', 'Rhyperior', 'Mamoswine',
-  'Gliscor', 'Tyranitar', 'Sandaconda', 'Krookodile',
-]);
-const SETUP_MOVE_USERS = new Set([
-  'Garchomp', 'Dragonite', 'Volcarona', 'Mimikyu', 'Kingambit',
-  'Weavile', 'Meowscarada', 'Gyarados', 'Scizor', 'Lucario',
-  'Clefable', 'Sinistcha', 'Palafin', 'Conkeldurr',
-]);
-const FLIP_TURN_USERS = new Set(['Palafin', 'Greninja', 'Barraskewda']);
+// ─── Combo-detection helpers (delegated to shared moveIndex) ───────
+//
+// All move/ability classification is in moveIndex.ts — the shared
+// utility scans presets + live data + gen9 abilities so adding a
+// preset automatically updates every downstream consumer.
+
+function hasSetupAccess(species: string): boolean {
+  return speciesRunsMove(species, SETUP_MOVES);
+}
+
+function hasSubPass(species: string): boolean {
+  return speciesRunsMove(species, SUB_PASS_MOVES);
+}
+
+function hasPivotMove(species: string): boolean {
+  return speciesRunsMove(species, PIVOT_MOVES);
+}
+
+function hasPriorityAccess(species: string): boolean {
+  return speciesRunsMove(species, PRIORITY_MOVES);
+}
+
+function hasSacrificeScaling(species: string): boolean {
+  if (speciesRunsMove(species, SACRIFICE_SCALE_MOVES)) return true;
+  for (const ab of SACRIFICE_SCALE_ABILITIES) {
+    if (sharedSpeciesHasAbility(species, ab)) return true;
+  }
+  return false;
+}
+
+// Re-export under local names for scoreDoublesCombos
+const likelyHasSpreadEQ = sharedLikelyHasSpreadEQ;
+const speciesHasAbility = sharedSpeciesHasAbility;
 
 function scoreDoublesCombos(a: AnalyzedPokemon, b: AnalyzedPokemon): SynergyReason[] {
   const reasons: SynergyReason[] = [];
 
-  // 1. Spread Earthquake + ability-immune partner
-  //    If A uses spread EQ and B is immune to Ground via ability
-  //    (Earth Eater on Orthworm, Levitate on Rotom forms), B can
-  //    safely sit next to A while EQ hits both opponents.
-  if (SPREAD_EQ_USERS.has(a.name) && b.immunities.has('Ground')) {
+  // 1. Spread Earthquake + ability-immune/healing partner
+  //    Derived from: likelyHasSpreadEQ() scans presets + base stats;
+  //    Ground immunity scans abilities (Earth Eater, Levitate) + typing.
+  if (likelyHasSpreadEQ(a.name) && b.immunities.has('Ground')) {
     const heals = b.abilityCategories.some(c => c.healFromType === 'Ground');
     reasons.push({
       type: 'support',
@@ -498,7 +530,7 @@ function scoreDoublesCombos(a: AnalyzedPokemon, b: AnalyzedPokemon): SynergyReas
       strength: heals ? 4 : 3,
     });
   }
-  if (SPREAD_EQ_USERS.has(b.name) && a.immunities.has('Ground')) {
+  if (likelyHasSpreadEQ(b.name) && a.immunities.has('Ground')) {
     const heals = a.abilityCategories.some(c => c.healFromType === 'Ground');
     reasons.push({
       type: 'support',
@@ -511,17 +543,17 @@ function scoreDoublesCombos(a: AnalyzedPokemon, b: AnalyzedPokemon): SynergyReas
   }
 
   // 2. Shed Tail → setup sweeper
-  //    A uses Shed Tail to pass a Substitute to B, who then sets up
-  //    behind the free Sub (Swords Dance, Nasty Plot, Dragon Dance).
-  if (SHED_TAIL_USERS.has(a.name) && SETUP_MOVE_USERS.has(b.name)) {
+  //    Derived from: hasSubPass() scans presets for Shed Tail;
+  //    hasSetupAccess() scans presets for SD/DD/NP/CM/etc.
+  if (hasSubPass(a.name) && hasSetupAccess(b.name)) {
     reasons.push({
       type: 'support',
       label: 'Shed Tail → Setup',
-      description: `${a.name} passes a Substitute via Shed Tail → ${b.name} sets up behind it for free. One of the strongest Doubles openers in Champions.`,
+      description: `${a.name} passes a Substitute via Shed Tail → ${b.name} sets up behind it for free. One of the strongest openers in Champions.`,
       strength: 4,
     });
   }
-  if (SHED_TAIL_USERS.has(b.name) && SETUP_MOVE_USERS.has(a.name)) {
+  if (hasSubPass(b.name) && hasSetupAccess(a.name)) {
     reasons.push({
       type: 'support',
       label: 'Shed Tail → Setup',
@@ -531,62 +563,83 @@ function scoreDoublesCombos(a: AnalyzedPokemon, b: AnalyzedPokemon): SynergyReas
   }
 
   // 3. Sacrifice scaling (Last Respects / Supreme Overlord)
-  //    Gains power as allies faint — pairs with aggressive leads and
-  //    sacrifice-style partners (Orthworm Shed Tail, suicide Froslass).
-  if (LAST_RESPECTS_USERS.has(b.name) || SUPREME_OVERLORD_USERS.has(b.name)) {
-    if (a.bulkTier === 'frail' || SHED_TAIL_USERS.has(a.name)) {
-      const mechanic = LAST_RESPECTS_USERS.has(b.name) ? 'Last Respects' : 'Supreme Overlord';
+  //    Derived from: hasSacrificeScaling() scans presets for Last Respects
+  //    + abilities for Supreme Overlord.
+  if (hasSacrificeScaling(b.name)) {
+    if (a.bulkTier === 'frail' || hasSubPass(a.name)) {
       reasons.push({
         type: 'offensive',
-        label: `${mechanic} Enabler`,
-        description: `${a.name} goes down early (or sacrifices via Shed Tail) → ${b.name}'s ${mechanic} scales up. Each fainted ally adds massive damage.`,
+        label: 'Sacrifice Scaling Enabler',
+        description: `${a.name} goes down early (or sacrifices via Shed Tail) → ${b.name}'s damage scales up with each fainted ally.`,
         strength: 3,
       });
     }
   }
-  if (LAST_RESPECTS_USERS.has(a.name) || SUPREME_OVERLORD_USERS.has(a.name)) {
-    if (b.bulkTier === 'frail' || SHED_TAIL_USERS.has(b.name)) {
-      const mechanic = LAST_RESPECTS_USERS.has(a.name) ? 'Last Respects' : 'Supreme Overlord';
+  if (hasSacrificeScaling(a.name)) {
+    if (b.bulkTier === 'frail' || hasSubPass(b.name)) {
       reasons.push({
         type: 'offensive',
-        label: `${mechanic} Enabler`,
-        description: `${b.name} goes down early → ${a.name}'s ${mechanic} scales up.`,
+        label: 'Sacrifice Scaling Enabler',
+        description: `${b.name} goes down early → ${a.name}'s damage scales up with each fainted ally.`,
         strength: 3,
       });
     }
   }
 
-  // 4. Palafin pivot chain (Flip Turn out → Hero form → Jet Punch priority)
-  if (FLIP_TURN_USERS.has(a.name) && a.name === 'Palafin') {
-    // Palafin needs a bulky partner to switch into after Flip Turn
+  // 4. Form-change pivot chain (species with pivot moves + form-change abilities)
+  //    Derived from: hasPivotMove() scans presets for Flip Turn / U-turn /
+  //    Volt Switch; the "Zero to Hero" ability is detected dynamically.
+  const aHasFormChange = speciesHasAbility(a.name, 'zero to hero');
+  const bHasFormChange = speciesHasAbility(b.name, 'zero to hero');
+  if (aHasFormChange && hasPivotMove(a.name)) {
     if (b.bulkTier === 'bulky' || b.bulkTier === 'very-bulky' || b.abilityCategories.some(c => c.intimidate)) {
       reasons.push({
         type: 'support',
-        label: 'Hero Form Enabler',
-        description: `Palafin Flip Turns out (transforms to Hero form) → ${b.name} absorbs the incoming attack → Palafin comes back with 160 base Atk and Jet Punch priority.`,
+        label: 'Form-Change Enabler',
+        description: `${a.name} pivots out (transforms via ${a.abilities[0]}) → ${b.name} absorbs the hit → ${a.name} returns in powered-up form with priority access.`,
         strength: 3,
       });
     }
   }
-  if (FLIP_TURN_USERS.has(b.name) && b.name === 'Palafin') {
+  if (bHasFormChange && hasPivotMove(b.name)) {
     if (a.bulkTier === 'bulky' || a.bulkTier === 'very-bulky' || a.abilityCategories.some(c => c.intimidate)) {
       reasons.push({
         type: 'support',
-        label: 'Hero Form Enabler',
-        description: `Palafin Flip Turns out → ${a.name} takes the hit → Palafin returns as Hero form with Jet Punch priority.`,
+        label: 'Form-Change Enabler',
+        description: `${b.name} pivots out (transforms via ${b.abilities[0]}) → ${a.name} absorbs the hit → ${b.name} returns powered up.`,
         strength: 3,
       });
     }
   }
 
-  // 5. Weather-stacking STAB (multiple same-type attackers in weather)
-  //    E.g., two Ice attackers under Snow both fire 100% Blizzard.
+  // 5. Hospitality healing partner
+  //    Derived from: speciesHasAbility() scans for "Hospitality".
+  const aHasHospitality = speciesHasAbility(a.name, 'hospitality');
+  const bHasHospitality = speciesHasAbility(b.name, 'hospitality');
+  if (bHasHospitality && (a.bulkTier === 'frail' || a.bulkTier === 'moderate')) {
+    reasons.push({
+      type: 'support',
+      label: 'Hospitality Healing',
+      description: `${b.name}'s Hospitality heals ${a.name} by 25% on every switch-in — sustains fragile attackers across the game.`,
+      strength: 2,
+    });
+  }
+  if (aHasHospitality && (b.bulkTier === 'frail' || b.bulkTier === 'moderate')) {
+    reasons.push({
+      type: 'support',
+      label: 'Hospitality Healing',
+      description: `${a.name}'s Hospitality heals ${b.name} by 25% on every switch-in.`,
+      strength: 2,
+    });
+  }
+
+  // 6. Weather-stacking STAB
+  //    Purely type-derived — no hardcoded species.
   if (a.types.includes('Ice') && b.types.includes('Ice')) {
-    // Both get Snow Def boost + Blizzard accuracy
     reasons.push({
       type: 'weather',
       label: 'Double Blizzard',
-      description: `Both ${a.name} and ${b.name} are Ice-type — under Snow they both fire 100% Blizzard and get +50% Defense. Devastating spread damage.`,
+      description: `Both ${a.name} and ${b.name} are Ice-type — under Snow they both fire 100% Blizzard and get +50% Defense.`,
       strength: 3,
     });
   }
@@ -597,6 +650,22 @@ function scoreDoublesCombos(a: AnalyzedPokemon, b: AnalyzedPokemon): SynergyReas
       description: `Both ${a.name} and ${b.name} are Fire-type — under Sun both get +50% Fire moves. Pair with a Drought setter.`,
       strength: 2,
     });
+  }
+
+  // 7. Priority chaining — two priority users cover different types
+  //    Derived from: hasPriorityAccess() scans presets for priority moves.
+  if (hasPriorityAccess(a.name) && hasPriorityAccess(b.name)) {
+    const aTypes = new Set(a.types);
+    const bTypes = new Set(b.types);
+    const overlap = [...aTypes].filter(t => bTypes.has(t)).length;
+    if (overlap === 0) {
+      reasons.push({
+        type: 'offensive',
+        label: 'Priority Coverage Duo',
+        description: `Both ${a.name} and ${b.name} have priority moves with non-overlapping STAB — covers more endgame cleanup threats.`,
+        strength: 2,
+      });
+    }
   }
 
   return reasons;

@@ -9,6 +9,7 @@ import { PRESETS } from '../data/presets';
 import { NORMAL_TIER_LIST } from '../data/tierlist';
 import { getCachedUsageStats, getLiveTeammates } from '../data/liveData';
 import { analyzeTeamLineups, DEFAULT_FORMAT, type TeamFlexibilityReport, type BattleFormat } from './lineupAnalysis';
+import { buildMoveRoleSet } from '../data/moveIndex';
 import type { PokemonState } from '../types';
 
 
@@ -251,9 +252,14 @@ export function auditTeam(team: PokemonState[], format: BattleFormat = DEFAULT_F
   // Detect Pokemon that COULD provide speed control but don't have
   // the move equipped. Filtered through isChampionsPokemon so stale
   // species (Rillaboom etc.) don't create phantom suggestions.
-  const KNOWN_TR_SETTERS = ['Mimikyu', 'Hatterene', 'Armarouge', 'Slowbro', 'Slowking', 'Reuniclus', 'Alcremie'].filter(isChampionsPokemon);
-  const KNOWN_TAILWIND = ['Whimsicott', 'Talonflame', 'Pelipper', 'Corviknight', 'Altaria', 'Dragonite'].filter(isChampionsPokemon);
-  const KNOWN_FAKE_OUT = ['Incineroar', 'Meowscarada', 'Kangaskhan', 'Sneasler', 'Lopunny'].filter(isChampionsPokemon);
+  // Dynamic role detection — derived from moveIndex presets + live data.
+  // NO hardcoded species. Adding a preset with Trick Room auto-enrolls.
+  const trSet = buildMoveRoleSet(new Set(['Trick Room']));
+  const twSet = buildMoveRoleSet(new Set(['Tailwind']));
+  const foSet = buildMoveRoleSet(new Set(['Fake Out']));
+  const KNOWN_TR_SETTERS = [...trSet].filter(isChampionsPokemon);
+  const KNOWN_TAILWIND = [...twSet].filter(isChampionsPokemon);
+  const KNOWN_FAKE_OUT = [...foSet].filter(isChampionsPokemon);
 
   const potentialTR = members.filter(m => KNOWN_TR_SETTERS.includes(m.species) && !hasMove(m, 'Trick Room'));
   const potentialTailwind = members.filter(m => KNOWN_TAILWIND.includes(m.species) && !hasMove(m, 'Tailwind'));
@@ -437,13 +443,13 @@ export function auditTeam(team: PokemonState[], format: BattleFormat = DEFAULT_F
 
   // ─── 5. META PREPAREDNESS ─────────────────────────────────────
 
-  // Check if team has an answer for top meta threats. Species
-  // filtered through isChampionsPokemon so stale VGC entries
-  // (Amoonguss, Rillaboom, Gholdengo, etc.) don't leak into the
-  // audit and produce warnings for threats that don't exist in
-  // Champions.
-  const metaThreats = ['Garchomp', 'Incineroar', 'Dragapult', 'Whimsicott', 'Greninja', 'Mimikyu', 'Dragonite', 'Palafin', 'Sinistcha', 'Kingambit']
-    .filter(n => isChampionsPokemon(n));
+  // Derive meta threats dynamically from the tier list — S and A+
+  // tier Pokemon are the threats every team should prepare for.
+  // No hardcoded species: updating the tier list auto-updates the
+  // audit warnings.
+  const metaThreats = NORMAL_TIER_LIST
+    .filter(e => (e.tier === 'S' || e.tier === 'A+' || e.tier === 'A') && isChampionsPokemon(e.name))
+    .map(e => e.name);
   for (const threat of metaThreats) {
     if (members.some(m => m.species === threat)) continue; // You have it
 

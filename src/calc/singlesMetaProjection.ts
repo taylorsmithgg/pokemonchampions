@@ -16,6 +16,11 @@
 
 import { getAvailablePokemon, getPokemonData, getDefensiveMultiplier, hasChampionsMega } from '../data/champions';
 import { MEGA_STONE_MAP } from '../data/championsRoster';
+import {
+  buildSetupIndex, buildMoveRoleSet,
+  HAZARD_MOVES, HAZARD_REMOVAL_MOVES, RECOVERY_MOVES, PIVOT_MOVES as PIVOT_MOVE_SET,
+  PHAZING_MOVES, STATUS_MOVES,
+} from '../data/moveIndex';
 
 // ─── Types ─────────────────────────────────────────────────────────
 
@@ -133,93 +138,69 @@ const SINGLES_VACANT_ROLES: { role: string; missing: string; fillers: string[]; 
 // give the projection engine a heuristic for "could this Pokemon
 // plausibly run X".
 
-const KNOWN_SETUP_MOVES: Record<string, 'physical' | 'special' | 'both'> = {
-  Garchomp: 'physical',        // Swords Dance
-  Gyarados: 'physical',        // Dragon Dance
-  Dragonite: 'physical',       // Dragon Dance
-  Charizard: 'both',
-  Scizor: 'physical',          // Swords Dance
-  Weavile: 'physical',         // Swords Dance
-  Tyranitar: 'physical',       // Dragon Dance
-  Volcarona: 'special',        // Quiver Dance
-  Mimikyu: 'physical',         // Swords Dance
-  Lucario: 'both',             // Swords Dance / Nasty Plot
-  Gengar: 'special',           // Nasty Plot
-  Gardevoir: 'special',        // Calm Mind
-  Alakazam: 'special',         // Calm Mind
-  Manectric: 'special',        // Nasty Plot
-  Clefable: 'special',         // Calm Mind
-  Meowscarada: 'physical',     // Swords Dance
-  Kingambit: 'physical',       // Swords Dance
-  Sylveon: 'special',          // Calm Mind
-  Houndoom: 'special',         // Nasty Plot
-  Goodra: 'special',           // Curse
-  Conkeldurr: 'physical',      // Bulk Up
-  Hydreigon: 'special',        // Nasty Plot
-  Archaludon: 'special',       // Electro Shot
-  Baxcalibur: 'physical',      // Dragon Dance
-  Sneasler: 'physical',        // Swords Dance
-  Infernape: 'both',
-  Tinkaton: 'physical',
-  Kleavor: 'physical',
-  Ceruledge: 'physical',
-  Armarouge: 'special',
-  Roserade: 'special',         // Quiver Dance? no — uses Nasty Plot
-  Empoleon: 'special',
-  Blastoise: 'special',        // Shell Smash via Mega? no
-  Typhlosion: 'special',
-  Feraligatr: 'physical',      // Dragon Dance
-  'Aegislash-Shield': 'both',  // Swords Dance with King's Shield
-  Aerodactyl: 'physical',      // Rock Polish
-  Palafin: 'physical',         // Bulk Up
-  Sinistcha: 'special',        // Calm Mind
-  'Rotom-Frost': 'special',    // Nasty Plot
-};
+// ─── Dynamic role classification ───────────────────────────────────
+// All role sets are derived from presets + live data + gen9 abilities
+// via the shared moveIndex. NO hardcoded species lists — adding a
+// preset auto-enrolls a species into role detection.
 
-const KNOWN_HAZARD_SETTERS = new Set([
-  'Hippowdon', 'Tyranitar', 'Garchomp', 'Skarmory', 'Forretress',
-  'Ferrothorn', 'Corviknight', 'Glimmora', 'Sandaconda', 'Avalugg',
-  'Mamoswine', 'Rhyperior', 'Aerodactyl', 'Excadrill', 'Empoleon',
-  'Kingambit', 'Archaludon', 'Orthworm',
-]);
+// Lazy-initialized caches — built once on first access.
+let _setupMoves: Record<string, 'physical' | 'special' | 'both'> | null = null;
+let _hazardSetters: Set<string> | null = null;
+let _hazardRemovers: Set<string> | null = null;
+let _recoveryUsers: Set<string> | null = null;
+let _phazers: Set<string> | null = null;
+let _statusSpreaders: Set<string> | null = null;
+let _pivotUsers: Set<string> | null = null;
 
-const KNOWN_HAZARD_REMOVERS = new Set([
-  'Corviknight', 'Dragapult', 'Scizor', 'Gliscor', 'Hatterene',
-  'Mandibuzz', 'Tornadus', 'Excadrill', 'Forretress', 'Maushold',
-]);
+function getKnownSetupMoves(): Record<string, 'physical' | 'special' | 'both'> {
+  if (!_setupMoves) _setupMoves = buildSetupIndex();
+  return _setupMoves;
+}
+function getKnownHazardSetters(): Set<string> {
+  if (!_hazardSetters) _hazardSetters = buildMoveRoleSet(HAZARD_MOVES);
+  return _hazardSetters;
+}
+function getKnownHazardRemovers(): Set<string> {
+  if (!_hazardRemovers) _hazardRemovers = buildMoveRoleSet(HAZARD_REMOVAL_MOVES);
+  return _hazardRemovers;
+}
+function getKnownRecoveryUsers(): Set<string> {
+  if (!_recoveryUsers) _recoveryUsers = buildMoveRoleSet(RECOVERY_MOVES);
+  return _recoveryUsers;
+}
+function getKnownPhazers(): Set<string> {
+  if (!_phazers) _phazers = buildMoveRoleSet(PHAZING_MOVES);
+  return _phazers;
+}
+function getKnownStatusSpreaders(): Set<string> {
+  if (!_statusSpreaders) _statusSpreaders = buildMoveRoleSet(STATUS_MOVES);
+  return _statusSpreaders;
+}
+function getKnownPivotUsers(): Set<string> {
+  if (!_pivotUsers) _pivotUsers = buildMoveRoleSet(PIVOT_MOVE_SET);
+  return _pivotUsers;
+}
 
-const KNOWN_RECOVERY_USERS = new Set([
-  'Hippowdon', 'Clefable', 'Gardevoir', 'Slowbro', 'Slowking',
-  'Umbreon', 'Sylveon', 'Volcarona', 'Dragonite', 'Gliscor',
-  'Corviknight', 'Alcremie', 'Audino', 'Florges', 'Alakazam',
-  'Milotic', 'Goodra', 'Primarina', 'Empoleon', 'Mandibuzz',
-  'Hatterene', 'Roserade', 'Trevenant', 'Gourgeist', 'Clefairy',
-  'Reuniclus', 'Avalugg', 'Meganium', 'Sinistcha',
-]);
+// Choice Scarf viability: derived from base speed ≥ 85 + offensive stats
+function isChoiceScarfViable(species: string): boolean {
+  const data = getPokemonData(species);
+  if (!data) return false;
+  const bs = data.baseStats;
+  return bs.spe >= 85 && Math.max(bs.atk, bs.spa) >= 90;
+}
 
-const KNOWN_PHAZERS = new Set([
-  'Hippowdon', 'Skarmory', 'Dragonite', 'Gyarados', 'Corviknight',
-  'Salamence', 'Ampharos', 'Mandibuzz', 'Goodra',
-]);
-
-const KNOWN_STATUS_SPREADERS = new Set([
-  'Gliscor', 'Clefable', 'Gardevoir', 'Sableye', 'Rotom',
-  'Hatterene', 'Chandelure', 'Arcanine', 'Talonflame', 'Corviknight',
-  'Dusclops', 'Banette', 'Mimikyu', 'Volcarona', 'Noivern',
-  'Sinistcha', 'Rotom-Frost',
-]);
-
-const KNOWN_PIVOT_MOVES = new Set([
-  'Incineroar', 'Corviknight', 'Scizor', 'Hydreigon', 'Greninja',
-  'Rotom', 'Dragapult', 'Whimsicott', 'Gengar', 'Tornadus',
-  'Thundurus', 'Flapple', 'Palafin', 'Rotom-Frost',
-]);
-
-const KNOWN_CHOICE_SCARF_USERS = new Set([
-  'Garchomp', 'Dragapult', 'Hydreigon', 'Greninja', 'Weavile',
-  'Infernape', 'Meowscarada', 'Gengar', 'Lucario', 'Salamence',
-  'Latios', 'Alakazam',
-]);
+// Backward-compat aliases for the scoring functions below.
+const KNOWN_SETUP_MOVES = new Proxy({} as Record<string, 'physical' | 'special' | 'both'>, {
+  get(_target, prop: string) { return getKnownSetupMoves()[prop]; },
+  has(_target, prop: string) { return prop in getKnownSetupMoves(); },
+});
+const KNOWN_HAZARD_SETTERS = { has: (s: string) => getKnownHazardSetters().has(s) };
+const KNOWN_HAZARD_REMOVERS = { has: (s: string) => getKnownHazardRemovers().has(s) };
+const KNOWN_RECOVERY_USERS = { has: (s: string) => getKnownRecoveryUsers().has(s) };
+const KNOWN_PHAZERS = { has: (s: string) => getKnownPhazers().has(s) };
+const KNOWN_STATUS_SPREADERS = { has: (s: string) => getKnownStatusSpreaders().has(s) };
+const KNOWN_PIVOT_MOVES = { has: (s: string) => getKnownPivotUsers().has(s) };
+const KNOWN_CHOICE_SCARF_USERS = { has: (s: string) => isChoiceScarfViable(s) };
 
 // ─── Core Scoring ──────────────────────────────────────────────────
 
