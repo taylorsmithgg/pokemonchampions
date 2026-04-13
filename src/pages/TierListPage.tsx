@@ -522,8 +522,16 @@ export function TierListPage() {
                   Mega ({MEGA_TIER_LIST.length})
                 </button>
               </div>
-              <input type="text" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)}
-                className="bg-poke-surface border border-poke-border rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-poke-red/50 w-40" />
+              <div className="relative flex-1 min-w-[180px] max-w-xs">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input type="text" placeholder="Search Pokemon, roles, notes..." value={search} onChange={e => setSearch(e.target.value)}
+                  className="w-full bg-poke-surface border border-poke-border rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-poke-red/50" />
+                {search && (
+                  <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white text-xs">✕</button>
+                )}
+              </div>
               <select value={filterTier} onChange={e => setFilterTier(e.target.value as any)} className="bg-poke-surface border border-poke-border rounded-lg text-xs text-white px-2 py-1.5">
                 <option value="all">All Tiers</option>
                 {TIER_DEFINITIONS.map(t => <option key={t.tier} value={t.tier}>{t.tier} Tier</option>)}
@@ -571,10 +579,10 @@ export function TierListPage() {
             {/* Tier groups */}
             {groupedByTier.map(group => (
               <div key={group.tier} className="mb-6">
-                <div className="flex items-center gap-2 mb-3">
+                <div className="sticky top-16 z-10 flex items-center gap-2 py-2 -mx-1 px-1 backdrop-blur-sm" style={{ backgroundColor: 'rgba(14,15,30,0.85)' }}>
                   <span className={`text-lg font-black ${group.color}`}>{group.tier}</span>
-                  <span className="text-xs text-slate-600">{group.description}</span>
-                  <span className="text-[10px] text-slate-700">({group.entries.length})</span>
+                  <span className="text-xs text-slate-500 font-medium">{group.description}</span>
+                  <span className="text-[10px] text-slate-700 ml-auto">{group.entries.length} Pokémon</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {group.entries.map((entry: TierEntry) => (

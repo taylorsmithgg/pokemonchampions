@@ -9,9 +9,11 @@ interface SearchSelectProps {
   label?: string;
   className?: string;
   renderOption?: (option: string) => React.ReactNode;
+  /** Optional comparator applied after filtering, before display. */
+  sortFn?: (a: string, b: string) => number;
 }
 
-export function SearchSelect({ options, value, onChange, placeholder = 'Select...', label, className = '', renderOption }: SearchSelectProps) {
+export function SearchSelect({ options, value, onChange, placeholder = 'Select...', label, className = '', renderOption, sortFn }: SearchSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
@@ -20,10 +22,16 @@ export function SearchSelect({ options, value, onChange, placeholder = 'Select..
   const triggerRef = useRef<HTMLDivElement>(null);
 
   const filtered = useMemo(() => {
-    if (!search) return options.slice(0, 100);
-    const lower = search.toLowerCase();
-    return options.filter(o => o.toLowerCase().includes(lower)).slice(0, 100);
-  }, [options, search]);
+    let result: string[];
+    if (!search) {
+      result = options.slice(0, 150);
+    } else {
+      const lower = search.toLowerCase();
+      result = options.filter(o => o.toLowerCase().includes(lower)).slice(0, 150);
+    }
+    if (sortFn) result.sort(sortFn);
+    return result;
+  }, [options, search, sortFn]);
 
   // Calculate dropdown position relative to viewport (fixed positioning)
   const updatePosition = useCallback(() => {

@@ -19,8 +19,9 @@ import {
   TYPE_COLORS,
 } from '../data/champions';
 import { getPresetsBySpecies } from '../data/presets';
-import { getTierForPokemon, TIER_DEFINITIONS } from '../data/tierlist';
+import { getTierForPokemon, TIER_DEFINITIONS, NORMAL_TIER_LIST } from '../data/tierlist';
 import { getSpriteUrl, getSpriteFallbackUrl } from '../utils/sprites';
+import { Sprite } from './Sprite';
 import { importShowdownSet, exportShowdownSet } from '../utils/importExport';
 import { LiveUsagePanel } from './LiveUsagePanel';
 import { useLiveData } from '../hooks/useLiveData';
@@ -135,6 +136,74 @@ function buildOptimizedState(species: string, level: number): PokemonState {
   return base;
 }
 
+// ─── Meta upgrade suggestion ────────────────────────────────────────
+// When a B or C tier Pokemon is selected, suggest higher-tier
+// alternatives that share a role or type coverage. Derived from the
+// tier list data — no hardcoded recommendations.
+
+interface MetaUpgrade {
+  species: string;
+  tier: string;
+  reason: string;
+}
+
+function getMetaUpgrades(selectedSpecies: string): MetaUpgrade[] {
+  const entry = getTierForPokemon(selectedSpecies);
+  if (!entry) return [];
+  // Only suggest upgrades for B/C tier picks
+  if (entry.tier === 'S' || entry.tier === 'A+' || entry.tier === 'A') return [];
+
+  const selectedData = getPokemonData(selectedSpecies);
+  if (!selectedData) return [];
+
+  const selectedTypes = new Set(selectedData.types.map((t: any) => t as string));
+  const selectedRoles = new Set(entry.roles || []);
+  const isPhys = selectedData.baseStats.atk > selectedData.baseStats.spa;
+
+  const upgrades: MetaUpgrade[] = [];
+
+  for (const candidate of NORMAL_TIER_LIST) {
+    if (candidate.name === selectedSpecies) continue;
+    if (candidate.tier !== 'S' && candidate.tier !== 'A+' && candidate.tier !== 'A') continue;
+
+    const candData = getPokemonData(candidate.name);
+    if (!candData) continue;
+    const candTypes = new Set(candData.types.map((t: any) => t as string));
+    const candIsPhys = candData.baseStats.atk > candData.baseStats.spa;
+
+    // Score relevance: shared type, shared role, same offensive profile
+    let score = 0;
+    const reasons: string[] = [];
+
+    // Shared type
+    for (const t of selectedTypes) {
+      if (candTypes.has(t)) { score += 2; reasons.push(`same ${t} STAB`); break; }
+    }
+
+    // Shared role
+    const candRoles = new Set(candidate.roles || []);
+    for (const r of selectedRoles) {
+      if (candRoles.has(r)) { score += 3; reasons.push(`fills the same ${r} role`); break; }
+    }
+
+    // Same offensive profile
+    if (isPhys === candIsPhys) { score += 1; reasons.push(isPhys ? 'physical attacker' : 'special attacker'); }
+
+    if (score >= 3 && reasons.length > 0) {
+      upgrades.push({
+        species: candidate.name,
+        tier: candidate.tier,
+        reason: `${candidate.tier} tier — ${reasons[0]}`,
+      });
+    }
+  }
+
+  // Sort by tier (S > A+ > A) then by relevance
+  const tierOrder: Record<string, number> = { S: 0, 'A+': 1, A: 2 };
+  upgrades.sort((a, b) => (tierOrder[a.tier] ?? 3) - (tierOrder[b.tier] ?? 3));
+  return upgrades.slice(0, 3);
+}
+
 export function PokemonPanel({ state, onChange, side, teammateItems = [] }: PokemonPanelProps) {
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState('');
@@ -246,18 +315,31 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
               }}
               placeholder="Choose Pokemon..."
               label="Pokemon"
+              sortFn={(a, b) => {
+                const tierOrder: Record<string, number> = { S: 0, 'A+': 1, A: 2, B: 3, C: 4 };
+                const ta = getTierForPokemon(a);
+                const tb = getTierForPokemon(b);
+                const ra = ta ? (tierOrder[ta.tier] ?? 5) : 5;
+                const rb = tb ? (tierOrder[tb.tier] ?? 5) : 5;
+                if (ra !== rb) return ra - rb;
+                return a.localeCompare(b);
+              }}
               renderOption={(name) => {
                 const d = getPokemonData(name);
                 const t = getTierForPokemon(name);
                 const td = t ? TIER_DEFINITIONS.find(x => x.tier === t.tier) : null;
                 return (
                   <div className="flex items-center gap-2">
+                    {td ? (
+                      <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${td.bgColor} ${td.color} border ${td.borderColor} shrink-0 w-7 text-center`}>{t!.tier}</span>
+                    ) : (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700/30 text-slate-600 border border-slate-700/30 shrink-0 w-7 text-center">—</span>
+                    )}
                     <span className="flex-1 truncate">{name}</span>
                     <GenBadge species={name} />
                     {d && d.types.map((tp: string) => (
                       <span key={tp} className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: TYPE_COLORS[tp] || '#666' }} />
                     ))}
-                    {td && <span className={`text-[10px] font-bold shrink-0 ${td.color}`}>{t!.tier}</span>}
                   </div>
                 );
               }}
@@ -280,6 +362,48 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
                     </div>
                   )}
                 </button>
+              );
+            })()}
+            {/* Meta upgrade suggestion — shown for B/C tier picks */}
+            {state.species && (() => {
+              const upgrades = getMetaUpgrades(state.species);
+              if (upgrades.length === 0) return null;
+              const currentTier = getTierForPokemon(state.species);
+              return (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400 mb-2">
+                    {currentTier?.tier} Tier — consider a meta upgrade
+                  </div>
+                  <div className="space-y-1.5">
+                    {upgrades.map(u => {
+                      const td = TIER_DEFINITIONS.find(d => d.tier === u.tier);
+                      return (
+                        <button
+                          key={u.species}
+                          onClick={() => {
+                            const data = getPokemonData(u.species);
+                            onChange({
+                              ...createDefaultPokemonState(),
+                              species: u.species,
+                              ability: (data?.abilities?.[0] || '') as string,
+                            });
+                          }}
+                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md bg-poke-surface border border-poke-border hover:border-amber-500/40 transition-colors text-left"
+                        >
+                          <Sprite species={u.species} size="sm" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-bold text-white">{u.species}</span>
+                              {td && <span className={`text-[9px] font-black px-1 py-0 rounded ${td.bgColor} ${td.color} border ${td.borderColor}`}>{u.tier}</span>}
+                            </div>
+                            <div className="text-[10px] text-slate-500 truncate">{u.reason}</div>
+                          </div>
+                          <span className="text-[10px] text-amber-400 shrink-0">Swap →</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               );
             })()}
             {presets.length > 0 && (
