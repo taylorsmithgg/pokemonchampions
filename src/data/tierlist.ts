@@ -372,17 +372,38 @@ const NORMAL_TIER_LIST_RAW: TierEntry[] = [
   },
   {
     name: 'Palafin',
-    tier: 'C',
-    roles: ['Physical Sweeper'],
+    tier: 'A',
+    roles: ['Physical Sweeper', 'Pivot'],
     types: ['Water'],
-    note: 'Zero to Hero form change. Enormous Attack in Hero form.',
+    note: 'Zero to Hero gives 160 base Atk after one switch. Jet Punch priority + Flip Turn pivot. Must switch out and back in to transform — build the team around that.',
   },
   {
     name: 'Basculegion',
-    tier: 'C',
+    tier: 'B',
     roles: ['Physical Sweeper', 'Special Sweeper'],
     types: ['Water', 'Ghost'],
-    note: 'Adaptability + Swift Swim. Water/Ghost STAB coverage.',
+    note: 'Adaptability doubles STAB → effectively 2× on Water and Ghost moves. Last Respects scales with fainted allies. Wave Crash / Shadow Ball wallbreaker.',
+  },
+  {
+    name: 'Sinistcha',
+    tier: 'A',
+    roles: ['Support', 'Special Wall'],
+    types: ['Grass', 'Ghost'],
+    note: 'Hospitality heals partner on switch-in (Doubles). Matcha Gotcha is a 80 BP draining Fire/Grass spread move with 20% burn chance. Strength Sap walls physical threats.',
+  },
+  {
+    name: 'Orthworm',
+    tier: 'B',
+    roles: ['Wall', 'Hazard Setter'],
+    types: ['Steel'],
+    note: 'Earth Eater heals from Ground moves — immune to the most common coverage type. Shed Tail creates a Substitute for a teammate. Iron Defense + Body Press wall.',
+  },
+  {
+    name: 'Rotom-Frost',
+    tier: 'B',
+    roles: ['Special Sweeper', 'Pivot'],
+    types: ['Electric', 'Ice'],
+    note: 'Blizzard STAB + Volt Switch pivot. Electric/Ice coverage hits Dragon/Flying/Ground. Levitate gives Ground immunity. Strong Snow archetype partner.',
   },
 ];
 

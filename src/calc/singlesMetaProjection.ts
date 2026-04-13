@@ -171,13 +171,16 @@ const KNOWN_SETUP_MOVES: Record<string, 'physical' | 'special' | 'both'> = {
   Feraligatr: 'physical',      // Dragon Dance
   'Aegislash-Shield': 'both',  // Swords Dance with King's Shield
   Aerodactyl: 'physical',      // Rock Polish
+  Palafin: 'physical',         // Bulk Up
+  Sinistcha: 'special',        // Calm Mind
+  'Rotom-Frost': 'special',    // Nasty Plot
 };
 
 const KNOWN_HAZARD_SETTERS = new Set([
   'Hippowdon', 'Tyranitar', 'Garchomp', 'Skarmory', 'Forretress',
   'Ferrothorn', 'Corviknight', 'Glimmora', 'Sandaconda', 'Avalugg',
   'Mamoswine', 'Rhyperior', 'Aerodactyl', 'Excadrill', 'Empoleon',
-  'Kingambit', 'Archaludon',
+  'Kingambit', 'Archaludon', 'Orthworm',
 ]);
 
 const KNOWN_HAZARD_REMOVERS = new Set([
@@ -191,7 +194,7 @@ const KNOWN_RECOVERY_USERS = new Set([
   'Corviknight', 'Alcremie', 'Audino', 'Florges', 'Alakazam',
   'Milotic', 'Goodra', 'Primarina', 'Empoleon', 'Mandibuzz',
   'Hatterene', 'Roserade', 'Trevenant', 'Gourgeist', 'Clefairy',
-  'Reuniclus', 'Avalugg', 'Meganium',
+  'Reuniclus', 'Avalugg', 'Meganium', 'Sinistcha',
 ]);
 
 const KNOWN_PHAZERS = new Set([
@@ -203,12 +206,13 @@ const KNOWN_STATUS_SPREADERS = new Set([
   'Gliscor', 'Clefable', 'Gardevoir', 'Sableye', 'Rotom',
   'Hatterene', 'Chandelure', 'Arcanine', 'Talonflame', 'Corviknight',
   'Dusclops', 'Banette', 'Mimikyu', 'Volcarona', 'Noivern',
+  'Sinistcha', 'Rotom-Frost',
 ]);
 
 const KNOWN_PIVOT_MOVES = new Set([
   'Incineroar', 'Corviknight', 'Scizor', 'Hydreigon', 'Greninja',
   'Rotom', 'Dragapult', 'Whimsicott', 'Gengar', 'Tornadus',
-  'Thundurus', 'Flapple',
+  'Thundurus', 'Flapple', 'Palafin', 'Rotom-Frost',
 ]);
 
 const KNOWN_CHOICE_SCARF_USERS = new Set([

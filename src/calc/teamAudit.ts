@@ -442,7 +442,7 @@ export function auditTeam(team: PokemonState[], format: BattleFormat = DEFAULT_F
   // (Amoonguss, Rillaboom, Gholdengo, etc.) don't leak into the
   // audit and produce warnings for threats that don't exist in
   // Champions.
-  const metaThreats = ['Garchomp', 'Incineroar', 'Dragapult', 'Whimsicott', 'Greninja', 'Mimikyu', 'Dragonite']
+  const metaThreats = ['Garchomp', 'Incineroar', 'Dragapult', 'Whimsicott', 'Greninja', 'Mimikyu', 'Dragonite', 'Palafin', 'Sinistcha', 'Kingambit']
     .filter(n => isChampionsPokemon(n));
   for (const threat of metaThreats) {
     if (members.some(m => m.species === threat)) continue; // You have it

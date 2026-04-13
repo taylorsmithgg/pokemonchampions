@@ -173,7 +173,7 @@ const KNOWN_RAGE_POWDER: Set<string> = new Set([
 ]);
 
 const KNOWN_FOLLOW_ME: Set<string> = new Set([
-  'Clefable', 'Togekiss', 'Audino', 'Castform',
+  'Clefable', 'Togekiss', 'Audino', 'Castform', 'Sinistcha',
 ]);
 
 const KNOWN_TAILWIND: Set<string> = new Set([
@@ -201,7 +201,7 @@ const KNOWN_WIDE_GUARD: Set<string> = new Set([
 
 const KNOWN_HELPING_HAND: Set<string> = new Set([
   'Pikachu', 'Raichu', 'Togekiss', 'Mr. Rime', 'Hatterene',
-  'Dragonite', 'Clefable', 'Alcremie', 'Audino',
+  'Dragonite', 'Clefable', 'Alcremie', 'Audino', 'Sinistcha',
 ]);
 
 // Spread-move learners — a rough allowlist of Pokemon that run
