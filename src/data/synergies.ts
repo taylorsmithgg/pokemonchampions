@@ -33,6 +33,7 @@ interface AbilityCategory {
   speedControl?: 'boost' | 'trick-room-setter'; // from moves
   priority?: boolean;       // has priority moves
   immunityType?: string;    // grants immunity to a type
+  healFromType?: string;    // heals 25% HP when hit by this type (Earth Eater, Water Absorb, etc.)
   statDrop?: boolean;       // drops opponent stats on switch-in
 }
 
@@ -74,7 +75,16 @@ function classifyAbility(name: string): AbilityCategory {
   if (['water absorb', 'storm drain', 'dry skin'].includes(lower)) cat.immunityType = 'Water';
   if (['lightning rod', 'volt absorb', 'motor drive'].includes(lower)) cat.immunityType = 'Electric';
   if (['levitate'].includes(lower)) cat.immunityType = 'Ground';
+  if (['earth eater'].includes(lower)) cat.immunityType = 'Ground';
   if (['sap sipper'].includes(lower)) cat.immunityType = 'Grass';
+
+  // Healing from absorbed type — Earth Eater and Water Absorb
+  // heal 25% when hit by the absorbed type. This makes them
+  // positive-synergy partners with spread-move users of that type
+  // (e.g., Earthquake next to Earth Eater heals instead of hurting).
+  if (['earth eater', 'water absorb', 'storm drain', 'flash fire', 'lightning rod', 'volt absorb'].includes(lower)) {
+    cat.healFromType = cat.immunityType;
+  }
 
   return cat;
 }
@@ -449,6 +459,149 @@ function scoreSupportSynergy(a: AnalyzedPokemon, b: AnalyzedPokemon): SynergyRea
   return reasons;
 }
 
+// ─── Doubles Combo Tech ────────────────────────────────────────────
+// Detects emergent synergies that go beyond type chart coverage:
+// spread-move + ability-immunity healing, Sub-passing + setup,
+// sacrifice scaling, priority chains, and weather-stacking.
+
+// Species known to carry specific Doubles-combo moves. Since we lack
+// full learnset data we maintain a compact lookup here.
+const SHED_TAIL_USERS = new Set(['Orthworm', 'Cyclizar']);
+const LAST_RESPECTS_USERS = new Set(['Basculegion', 'Houndstone']);
+const SUPREME_OVERLORD_USERS = new Set(['Kingambit']);
+const SPREAD_EQ_USERS = new Set([
+  'Garchomp', 'Excadrill', 'Hippowdon', 'Rhyperior', 'Mamoswine',
+  'Gliscor', 'Tyranitar', 'Sandaconda', 'Krookodile',
+]);
+const SETUP_MOVE_USERS = new Set([
+  'Garchomp', 'Dragonite', 'Volcarona', 'Mimikyu', 'Kingambit',
+  'Weavile', 'Meowscarada', 'Gyarados', 'Scizor', 'Lucario',
+  'Clefable', 'Sinistcha', 'Palafin', 'Conkeldurr',
+]);
+const FLIP_TURN_USERS = new Set(['Palafin', 'Greninja', 'Barraskewda']);
+
+function scoreDoublesCombos(a: AnalyzedPokemon, b: AnalyzedPokemon): SynergyReason[] {
+  const reasons: SynergyReason[] = [];
+
+  // 1. Spread Earthquake + ability-immune partner
+  //    If A uses spread EQ and B is immune to Ground via ability
+  //    (Earth Eater on Orthworm, Levitate on Rotom forms), B can
+  //    safely sit next to A while EQ hits both opponents.
+  if (SPREAD_EQ_USERS.has(a.name) && b.immunities.has('Ground')) {
+    const heals = b.abilityCategories.some(c => c.healFromType === 'Ground');
+    reasons.push({
+      type: 'support',
+      label: heals ? 'EQ Healing Partner' : 'EQ-Safe Partner',
+      description: heals
+        ? `${a.name} spams Earthquake — ${b.name}'s ${b.abilities[0]} heals 25% per hit instead of taking damage`
+        : `${a.name} spams Earthquake freely — ${b.name} is Ground-immune via ${b.abilities[0]}`,
+      strength: heals ? 4 : 3,
+    });
+  }
+  if (SPREAD_EQ_USERS.has(b.name) && a.immunities.has('Ground')) {
+    const heals = a.abilityCategories.some(c => c.healFromType === 'Ground');
+    reasons.push({
+      type: 'support',
+      label: heals ? 'EQ Healing Partner' : 'EQ-Safe Partner',
+      description: heals
+        ? `${b.name} spams Earthquake — ${a.name}'s ${a.abilities[0]} heals 25% per hit`
+        : `${b.name} spams Earthquake freely — ${a.name} is Ground-immune via ${a.abilities[0]}`,
+      strength: heals ? 4 : 3,
+    });
+  }
+
+  // 2. Shed Tail → setup sweeper
+  //    A uses Shed Tail to pass a Substitute to B, who then sets up
+  //    behind the free Sub (Swords Dance, Nasty Plot, Dragon Dance).
+  if (SHED_TAIL_USERS.has(a.name) && SETUP_MOVE_USERS.has(b.name)) {
+    reasons.push({
+      type: 'support',
+      label: 'Shed Tail → Setup',
+      description: `${a.name} passes a Substitute via Shed Tail → ${b.name} sets up behind it for free. One of the strongest Doubles openers in Champions.`,
+      strength: 4,
+    });
+  }
+  if (SHED_TAIL_USERS.has(b.name) && SETUP_MOVE_USERS.has(a.name)) {
+    reasons.push({
+      type: 'support',
+      label: 'Shed Tail → Setup',
+      description: `${b.name} passes a Substitute via Shed Tail → ${a.name} sets up behind it for free.`,
+      strength: 4,
+    });
+  }
+
+  // 3. Sacrifice scaling (Last Respects / Supreme Overlord)
+  //    Gains power as allies faint — pairs with aggressive leads and
+  //    sacrifice-style partners (Orthworm Shed Tail, suicide Froslass).
+  if (LAST_RESPECTS_USERS.has(b.name) || SUPREME_OVERLORD_USERS.has(b.name)) {
+    if (a.bulkTier === 'frail' || SHED_TAIL_USERS.has(a.name)) {
+      const mechanic = LAST_RESPECTS_USERS.has(b.name) ? 'Last Respects' : 'Supreme Overlord';
+      reasons.push({
+        type: 'offensive',
+        label: `${mechanic} Enabler`,
+        description: `${a.name} goes down early (or sacrifices via Shed Tail) → ${b.name}'s ${mechanic} scales up. Each fainted ally adds massive damage.`,
+        strength: 3,
+      });
+    }
+  }
+  if (LAST_RESPECTS_USERS.has(a.name) || SUPREME_OVERLORD_USERS.has(a.name)) {
+    if (b.bulkTier === 'frail' || SHED_TAIL_USERS.has(b.name)) {
+      const mechanic = LAST_RESPECTS_USERS.has(a.name) ? 'Last Respects' : 'Supreme Overlord';
+      reasons.push({
+        type: 'offensive',
+        label: `${mechanic} Enabler`,
+        description: `${b.name} goes down early → ${a.name}'s ${mechanic} scales up.`,
+        strength: 3,
+      });
+    }
+  }
+
+  // 4. Palafin pivot chain (Flip Turn out → Hero form → Jet Punch priority)
+  if (FLIP_TURN_USERS.has(a.name) && a.name === 'Palafin') {
+    // Palafin needs a bulky partner to switch into after Flip Turn
+    if (b.bulkTier === 'bulky' || b.bulkTier === 'very-bulky' || b.abilityCategories.some(c => c.intimidate)) {
+      reasons.push({
+        type: 'support',
+        label: 'Hero Form Enabler',
+        description: `Palafin Flip Turns out (transforms to Hero form) → ${b.name} absorbs the incoming attack → Palafin comes back with 160 base Atk and Jet Punch priority.`,
+        strength: 3,
+      });
+    }
+  }
+  if (FLIP_TURN_USERS.has(b.name) && b.name === 'Palafin') {
+    if (a.bulkTier === 'bulky' || a.bulkTier === 'very-bulky' || a.abilityCategories.some(c => c.intimidate)) {
+      reasons.push({
+        type: 'support',
+        label: 'Hero Form Enabler',
+        description: `Palafin Flip Turns out → ${a.name} takes the hit → Palafin returns as Hero form with Jet Punch priority.`,
+        strength: 3,
+      });
+    }
+  }
+
+  // 5. Weather-stacking STAB (multiple same-type attackers in weather)
+  //    E.g., two Ice attackers under Snow both fire 100% Blizzard.
+  if (a.types.includes('Ice') && b.types.includes('Ice')) {
+    // Both get Snow Def boost + Blizzard accuracy
+    reasons.push({
+      type: 'weather',
+      label: 'Double Blizzard',
+      description: `Both ${a.name} and ${b.name} are Ice-type — under Snow they both fire 100% Blizzard and get +50% Defense. Devastating spread damage.`,
+      strength: 3,
+    });
+  }
+  if (a.types.includes('Fire') && b.types.includes('Fire') && !a.abilityCategories.some(c => c.weather === 'Sun') && !b.abilityCategories.some(c => c.weather === 'Sun')) {
+    reasons.push({
+      type: 'weather',
+      label: 'Double Fire STAB',
+      description: `Both ${a.name} and ${b.name} are Fire-type — under Sun both get +50% Fire moves. Pair with a Drought setter.`,
+      strength: 2,
+    });
+  }
+
+  return reasons;
+}
+
 // ─── Main Engine ────────────────────────────────────────────────────
 
 // Cache analyzed Pokemon
@@ -480,6 +633,7 @@ export function getRecommendations(selectedSpecies: string, otherSpecies?: strin
       ...scoreWeatherTerrainSynergy(selected, candidate),
       ...scoreSpeedSynergy(selected, candidate),
       ...scoreSupportSynergy(selected, candidate),
+      ...scoreDoublesCombos(selected, candidate),
     ];
 
     if (reasons.length === 0) continue;

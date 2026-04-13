@@ -3680,4 +3680,218 @@ Gliscor          @ Leftovers     — Impish, 32 HP / 32 Def / 2 SpD
 </ul>
     `,
   },
+  {
+    slug: 'pokemon-champions-sleeper-combos-emerging-tech',
+    question: 'What are the best sleeper combos and emerging tech in Champions?',
+    answer: 'Champions\' limited item pool and unique ability roster create combo tech that doesn\'t exist in mainline VGC. The biggest discoveries so far: Orthworm Shed Tail → Nasty Plot Mega Froslass (free Sub + setup behind it), Garchomp Earthquake heals Orthworm via Earth Eater, Palafin Flip Turn pivot chains (Zero to Hero → 160 Atk Jet Punch priority), Basculegion Last Respects scaling behind Substitute, Rotom-Frost double Blizzard under Snow, and Sinistcha Hospitality healing + Strength Sap walling.',
+    category: 'competitive',
+    tags: ['sleeper', 'tech', 'combos', 'discovery', 'orthworm', 'palafin', 'sinistcha', 'basculegion', 'rotom-frost', 'shed tail'],
+    content: `
+<h2>Sleeper Combos & Emerging Tech</h2>
+
+<div class="at-a-glance">
+  <div><span class="label">Updated</span><span class="value">April 2026</span></div>
+  <div><span class="label">Format</span><span class="value">Primarily Doubles</span></div>
+  <div><span class="label">Source</span><span class="value">First-principles + early ladder</span></div>
+  <div><span class="label">Risk level</span><span class="value">Unproven but high-ceiling</span></div>
+</div>
+
+<p>Champions\' restricted item pool, curated roster, and new Z-A Mega abilities create interactions that don\'t exist in mainline VGC. These combos are <strong>not established meta</strong> yet — they\'re the tech that ladder grinders and content creators are starting to find. We\'re documenting them here before they become common knowledge.</p>
+
+<div class="callout">
+  <p><span class="tag">Discovery engine</span>Our synergy calculator now scores these combo interactions automatically. Select a Pokémon in the <a href="/">damage calculator</a> to see its partner recommendations — the engine flags Shed Tail targets, EQ-immune partners, sacrifice-scaling chains, and weather-stacking combos.</p>
+</div>
+
+<h2>Combo 1 — Orthworm Shed Tail → Setup Sweeper</h2>
+
+<div class="at-a-glance">
+  <div><span class="label">Core</span><span class="value">Orthworm + sweeper</span></div>
+  <div><span class="label">Key move</span><span class="value">Shed Tail</span></div>
+  <div><span class="label">Format</span><span class="value">Doubles</span></div>
+  <div><span class="label">Ceiling</span><span class="value">Very high</span></div>
+</div>
+
+<p>Orthworm uses Shed Tail — cuts its HP by 50%, creates a Substitute, and <strong>immediately passes that Substitute to a teammate</strong>. The teammate switches in behind a free Sub and gets a completely safe setup turn.</p>
+
+<h3>Why Orthworm specifically?</h3>
+<ul>
+  <li><strong>Earth Eater</strong> makes it immune to Ground — the most common coverage type. It heals 25% when hit by Earthquake instead of taking damage.</li>
+  <li><strong>Steel typing</strong> means only 3 weaknesses (Fire, Fighting, Ground). Earth Eater eliminates one, leaving only Fire and Fighting.</li>
+  <li><strong>It\'s very hard to OHKO.</strong> If the opponent can\'t kill Orthworm in one hit, Shed Tail resolves and the sweeper gets its free Sub.</li>
+</ul>
+
+<h3>Best Shed Tail recipients</h3>
+<div class="role-grid">
+  <div class="role-card">
+    <span class="name">Mega Froslass</span>
+    <span class="meta">Nasty Plot behind Sub</span>
+    <p>+2 SpA → Blizzard hits both opponents for massive damage. Snow sets on Mega Evolve. The highest-ceiling combo in Champions.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Kingambit</span>
+    <span class="meta">Swords Dance behind Sub</span>
+    <p>+2 Atk Sucker Punch priority. Supreme Overlord scales when Orthworm faints afterward. Double-scaling nuke.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Basculegion</span>
+    <span class="meta">Last Respects behind Sub</span>
+    <p>Sub protection + Last Respects scaling (+50 BP per fainted ally). If Orthworm dies after passing, that\'s already +50.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Palafin</span>
+    <span class="meta">Bulk Up Hero behind Sub</span>
+    <p>Hero form (160 Atk) + Bulk Up + Sub = nearly unkillable. Jet Punch priority closes games.</p>
+  </div>
+</div>
+
+<h3>The full Shed Tail opener</h3>
+<ol>
+  <li><strong>Turn 1.</strong> Lead Incineroar + Orthworm. Incineroar Fake Outs the biggest threat. Orthworm clicks Shed Tail.</li>
+  <li><strong>Turn 2.</strong> Sweeper enters behind the Sub. Clicks Nasty Plot / Swords Dance / Bulk Up. Incineroar Parting Shots out.</li>
+  <li><strong>Turn 3.</strong> Sweeper is at +2 behind a Sub. Click your strongest spread move. Game should be closing here.</li>
+</ol>
+
+<h2>Combo 2 — Garchomp EQ + Earth Eater Orthworm</h2>
+
+<div class="at-a-glance">
+  <div><span class="label">Core</span><span class="value">Garchomp + Orthworm</span></div>
+  <div><span class="label">Key interaction</span><span class="value">EQ heals partner</span></div>
+  <div><span class="label">Format</span><span class="value">Doubles</span></div>
+  <div><span class="label">Ceiling</span><span class="value">High</span></div>
+</div>
+
+<p>Earthquake is a spread move that hits your partner. Normally this is a liability — you can only spam EQ next to a Flying type or Levitate user. But Orthworm\'s <strong>Earth Eater heals 25% HP</strong> when hit by a Ground move. Garchomp\'s Earthquake actively heals its partner while nuking both opponents.</p>
+
+<h3>Other EQ-safe partners</h3>
+<table>
+  <tr><th>Partner</th><th>Ground immunity</th><th>Notes</th></tr>
+  <tr><td>Orthworm</td><td>Earth Eater (heals)</td><td>Best option — heals from the EQ</td></tr>
+  <tr><td>Rotom-Frost</td><td>Levitate (immune)</td><td>Fires 100% Blizzard under Snow</td></tr>
+  <tr><td>Rotom-Wash</td><td>Levitate (immune)</td><td>Standard EQ partner</td></tr>
+  <tr><td>Corviknight</td><td>Flying type (immune)</td><td>Bulky pivot + Defog</td></tr>
+  <tr><td>Talonflame</td><td>Flying type (immune)</td><td>Gale Wings Tailwind backup</td></tr>
+</table>
+
+<h2>Combo 3 — Palafin Zero to Hero Pivot Chain</h2>
+
+<div class="at-a-glance">
+  <div><span class="label">Core</span><span class="value">Palafin + bulky pivot</span></div>
+  <div><span class="label">Key ability</span><span class="value">Zero to Hero</span></div>
+  <div><span class="label">Format</span><span class="value">Both</span></div>
+  <div><span class="label">Ceiling</span><span class="value">High</span></div>
+</div>
+
+<p>Palafin starts in Zero form (mediocre stats). After switching out and back in, it transforms to <strong>Hero form with 160 base Attack</strong> — the highest non-Mega Attack stat in Champions. Jet Punch is Water-type +1 priority. Under Rain, boosted Jet Punch is a nuclear-powered priority move.</p>
+
+<h3>Activation chains</h3>
+<ul>
+  <li><strong>Flip Turn out</strong> → deal chip damage → switch to Incineroar or Orthworm → Palafin returns as Hero</li>
+  <li><strong>Shed Tail pass</strong> → Orthworm passes Sub to Palafin → Palafin is now Hero behind a Sub → Bulk Up → sweep</li>
+  <li><strong>Rain boost</strong> → Pelipper Drizzle + Hero Palafin Jet Punch = 1.5× Water +1 priority from 160 Atk</li>
+</ul>
+
+<div class="callout tip">
+  <p><span class="tag">Doubles tip</span>Lead Incineroar + Palafin. Incineroar Fake Outs. Palafin Flip Turns out (transforms). Bring Palafin back on turn 2 as Hero form. The opponent never gets a clean hit on Palafin.</p>
+</div>
+
+<h2>Combo 4 — Sinistcha Hospitality + Strength Sap</h2>
+
+<div class="at-a-glance">
+  <div><span class="label">Core</span><span class="value">Sinistcha + offensive partner</span></div>
+  <div><span class="label">Key ability</span><span class="value">Hospitality</span></div>
+  <div><span class="label">Format</span><span class="value">Doubles</span></div>
+  <div><span class="label">Ceiling</span><span class="value">High</span></div>
+</div>
+
+<p>Sinistcha\'s <strong>Hospitality heals its partner by 25% on switch-in</strong>. Every time Sinistcha enters the field, the adjacent partner gets free recovery. Combined with Strength Sap (steals the opponent\'s Attack stat as HP recovery), Sinistcha is nearly impossible to kill through physical damage and passively heals its partner.</p>
+
+<h3>Best Hospitality partners</h3>
+<div class="role-grid">
+  <div class="role-card">
+    <span class="name">Palafin (Hero)</span>
+    <span class="meta">Hospitality heals on entry</span>
+    <p>Palafin Flip Turns out, Sinistcha switches in (heals Palafin\'s partner slot), Palafin returns as Hero form. The cycle sustains itself.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Mega Froslass</span>
+    <span class="meta">Setup sustain</span>
+    <p>Hospitality heals Froslass after Shed Tail chip or Blizzard recoil. Keeps the sweeper alive longer.</p>
+  </div>
+  <div class="role-card">
+    <span class="name">Garchomp</span>
+    <span class="meta">Offensive anchor</span>
+    <p>Garchomp takes chip from Rough Skin recoil. Hospitality offsets it. Matcha Gotcha burn chance covers physical threats Garchomp fears.</p>
+  </div>
+</div>
+
+<h3>Matcha Gotcha tech</h3>
+<p>Sinistcha\'s signature move <strong>Matcha Gotcha</strong> is 80 BP Grass-type, drains HP, has a 20% burn chance, and <em>hits both opponents in Doubles</em>. It\'s effectively a Grass-type Scald that also heals you. Under no weather interference, it\'s one of the best spread moves in the format.</p>
+
+<h2>Combo 5 — Rotom-Frost Snow Stack</h2>
+
+<div class="at-a-glance">
+  <div><span class="label">Core</span><span class="value">Mega Froslass + Rotom-Frost</span></div>
+  <div><span class="label">Key move</span><span class="value">Double Blizzard</span></div>
+  <div><span class="label">Format</span><span class="value">Doubles</span></div>
+  <div><span class="label">Ceiling</span><span class="value">Medium-High</span></div>
+</div>
+
+<p>Under Snow, <strong>both Mega Froslass and Rotom-Frost fire 100%-accurate Blizzard</strong> at both opponents simultaneously. Both are Ice-type, so both get the Snow +50% Defense boost. Rotom-Frost has Levitate, so Garchomp can Earthquake freely next to it. The triple-threat of Froslass + Rotom-Frost + Garchomp gives you two Blizzards and a spread Earthquake with zero friendly fire.</p>
+
+<h3>Why Rotom-Frost over Rotom-Wash?</h3>
+<table>
+  <tr><th></th><th>Rotom-Frost</th><th>Rotom-Wash</th></tr>
+  <tr><td>STAB coverage</td><td>Electric / Ice (hits Dragon, Flying, Ground, Grass)</td><td>Electric / Water</td></tr>
+  <tr><td>Snow synergy</td><td>Blizzard 100% + Ice Def boost</td><td>None</td></tr>
+  <tr><td>Rain synergy</td><td>None</td><td>Hydro Pump boost</td></tr>
+  <tr><td>EQ partner</td><td>Yes (Levitate)</td><td>Yes (Levitate)</td></tr>
+</table>
+
+<h2>Combo 6 — Last Respects / Supreme Overlord Endgame</h2>
+
+<div class="at-a-glance">
+  <div><span class="label">Core</span><span class="value">Sacrifice leads → closer</span></div>
+  <div><span class="label">Key mechanic</span><span class="value">Damage scales with fainted allies</span></div>
+  <div><span class="label">Format</span><span class="value">Both</span></div>
+  <div><span class="label">Ceiling</span><span class="value">High</span></div>
+</div>
+
+<p>Two Pokemon in Champions get stronger as your team falls apart:</p>
+<ul>
+  <li><strong>Basculegion\'s Last Respects</strong> — 50 base power + 50 per fainted ally. With 3 fainted: 200 BP Ghost STAB. With Adaptability: effectively 400 BP.</li>
+  <li><strong>Kingambit\'s Supreme Overlord</strong> — +10% damage per fainted ally. With 3 fainted: +30% on every attack.</li>
+</ul>
+
+<p>Build teams where the early slots are <strong>designed to trade aggressively</strong> (suicide Orthworm Shed Tail, Froslass Aurora Veil + die, Incineroar sacrifice pivot) so the closer enters with maximum stacks.</p>
+
+<h3>The sacrifice ladder</h3>
+<ol>
+  <li><strong>Turn 1.</strong> Orthworm Shed Tails (loses 50% HP) → passes Sub to sweeper. Incineroar Fake Outs.</li>
+  <li><strong>Turn 2.</strong> Sweeper sets up behind Sub. Orthworm or Incineroar trade into the opponent\'s attacks and faint → +1 stack.</li>
+  <li><strong>Turn 3–4.</strong> Froslass / secondary threat trades and faints → +2 stacks.</li>
+  <li><strong>Turn 5.</strong> Bring Basculegion or Kingambit. Last Respects at 200+ BP or Supreme Overlord at +30%. Game over.</li>
+</ol>
+
+<h2>What to discover next</h2>
+
+<p>These combos are just the beginning. Champions\' restricted item pool means every slot has to justify its item — no Life Orb, no Choice Band, no Assault Vest means the meta rewards <strong>creative ability + move synergies</strong> over raw stat stacking. If you find new tech, report it in the <a href="/">calculator</a>\'s team builder and our synergy engine will validate the interaction automatically.</p>
+
+<h3>Candidates we\'re watching</h3>
+<ul>
+  <li><strong>Sinistcha + Hatterene Trick Room</strong> — Hospitality heals Hatterene on switch-in; both are slow for TR; Matcha Gotcha burn cripples physical TR wallbreakers</li>
+  <li><strong>Palafin Rain + Pelipper</strong> — Rain-boosted Hero Jet Punch is the strongest priority move in the format; Pelipper U-turns to activate Hero form</li>
+  <li><strong>Orthworm + Volcarona</strong> — Shed Tail → Quiver Dance behind Sub; Volcarona resists Fire (Orthworm\'s biggest weakness)</li>
+  <li><strong>Basculegion + Mega Gengar trap</strong> — Shadow Tag traps the target, sacrifice trades build Last Respects stacks, Basculegion finishes</li>
+  <li><strong>Rotom-Frost Nasty Plot + Snow</strong> — +2 SpA Blizzard from an Electric/Ice type that\'s also Ground-immune; underexplored set</li>
+</ul>
+
+<h2>Related articles</h2>
+<ul>
+  <li><a href="/#/faq/pokemon-champions-snow-archetype-guide">Snow archetype deep dive</a></li>
+  <li><a href="/#/faq/pokemon-champions-team-archetypes">All team archetypes overview</a></li>
+  <li><a href="/#/faq/pokemon-champions-sp-spread-theorycrafting">SP spread theorycrafting</a></li>
+  <li><a href="/#/faq/pokemon-champions-team-building-fundamentals">Team building fundamentals</a></li>
+</ul>
+    `,
+  },
 ];
