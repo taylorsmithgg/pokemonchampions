@@ -17,6 +17,7 @@ import type { FormatId } from '../calc/lineupAnalysis';
 import { Sprite } from './Sprite';
 import { QuickAdd } from './QuickAdd';
 import { GenBadge } from './GenBadge';
+import { RoleBadge } from './RoleBadge';
 import { getArchetypeWikiSlug, wikiPath } from '../utils/wikiLinks';
 
 // ─── Normalized projection type for unified rendering ─────────────
@@ -128,39 +129,8 @@ const TIER_STYLES: Record<string, { color: string; bg: string; border: string }>
   C: { color: 'text-sky-400', bg: 'bg-sky-500/10', border: 'border-sky-500/40' },
 };
 
-// Unified role → theme map covering all Singles + Doubles roles.
-const ROLE_STYLES: Record<string, string> = {
-  // Doubles
-  'Lead Anchor': 'bg-poke-red/10 text-poke-red-light border-poke-red/20',
-  'Speed Controller': 'bg-amber-500/10 text-amber-300 border-amber-500/20',
-  'Redirector': 'bg-poke-gold/10 text-poke-gold border-poke-gold/20',
-  'Wallbreaker': 'bg-orange-500/10 text-orange-300 border-orange-500/20',
-  'Wincon': 'bg-purple-500/15 text-purple-300 border-purple-500/30',
-  'Pivot Wall': 'bg-sky-500/10 text-sky-300 border-sky-500/20',
-  'Hyper Offense': 'bg-rose-500/10 text-rose-300 border-rose-500/20',
-  'Trick Room Abuser': 'bg-violet-500/10 text-violet-300 border-violet-500/20',
-  'Weather Abuser': 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20',
-  // Singles
-  'Setup Sweeper': 'bg-rose-500/10 text-rose-300 border-rose-500/20',
-  'Hazard Setter': 'bg-amber-500/10 text-amber-300 border-amber-500/20',
-  'Hazard Removal': 'bg-sky-500/10 text-sky-300 border-sky-500/20',
-  'Choice Scarf': 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20',
-  'Physical Wall': 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20',
-  'Special Wall': 'bg-teal-500/10 text-teal-300 border-teal-500/20',
-  'Pivot': 'bg-violet-500/10 text-violet-300 border-violet-500/20',
-  'Phazer': 'bg-stone-500/10 text-stone-300 border-stone-500/20',
-  'Status Spreader': 'bg-purple-500/15 text-purple-300 border-purple-500/30',
-  'Lead': 'bg-poke-red/10 text-poke-red-light border-poke-red/20',
-  // Shared
-  'Utility': 'bg-slate-500/10 text-slate-400 border-slate-500/20',
-};
-
-function RoleBadge({ role }: { role: AnyRole }) {
-  const style = ROLE_STYLES[role] ?? ROLE_STYLES['Utility'];
-  return (
-    <span className={`text-[9px] px-1.5 py-0.5 rounded border ${style}`}>{role}</span>
-  );
-}
+// RoleBadge is now a shared component imported from ./RoleBadge.tsx
+// with click-to-expand definitions, wiki links, and example Pokemon.
 
 function BreakdownBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
   const pct = Math.max(0, Math.min(100, ((value + (max < 0 ? 10 : 0)) / (max < 0 ? max * 2 : max)) * 100));

@@ -18,6 +18,7 @@ import type { FormatId } from '../calc/lineupAnalysis';
 import { Sprite } from './Sprite';
 import { QuickAdd } from './QuickAdd';
 import { GenBadge } from './GenBadge';
+import { RoleBadge } from './RoleBadge';
 
 // ─── Types ─────────────────────────────────────────────────────────
 
@@ -185,8 +186,8 @@ function TierRow({ entry }: { entry: ProjectedTierEntry }) {
           )}
         </div>
         {entry.roles.length > 0 && (
-          <div className="text-[10px] text-slate-500 leading-tight truncate mt-0.5">
-            {entry.roles.slice(0, 3).join(' · ')}
+          <div className="flex flex-wrap gap-0.5 mt-0.5">
+            {entry.roles.slice(0, 3).map(r => <RoleBadge key={r} role={r} />)}
           </div>
         )}
       </div>

@@ -103,12 +103,12 @@ export function TeamAuditPanel({ attacker, defender }: TeamAuditPanelProps) {
           <div className="flex-1">
             <p className="text-xs text-slate-300">{audit.summary}</p>
             <div className="flex gap-2 mt-1.5">
-              <RoleBadge label="Fake Out" has={audit.roleReport.hasFakeOut} />
-              <RoleBadge label="Tailwind" has={audit.roleReport.hasTailwind} />
-              <RoleBadge label="Intim" has={audit.roleReport.hasIntim} />
-              <RoleBadge label="Priority" has={audit.roleReport.hasPriority} />
-              <RoleBadge label="Redirect" has={audit.roleReport.hasRedirect} />
-              <RoleBadge label="Pivot" has={audit.roleReport.hasPivot} />
+              <RoleCheck label="Fake Out" has={audit.roleReport.hasFakeOut} />
+              <RoleCheck label="Tailwind" has={audit.roleReport.hasTailwind} />
+              <RoleCheck label="Intim" has={audit.roleReport.hasIntim} />
+              <RoleCheck label="Priority" has={audit.roleReport.hasPriority} />
+              <RoleCheck label="Redirect" has={audit.roleReport.hasRedirect} />
+              <RoleCheck label="Pivot" has={audit.roleReport.hasPivot} />
             </div>
           </div>
         </div>
@@ -135,7 +135,7 @@ export function TeamAuditPanel({ attacker, defender }: TeamAuditPanelProps) {
   );
 }
 
-function RoleBadge({ label, has }: { label: string; has: boolean }) {
+function RoleCheck({ label, has }: { label: string; has: boolean }) {
   return (
     <span className={`text-[8px] px-1.5 py-0.5 rounded border ${
       has

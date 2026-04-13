@@ -8,6 +8,7 @@ import {
   type Tier,
 } from '../data/tierlist';
 import { TYPE_COLORS } from '../data/champions';
+import { RoleBadge } from './RoleBadge';
 // Sprites loaded inline below
 
 interface TierListPanelProps {
@@ -80,9 +81,7 @@ function PokemonCard({ entry, onSelect }: { entry: TierEntry; onSelect: (name: s
         {/* Roles */}
         <div className="flex flex-wrap gap-0.5 mt-1.5">
           {entry.roles.map(role => (
-            <span key={role} className="text-[9px] px-1 py-0 bg-slate-800/80 text-slate-500 rounded">
-              {role}
-            </span>
+            <RoleBadge key={role} role={role} />
           ))}
         </div>
       </div>

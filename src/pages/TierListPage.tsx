@@ -19,6 +19,7 @@ import { FormatSelector } from '../components/FormatSelector';
 import { SINGLES_FORMAT, type FormatId } from '../calc/lineupAnalysis';
 import { QuickAdd } from '../components/QuickAdd';
 import { GenBadge } from '../components/GenBadge';
+import { RoleBadge } from '../components/RoleBadge';
 import type { StatID } from '@smogon/calc';
 
 function StatBar({ stat, value, max = 200 }: { stat: StatID; value: number; max?: number }) {
@@ -96,7 +97,7 @@ function PokemonDetailCard({ entry, onClose }: { entry: TierEntry; onClose: () =
           <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Roles</h4>
           <div className="flex flex-wrap gap-1 mb-2">
             {entry.roles.map((r: string) => (
-              <span key={r} className="text-[9px] px-2 py-0.5 bg-poke-surface text-slate-300 rounded-full border border-poke-border">{r}</span>
+              <RoleBadge key={r} role={r} />
             ))}
           </div>
           {entry.note && <p className="text-[10px] text-slate-400 leading-relaxed">{entry.note}</p>}
@@ -239,7 +240,7 @@ function TierCard({ entry, onClick }: { entry: TierEntry; onClick: () => void })
           </div>
           <div className="flex flex-wrap gap-1">
             {entry.roles.map((r: string) => (
-              <span key={r} className="text-[8px] px-1 py-0 bg-poke-surface text-slate-500 rounded">{r}</span>
+              <RoleBadge key={r} role={r} />
             ))}
           </div>
         </div>
