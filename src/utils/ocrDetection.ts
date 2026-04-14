@@ -73,14 +73,18 @@ function getSpeciesNormMap(): Map<string, string> {
     map.set(species.toLowerCase(), species);
   }
 
-  // Sprite detection may return base forms — add reverse lookups
-  // so "ninetalesalola" matches "Ninetales-Alola" etc.
-  // These are already covered by the normalize above, but add
-  // common OCR-friendly aliases for multi-word forms.
+  // Add aliases for forms that OCR/game might show differently
   const aliases: Record<string, string> = {
     'rotomwash': 'Rotom-Wash', 'rotomheat': 'Rotom-Heat',
     'rotomfrost': 'Rotom-Frost', 'rotommow': 'Rotom-Mow',
     'rotomfan': 'Rotom-Fan',
+    // Aegislash shows as base name, we store as Shield form
+    'aegislash': 'Aegislash-Shield',
+    'aegislashshield': 'Aegislash-Shield',
+    'aegislashblade': 'Aegislash-Shield',
+    // Floette-Eternal shows as just Floette sometimes
+    'floette': 'Floette-Eternal',
+    'floetteeternal': 'Floette-Eternal',
   };
   for (const [key, val] of Object.entries(aliases)) {
     if (!map.has(key)) map.set(key, val);

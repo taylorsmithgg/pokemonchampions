@@ -32,6 +32,15 @@ const SPECIES_ID_ALIASES: Record<string, string> = {
   'Jangmo-o': 'jangmoo',
   'Ho-Oh': 'hooh',
   'Porygon-Z': 'porygonz',
+  // Showdown uses base name or different hyphenation for these
+  'Aegislash-Shield': 'aegislash',
+  'Aegislash-Blade': 'aegislash-blade',
+  'Floette-Eternal': 'floette-eternal',
+  'Basculegion-F': 'basculegion-f',
+  'Meowstic-F': 'meowstic-f',
+  'Tauros-Paldea-Combat': 'tauros-paldeacombat',
+  'Tauros-Paldea-Blaze': 'tauros-paldeablaze',
+  'Tauros-Paldea-Aqua': 'tauros-paldeaaqua',
 };
 
 function speciesNameToId(name: string): string {
