@@ -10,7 +10,7 @@
 // downstream consumer on next page load.
 
 import { getAvailablePokemon, getPokemonData } from './champions';
-import { PRESETS } from './presets';
+import { PRESETS, getAllPresets } from './presets';
 import { getCachedUsageStats } from './liveData';
 import { WEATHER_SETTERS as WEATHER_SETTER_MAP, WEATHER_ABUSERS as WEATHER_ABUSER_MAP, ABILITY_SCORING } from './abilityClassification';
 
@@ -110,11 +110,20 @@ function ensureIndex() {
     return _abilityIndex!.get(species)!;
   };
 
-  // 1. Presets — curated competitive sets
-  for (const preset of PRESETS) {
-    const moves = ensureMoves(preset.species);
-    for (const m of preset.moves) if (m) moves.add(m);
-    ensureAbilities(preset.species).add(preset.ability);
+  // 1. Presets — curated + auto-generated competitive sets
+  try {
+    for (const preset of getAllPresets()) {
+      const moves = ensureMoves(preset.species);
+      for (const m of preset.moves) if (m) moves.add(m);
+      ensureAbilities(preset.species).add(preset.ability);
+    }
+  } catch {
+    // Fallback to curated-only if auto-generation fails
+    for (const preset of PRESETS) {
+      const moves = ensureMoves(preset.species);
+      for (const m of preset.moves) if (m) moves.add(m);
+      ensureAbilities(preset.species).add(preset.ability);
+    }
   }
 
   // 2. Live VGC usage stats

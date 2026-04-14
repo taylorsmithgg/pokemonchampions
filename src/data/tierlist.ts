@@ -719,100 +719,38 @@ function filterToChampions(entries: TierEntry[], label: string): TierEntry[] {
 export const COMMUNITY_TIER_LIST: TierEntry[] = filterToChampions(NORMAL_TIER_LIST_RAW, 'COMMUNITY_TIER_LIST');
 export const COMMUNITY_MEGA_TIER_LIST: TierEntry[] = filterToChampions(MEGA_TIER_LIST_RAW, 'COMMUNITY_MEGA_TIER_LIST');
 
-// ─── Primary tier list (projection-derived) ──────────────────────
-// The NORMAL_TIER_LIST export is now the projected tier list, not the
-// static community list. This means every surface in the app
-// (PokemonPanel tier badges, SearchSelect sorting, team audit meta
-// threats, synergy scoring bonuses) automatically uses our projection
-// analysis instead of static Game8 rankings.
+// ─── Primary tier list ──────────────────────────────────────────────
+// Uses the community tier list as the base. The projection engines
+// run separately via ProjectedTierListPanel and enrich the display
+// with projected tiers, but we DON'T run projections during module
+// init to avoid circular dependency + stack overflow.
 //
-// Import from projectedTierList.ts is lazy — the projection engines
-// only run when first accessed.
-import { getProjectedNormalTierList, getProjectedMegaTierList, getProjectedTier } from './projectedTierList';
+// The community list IS the NORMAL_TIER_LIST. Projection data is
+// accessed on-demand via getTierForPokemon() which checks projected
+// data first when available.
 
-// Use a getter pattern so the projection runs lazily on first access.
-let _normalCache: TierEntry[] | null = null;
-let _megaCache: TierEntry[] | null = null;
-
-function getNormalTierList(): TierEntry[] {
-  if (!_normalCache) {
-    try {
-      _normalCache = getProjectedNormalTierList();
-    } catch {
-      // Fallback to community list if projection fails
-      _normalCache = COMMUNITY_TIER_LIST;
-    }
-  }
-  return _normalCache;
-}
-
-function getMegaTierList(): TierEntry[] {
-  if (!_megaCache) {
-    try {
-      _megaCache = getProjectedMegaTierList();
-    } catch {
-      _megaCache = COMMUNITY_MEGA_TIER_LIST;
-    }
-  }
-  return _megaCache;
-}
-
-// These are the primary exports consumed by the rest of the app.
-// They return projection-derived tiers, falling back to community
-// data if the projection engine fails.
-export const NORMAL_TIER_LIST: TierEntry[] = new Proxy([] as TierEntry[], {
-  get(_target, prop) {
-    const list = getNormalTierList();
-    if (prop === 'length') return list.length;
-    if (prop === Symbol.iterator) return list[Symbol.iterator].bind(list);
-    if (typeof prop === 'string' && !isNaN(Number(prop))) return list[Number(prop)];
-    if (typeof prop === 'string') {
-      const val = (list as any)[prop];
-      return typeof val === 'function' ? val.bind(list) : val;
-    }
-    return undefined;
-  },
-}) as unknown as TierEntry[];
-
-export const MEGA_TIER_LIST: TierEntry[] = new Proxy([] as TierEntry[], {
-  get(_target, prop) {
-    const list = getMegaTierList();
-    if (prop === 'length') return list.length;
-    if (prop === Symbol.iterator) return list[Symbol.iterator].bind(list);
-    if (typeof prop === 'string' && !isNaN(Number(prop))) return list[Number(prop)];
-    if (typeof prop === 'string') {
-      const val = (list as any)[prop];
-      return typeof val === 'function' ? val.bind(list) : val;
-    }
-    return undefined;
-  },
-}) as unknown as TierEntry[];
+export const NORMAL_TIER_LIST: TierEntry[] = COMMUNITY_TIER_LIST;
+export const MEGA_TIER_LIST: TierEntry[] = COMMUNITY_MEGA_TIER_LIST;
 
 // ─── Combined + helpers ────────────────────────────────────────────
 
-export const ALL_TIERS: TierEntry[] = new Proxy([] as TierEntry[], {
-  get(_target, prop) {
-    const list = [...getNormalTierList(), ...getMegaTierList()];
-    if (prop === 'length') return list.length;
-    if (prop === Symbol.iterator) return list[Symbol.iterator].bind(list);
-    if (typeof prop === 'string' && !isNaN(Number(prop))) return list[Number(prop)];
-    if (typeof prop === 'string') {
-      const val = (list as any)[prop];
-      return typeof val === 'function' ? val.bind(list) : val;
-    }
-    return undefined;
-  },
-}) as unknown as TierEntry[];
+export const ALL_TIERS: TierEntry[] = [...COMMUNITY_TIER_LIST, ...COMMUNITY_MEGA_TIER_LIST];
+
+// Lazy projection cache — only populated when explicitly requested,
+// never during module initialization.
+import { getProjectedTier } from './projectedTierList';
+// getProjectedTier imported above handles lazy caching internally.
 
 export function getTierForPokemon(name: string): TierEntry | undefined {
-  // Try projected tier first
+  // Check community first (fast, always available)
+  const community = COMMUNITY_TIER_LIST.find(e => e.name === name)
+    || COMMUNITY_MEGA_TIER_LIST.find(e => e.name === name);
+  // Try projected data (lazy, may fail on first call)
   try {
     const projected = getProjectedTier(name);
     if (projected) return projected;
-  } catch { /* fallback */ }
-  // Fallback to community
-  return COMMUNITY_TIER_LIST.find(e => e.name === name)
-    || COMMUNITY_MEGA_TIER_LIST.find(e => e.name === name);
+  } catch { /* use community */ }
+  return community;
 }
 
 /** Get community consensus tier for comparison. */
@@ -822,7 +760,7 @@ export function getCommunityTier(name: string): TierEntry | undefined {
 }
 
 export function getPokemonByTier(tier: Tier, megasOnly?: boolean): TierEntry[] {
-  const list = megasOnly ? getMegaTierList() : getNormalTierList();
+  const list = megasOnly ? MEGA_TIER_LIST : NORMAL_TIER_LIST;
   return list.filter(e => e.tier === tier);
 }
 

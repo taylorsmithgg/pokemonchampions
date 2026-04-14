@@ -945,41 +945,41 @@ const CURATED_PRESETS: PokemonPreset[] = PRESETS_RAW.filter(p => {
 });
 
 // Auto-generated presets for species without curated builds.
-// These ensure every roster species has move data for the projection
-// engines, synergy engine, and team builder to classify. Curated
-// presets always take priority — auto-presets only fill gaps.
+// Generated lazily on first access to avoid circular init.
 import { generateAutoPresets } from './autoPresets';
 
-let _allPresets: PokemonPreset[] | null = null;
+let _autoPresets: PokemonPreset[] | null = null;
+let _generating = false; // guard against re-entry
 
-/** All presets: curated first, then auto-generated for uncovered species. */
-export const PRESETS: PokemonPreset[] = new Proxy([] as PokemonPreset[], {
-  get(_target, prop) {
-    if (!_allPresets) {
-      _allPresets = [...CURATED_PRESETS, ...generateAutoPresets()];
-    }
-    if (prop === 'length') return _allPresets.length;
-    if (prop === Symbol.iterator) return _allPresets[Symbol.iterator].bind(_allPresets);
-    if (typeof prop === 'string' && !isNaN(Number(prop))) return _allPresets[Number(prop)];
-    if (typeof prop === 'string') {
-      const val = (_allPresets as any)[prop];
-      return typeof val === 'function' ? val.bind(_allPresets) : val;
-    }
-    return undefined;
-  },
-}) as unknown as PokemonPreset[];
+function getAutoPresets(): PokemonPreset[] {
+  if (_autoPresets) return _autoPresets;
+  if (_generating) return []; // prevent circular re-entry
+  _generating = true;
+  try {
+    _autoPresets = generateAutoPresets();
+  } catch {
+    _autoPresets = [];
+  }
+  _generating = false;
+  return _autoPresets;
+}
+
+/** All presets: curated + auto-generated. Curated always listed first. */
+export const PRESETS: PokemonPreset[] = CURATED_PRESETS;
 
 // Group presets by species (curated first, then auto)
 export function getPresetsBySpecies(species: string): PokemonPreset[] {
-  // Always prioritize curated presets
   const curated = CURATED_PRESETS.filter(p => p.species === species);
   if (curated.length > 0) return curated;
-  // Fall back to auto-generated
-  if (!_allPresets) _allPresets = [...CURATED_PRESETS, ...generateAutoPresets()];
-  return _allPresets.filter(p => p.species === species);
+  return getAutoPresets().filter(p => p.species === species);
 }
 
+/** All species with any preset (curated or auto). */
 export function getAllPresetSpecies(): string[] {
-  if (!_allPresets) _allPresets = [...CURATED_PRESETS, ...generateAutoPresets()];
-  return [...new Set(_allPresets.map(p => p.species))].sort();
+  return [...new Set([...CURATED_PRESETS, ...getAutoPresets()].map(p => p.species))].sort();
+}
+
+/** All presets including auto-generated ones. */
+export function getAllPresets(): PokemonPreset[] {
+  return [...CURATED_PRESETS, ...getAutoPresets()];
 }
