@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { PokeballMini } from './PokeballSpinner';
 
 interface SearchSelectProps {
   options: string[];
@@ -114,7 +115,7 @@ export function SearchSelect({ options, value, onChange, placeholder = 'Select..
           />
         ) : isLoading ? (
           <span className="text-sm text-slate-400 flex items-center gap-2">
-            <span className="w-3.5 h-3.5 rounded-full border-2 border-poke-border border-t-poke-red animate-spin" style={{ animationDuration: '0.6s' }} />
+            <PokeballMini />
             Loading...
           </span>
         ) : (
