@@ -229,6 +229,87 @@ export async function loadSpriteProfiles(maxSpecies: number = 250): Promise<Spri
   return profiles;
 }
 
+// ─── Training: add real in-game sprite as additional profile ─────
+//
+// Showdown's 2D sprites differ visually from in-game 3D models on
+// a compressed Twitch stream. Once a Pokemon is correctly identified
+// (e.g. via OCR battle log), we can capture its actual on-screen
+// region and add it as a SECOND profile for the same species.
+// Subsequent matching sees both Showdown sprite + real game sprite
+// in candidate pool — much higher chance of a hit.
+
+const _trainedRegions = new Map<string, number>(); // species → count of trained samples
+
+/**
+ * Add a captured frame region as a trained profile for a known species.
+ * Called when we KNOW (via OCR or user confirmation) what Pokemon is in
+ * the region — locks in the in-game appearance for future matching.
+ */
+export async function addTrainedProfile(
+  species: string,
+  canvas: HTMLCanvasElement,
+  region: { x: number; y: number; w: number; h: number },
+): Promise<void> {
+  if (!_spriteProfiles) await loadSpriteProfiles();
+  if (!_spriteProfiles) return;
+
+  // Cap samples per species to avoid bloat
+  const existing = _trainedRegions.get(species) ?? 0;
+  if (existing >= 5) return;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const sw = Math.max(1, Math.round(region.w));
+  const sh = Math.max(1, Math.round(region.h));
+  const sample = ctx.getImageData(Math.round(region.x), Math.round(region.y), sw, sh);
+  if (sample.width < 16 || sample.height < 16) return;
+
+  // Build histogram + dominant colors from this real sprite
+  const colors = computeDominantColors(sample.data);
+  const histogram = buildHsvHistogram(sample.data, 2);
+
+  // Downscale to 32×32 template
+  const tw = 32, th = 32;
+  const c2 = document.createElement('canvas');
+  c2.width = tw; c2.height = th;
+  const ctx2 = c2.getContext('2d')!;
+  // Need to put sample on intermediate canvas first
+  const tmp = document.createElement('canvas');
+  tmp.width = sw; tmp.height = sh;
+  tmp.getContext('2d')!.putImageData(sample, 0, 0);
+  ctx2.drawImage(tmp, 0, 0, tw, th);
+  const templateImg = ctx2.getImageData(0, 0, tw, th);
+
+  _spriteProfiles.push({
+    species,
+    colors,
+    histogram,
+    width: sw,
+    height: sh,
+    templateData: templateImg.data,
+    templateW: tw,
+    templateH: th,
+  });
+  _trainedRegions.set(species, existing + 1);
+}
+
+export function getTrainedSampleCount(): Record<string, number> {
+  return Object.fromEntries(_trainedRegions);
+}
+
+export function clearTrainedSamples(): void {
+  if (!_spriteProfiles) return;
+  // Rebuild profiles list — keep only the first occurrence of each species
+  // (the original Showdown one)
+  const seen = new Set<string>();
+  _spriteProfiles = _spriteProfiles.filter(p => {
+    if (seen.has(p.species)) return false;
+    seen.add(p.species);
+    return true;
+  });
+  _trainedRegions.clear();
+}
+
 // ─── Detection ─────────────────────────────────────────────────────
 
 export interface ScanRegion {

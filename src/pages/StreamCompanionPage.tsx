@@ -28,6 +28,7 @@ import {
   exportArchive,
   type CachedFrame,
 } from '../utils/matchCache';
+import { addTrainedProfile } from '../utils/screenCapture';
 import type { PokemonState } from '../types';
 import { createDefaultPokemonState } from '../types';
 
@@ -568,6 +569,9 @@ export function StreamCompanionPage() {
   // Vote accumulators across frames — species → hit count, by side
   const leftVotesRef = useRef<Map<string, number>>(new Map());
   const rightVotesRef = useRef<Map<string, number>>(new Map());
+  // Permanent side assignment once high-confidence detection is seen.
+  // Camera pans cannot flip committed sides.
+  const committedSidesRef = useRef<Map<string, 'left' | 'right'>>(new Map());
   const [teamsLocked, setTeamsLocked] = useState(false);
   // Current match ID for keyframe tagging
   const currentMatchIdRef = useRef<string>('');
@@ -714,7 +718,7 @@ export function StreamCompanionPage() {
     // Clear dismissed list for fresh game
     setDismissedSpecies(new Set());
     // Reset phase machine — ready for next match's team preview
-    leftVotesRef.current = new Map();
+    leftVotesRef.current = new Map(); committedSidesRef.current = new Map();
     rightVotesRef.current = new Map();
     setTeamsLocked(false);
     setDetectionPhase('preview');
@@ -741,7 +745,7 @@ export function StreamCompanionPage() {
     setScanCount(0);
     setDismissedSpecies(new Set());
     cooldownUntilRef.current = 0;
-    leftVotesRef.current = new Map();
+    leftVotesRef.current = new Map(); committedSidesRef.current = new Map();
     rightVotesRef.current = new Map();
     setTeamsLocked(false);
     setDetectionPhase('preview');
@@ -954,11 +958,9 @@ export function StreamCompanionPage() {
 
     setLastFrameUrl(annotated.toDataURL('image/jpeg', 0.6));
 
-    // Skip menu frames
-    if (result.screenContext === 'menu') return;
-
-    // Auto-record match result — cache result keyframe first
-    if (result.matchResult && filledOpponents.length > 0) {
+    // Auto-record match result FIRST — results screen is authoritative,
+    // takes precedence over screen-context classification.
+    if (result.matchResult) {
       const matchId = currentMatchIdRef.current || 'unknown';
       const frameId = `${matchId}-result-${Date.now()}`;
       saveFrame({
@@ -979,6 +981,9 @@ export function StreamCompanionPage() {
       return;
     }
 
+    // Skip menu frames AFTER W/L check (results screen wins)
+    if (result.screenContext === 'menu') return;
+
     if (result.species.length < 1 && (!result.spriteMatched || result.spriteMatched.length < 1)) return;
 
     // ── PHASE MACHINE ──
@@ -992,23 +997,30 @@ export function StreamCompanionPage() {
     const leftVotes = leftVotesRef.current;
     const rightVotes = rightVotesRef.current;
 
-    // Sprite votes by position. Once a species has a clear majority on one
-    // side (2× the other side), freeze it there — prevents mid-battle swaps
-    // when animated sprites cross the midpoint visually.
+    // Sprite votes by position with permanent side commitment.
+    // Once a species is detected at ≥0.5 confidence, commit its side.
+    // All subsequent votes for that species go to committed side regardless
+    // of where the sprite appears — camera pans cannot flip it.
+    const committed = committedSidesRef.current;
     for (const s of (result.spriteMatched ?? [])) {
       if (s.confidence < 0.3) continue;
       const isLeft = s.x < midX;
-      const existingLeft = leftVotes.get(s.species) ?? 0;
-      const existingRight = rightVotes.get(s.species) ?? 0;
-      const dominant: 'left' | 'right' | null =
-        existingLeft >= 3 && existingLeft >= existingRight * 2 ? 'left' :
-        existingRight >= 3 && existingRight >= existingLeft * 2 ? 'right' : null;
-      // If already dominant on opposite side, skip this vote (noise)
-      if (dominant === 'left' && !isLeft) continue;
-      if (dominant === 'right' && isLeft) continue;
-
-      const map = isLeft ? leftVotes : rightVotes;
       const weight = Math.max(1, Math.round(s.confidence * 4));
+
+      let targetSide: 'left' | 'right';
+      const existing = committed.get(s.species);
+      if (existing) {
+        // Already committed — stick with committed side
+        targetSide = existing;
+      } else if (s.confidence >= 0.5) {
+        // High-confidence first sighting → commit permanently
+        targetSide = isLeft ? 'left' : 'right';
+        committed.set(s.species, targetSide);
+      } else {
+        // Low-conf, uncommitted → vote on current position, don't commit yet
+        targetSide = isLeft ? 'left' : 'right';
+      }
+      const map = targetSide === 'left' ? leftVotes : rightVotes;
       map.set(s.species, (map.get(s.species) ?? 0) + weight);
     }
 
@@ -1019,10 +1031,25 @@ export function StreamCompanionPage() {
       else if (m.side === 'right') rightVotes.set(m.species, (rightVotes.get(m.species) ?? 0) + 2);
     }
 
-    // Battle log is definitive — skip votes, go straight to lock-eligible
+    // Battle log is definitive — skip votes, go straight to lock-eligible.
+    // ALSO commit side permanently and train the visual sprite profile.
     for (const blm of (result.battleLogMatches ?? [])) {
+      const side = blm.isOpponent ? 'right' : 'left';
+      committed.set(blm.species, side);
       const map = blm.isOpponent ? rightVotes : leftVotes;
       map.set(blm.species, (map.get(blm.species) ?? 0) + 5);
+
+      // Train: if a sprite was detected near this species, capture it
+      // as a real in-game profile for future matching.
+      const matchingSprite = (result.spriteMatched ?? []).find(s => s.species === blm.species);
+      if (matchingSprite && matchingSprite.confidence >= 0.4) {
+        addTrainedProfile(blm.species, frame, {
+          x: matchingSprite.x,
+          y: matchingSprite.y,
+          w: 80,
+          h: 80,
+        }).catch(() => {});
+      }
     }
 
     // Pick top-N by vote count per side
@@ -1542,7 +1569,7 @@ export function StreamCompanionPage() {
                   onClick={() => {
                     setTeamsLocked(false);
                     setDetectionPhase('preview');
-                    leftVotesRef.current = new Map();
+                    leftVotesRef.current = new Map(); committedSidesRef.current = new Map();
                     rightVotesRef.current = new Map();
                     setOpponentTeam([]);
                   }}
