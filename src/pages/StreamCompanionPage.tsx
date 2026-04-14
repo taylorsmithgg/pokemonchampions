@@ -382,19 +382,19 @@ export function StreamCompanionPage() {
   const filledMyTeam = myTeam.filter(Boolean);
   const filledOpponents = opponentTeam.filter(Boolean);
 
-  // Analysis
+  // Analysis — starts as soon as ANY opponent is entered (live updating)
   const archetypes = useMemo(() =>
-    filledOpponents.length >= 3 ? detectOpponentArchetype(filledOpponents) : [],
+    filledOpponents.length >= 1 ? detectOpponentArchetype(filledOpponents) : [],
   [filledOpponents]);
 
   const bringList = useMemo(() =>
-    filledOpponents.length >= 3 && filledMyTeam.length >= 4
+    filledOpponents.length >= 1 && filledMyTeam.length >= 2
       ? recommendBringList(myTeam, filledOpponents)
       : [],
   [myTeam, filledOpponents, filledMyTeam.length]);
 
   const threats = useMemo(() =>
-    filledOpponents.length >= 2 && filledMyTeam.length >= 2
+    filledOpponents.length >= 1 && filledMyTeam.length >= 1
       ? identifyKeyThreats(filledMyTeam, filledOpponents)
       : [],
   [filledMyTeam, filledOpponents]);
@@ -467,6 +467,19 @@ export function StreamCompanionPage() {
   const deleteMatch = useCallback((id: string) => {
     setHistory(prev => prev.filter(h => h.id !== id));
   }, []);
+
+  // Keyboard shortcuts — W for win, L for loss (only when not typing in an input)
+  useEffect(() => {
+    const handleKeyboard = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+      if (filledOpponents.length === 0) return;
+      if (e.key === 'w' || e.key === 'W') { e.preventDefault(); recordMatch('win'); }
+      if (e.key === 'l' || e.key === 'L') { e.preventDefault(); recordMatch('loss'); }
+    };
+    window.addEventListener('keydown', handleKeyboard);
+    return () => window.removeEventListener('keydown', handleKeyboard);
+  }, [filledOpponents.length, recordMatch]);
 
   const clearHistory = useCallback(() => {
     if (confirm('Clear all match history? This cannot be undone.')) {
@@ -820,7 +833,7 @@ export function StreamCompanionPage() {
           {/* Right column: Analysis */}
           <div className="space-y-4">
             {/* Quick action: record match */}
-            {filledOpponents.length >= 3 && (
+            {filledOpponents.length >= 1 && (
               <div className="poke-panel p-3">
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Record Match</div>
 
@@ -981,10 +994,10 @@ export function StreamCompanionPage() {
             )}
 
             {/* Waiting state */}
-            {filledOpponents.length < 3 && (
+            {filledOpponents.length === 0 && (
               <div className="poke-panel p-6 text-center">
-                <div className="text-slate-600 text-sm mb-1">Enter at least 3 opponent Pokemon</div>
-                <div className="text-slate-700 text-xs">Analysis will appear here once you input the opponent's team from team preview.</div>
+                <div className="text-slate-600 text-sm mb-1">Enter opponent Pokemon to start</div>
+                <div className="text-slate-700 text-xs">Paste a screenshot (Ctrl+V) for reference, then type species names. Analysis updates live as you add.</div>
               </div>
             )}
           </div>
