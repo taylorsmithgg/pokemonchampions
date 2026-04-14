@@ -1594,17 +1594,17 @@ export function StreamCompanionPage() {
               >
                 <div className="flex flex-col items-center justify-center leading-none">
                   <div className="flex items-baseline gap-1.5">
-                    <span className="font-black text-3xl tracking-tighter" style={{ color: '#4ade80', WebkitTextStroke: '2px #000' }}>{wins}</span>
-                    <span className="font-black text-lg" style={{ color: '#ffd700', WebkitTextStroke: '1px #000' }}>-</span>
-                    <span className="font-black text-3xl tracking-tighter" style={{ color: '#fb7185', WebkitTextStroke: '2px #000' }}>{losses}</span>
+                    <span className="font-black text-3xl tracking-tighter" style={{ color: '#4ade80', WebkitTextStroke: '1.5px #fff' }}>{wins}</span>
+                    <span className="font-black text-lg" style={{ color: '#ffd700', WebkitTextStroke: '0.5px #fff' }}>-</span>
+                    <span className="font-black text-3xl tracking-tighter" style={{ color: '#fb7185', WebkitTextStroke: '1.5px #fff' }}>{losses}</span>
                   </div>
                   {totalGames > 0 && (
-                    <div className="text-[11px] font-black mt-0.5 tracking-widest" style={{ color: '#ffd700', WebkitTextStroke: '1px #000' }}>{winRate}%</div>
+                    <div className="text-[11px] font-black mt-0.5 tracking-widest" style={{ color: '#ffd700', WebkitTextStroke: '0.5px #fff' }}>{winRate}%</div>
                   )}
                   {streak.count >= 2 && (
                     <div
                       className="text-[9px] font-black uppercase tracking-widest mt-1"
-                      style={{ color: '#ffd700', WebkitTextStroke: '1px #000' }}
+                      style={{ color: '#ffd700', WebkitTextStroke: '0.5px #fff' }}
                     >
                       {streak.count}{streak.type === 'win' ? 'W' : 'L'} STREAK
                     </div>
