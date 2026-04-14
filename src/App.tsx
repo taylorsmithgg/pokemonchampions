@@ -15,6 +15,7 @@ import { FAQPage } from './pages/FAQPage';
 import { TierListPage } from './pages/TierListPage';
 import { TeamBuilderPage } from './pages/TeamBuilderPage';
 import { BattleAssistantPage } from './pages/BattleAssistantPage';
+import { StreamCompanionPage } from './pages/StreamCompanionPage';
 import { TeamProvider } from './contexts/TeamContext';
 import type { TeamMember } from './data/teams';
 import {
@@ -218,10 +219,20 @@ function Calculator() {
               <span className="text-xs hidden sm:inline">Battle</span>
             </Link>
             <Link
+              to="/stream"
+              className="p-2 sm:px-3 sm:py-1.5 rounded-lg bg-poke-surface border border-poke-border text-slate-400 hover:border-violet-500/40 hover:text-violet-400 transition-colors flex items-center gap-1.5"
+              title="Stream Companion — Twitch overlay with battle tracking"
+            >
+              <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              <span className="text-xs hidden sm:inline">Stream</span>
+            </Link>
+            <Link
               to="/faq"
               className="hidden sm:flex text-xs px-3 py-1.5 rounded-lg bg-poke-surface border border-poke-border text-slate-400 hover:border-white/30 hover:text-white transition-colors items-center"
             >
-              FAQ
+              Wiki
             </Link>
             <div className="hidden md:block w-px h-5 bg-poke-border mx-1" />
             <button
@@ -415,6 +426,7 @@ function App() {
             <Route path="/" element={<Calculator />} />
             <Route path="/team-builder" element={<TeamBuilderPage />} />
             <Route path="/battle" element={<BattleAssistantPage />} />
+            <Route path="/stream" element={<StreamCompanionPage />} />
             <Route path="/tier-list" element={<TierListPage />} />
             <Route path="/faq" element={<FAQPage />} />
             <Route path="/faq/:slug" element={<FAQPage />} />

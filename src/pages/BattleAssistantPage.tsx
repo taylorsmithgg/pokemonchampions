@@ -212,6 +212,7 @@ export function BattleAssistantPage() {
             </button>
             <Link to="/" className="text-[10px] px-2 py-1 bg-poke-surface border border-poke-border text-slate-400 rounded hover:text-white transition-colors">Calc</Link>
             <Link to="/team-builder" className="text-[10px] px-2 py-1 bg-poke-surface border border-poke-border text-slate-400 rounded hover:text-white transition-colors">Builder</Link>
+            <Link to="/stream" className="text-[10px] px-2 py-1 bg-poke-surface border border-poke-border text-slate-400 rounded hover:text-violet-400 transition-colors">Stream</Link>
           </div>
         </div>
       </header>

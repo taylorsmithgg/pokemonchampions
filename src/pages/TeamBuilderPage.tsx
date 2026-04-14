@@ -31,18 +31,10 @@ export function TeamBuilderPage() {
             >
               Calculator
             </Link>
-            <Link
-              to="/tier-list"
-              className="text-xs px-3 py-1.5 rounded-lg border transition-colors bg-poke-surface border-poke-border text-slate-400 hover:text-white hidden sm:block"
-            >
-              Tier List
-            </Link>
-            <Link
-              to="/faq"
-              className="text-xs px-3 py-1.5 rounded-lg border transition-colors bg-poke-surface border-poke-border text-slate-400 hover:text-white hidden sm:block"
-            >
-              Wiki
-            </Link>
+            <Link to="/tier-list" className="text-xs px-3 py-1.5 rounded-lg border transition-colors bg-poke-surface border-poke-border text-slate-400 hover:text-white hidden sm:block">Tier List</Link>
+            <Link to="/battle" className="text-xs px-3 py-1.5 rounded-lg border transition-colors bg-poke-surface border-poke-border text-slate-400 hover:text-emerald-400 hidden sm:block">Battle</Link>
+            <Link to="/stream" className="text-xs px-3 py-1.5 rounded-lg border transition-colors bg-poke-surface border-poke-border text-slate-400 hover:text-violet-400 hidden sm:block">Stream</Link>
+            <Link to="/faq" className="text-xs px-3 py-1.5 rounded-lg border transition-colors bg-poke-surface border-poke-border text-slate-400 hover:text-white hidden sm:block">Wiki</Link>
           </nav>
         </div>
       </header>
