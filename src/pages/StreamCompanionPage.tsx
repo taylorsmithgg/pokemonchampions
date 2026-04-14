@@ -713,8 +713,10 @@ export function StreamCompanionPage() {
     setMatchStartTime(null);
     setMatchElapsed(0);
 
-    // Cooldown: ignore detections for 8 seconds after recording
-    cooldownUntilRef.current = Date.now() + 8000;
+    // Cooldown: ignore detections for 12 seconds after recording.
+    // Results screens linger and would otherwise leak sprites/votes
+    // into the next match's preview accumulation.
+    cooldownUntilRef.current = Date.now() + 12000;
     // Clear dismissed list for fresh game
     setDismissedSpecies(new Set());
     // Reset phase machine — ready for next match's team preview
@@ -832,8 +834,12 @@ export function StreamCompanionPage() {
       return;
     }
 
-    // Skip scans during post-game cooldown
+    // Skip scans during post-game cooldown — opponent sprites from
+    // results screen would otherwise get re-detected for the next match.
     if (Date.now() < cooldownUntilRef.current) return;
+
+    // Quick pre-OCR check: if cooldown JUST ended, do a cheap scan first
+    // to detect if results screen is STILL on. We check raw text below.
 
     const rawFrame = grabFrame();
     if (!rawFrame) return;
@@ -957,6 +963,15 @@ export function StreamCompanionPage() {
     actx.fillStyle = '#22c55e'; actx.fillText('■ OCR text match', frame.width - 200, 60);
 
     setLastFrameUrl(annotated.toDataURL('image/jpeg', 0.6));
+
+    // If we see Won/Lost text but already locked in battle phase OR
+    // already past a recent match (cooldown JUST expired), this is the
+    // SAME results screen lingering — extend cooldown to wait it out.
+    // Prevents re-detecting opponent sprites from previous match.
+    if (result.matchResult && (Date.now() - cooldownUntilRef.current) < 15000 && cooldownUntilRef.current > 0) {
+      cooldownUntilRef.current = Date.now() + 5000; // hold cooldown until results clear
+      return;
+    }
 
     // Auto-record match result FIRST — results screen is authoritative,
     // takes precedence over screen-context classification.
