@@ -4,12 +4,20 @@
 
 const nameToIdCache: Record<string, string> = {};
 
-// New Z-A Megas without Showdown sprites — fall back to base form
-const MISSING_MEGA_SPRITES = new Set([
-  'Excadrill-Mega', 'Delphox-Mega', 'Greninja-Mega', 'Chesnaught-Mega',
-  'Hawlucha-Mega', 'Chimecho-Mega', 'Crabominable-Mega', 'Golurk-Mega',
+// Z-A Megas Showdown ships as static-only (dex PNG exists, ani GIF 404s).
+// For these, getSpriteUrl returns the dex URL directly so the UI renders
+// the actual Mega artwork instead of flashing through a broken ani URL.
+const STATIC_ONLY_MEGAS = new Set([
+  'Golurk-Mega', 'Delphox-Mega', 'Greninja-Mega', 'Chesnaught-Mega',
+  'Excadrill-Mega', 'Hawlucha-Mega', 'Crabominable-Mega', 'Chimecho-Mega',
   'Drampa-Mega', 'Chandelure-Mega', 'Scovillain-Mega', 'Glimmora-Mega',
-  'Meowstic-M-Mega', 'Meowstic-F-Mega', 'Victreebel-Mega', 'Floette-Mega',
+]);
+
+// Z-A Megas with no Showdown sprite at all (both ani + dex 404) —
+// fall back to rendering the base-form sprite so at least something
+// shows up.
+const MISSING_MEGA_SPRITES = new Set([
+  'Meowstic-M-Mega', 'Meowstic-F-Mega', 'Floette-Mega',
 ]);
 
 // Explicit Showdown sprite IDs for species whose name contains a
@@ -70,11 +78,17 @@ function speciesNameToId(name: string): string {
 // Animated sprite (primary)
 export function getSpriteUrl(species: string): string {
   if (!species) return '';
+  // Static-only Megas: skip the 404-bound ani URL, serve the dex PNG
+  // directly so the Mega artwork is what actually renders.
+  if (STATIC_ONLY_MEGAS.has(species)) return getSpriteFallbackUrl(species);
   return `https://play.pokemonshowdown.com/sprites/ani/${speciesNameToId(species)}.gif`;
 }
 
 // Static sprite (fallback)
 export function getSpriteFallbackUrl(species: string): string {
   if (!species) return '';
+  // Static-only Megas keep their Mega name here (dex PNG exists). The
+  // speciesNameToId map only redirects them via MISSING_MEGA_SPRITES,
+  // which they aren't in — so "Golurk-Mega" → "golurk-mega" naturally.
   return `https://play.pokemonshowdown.com/sprites/dex/${speciesNameToId(species)}.png`;
 }

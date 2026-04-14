@@ -21,6 +21,7 @@ import {
   getAvailableMoves,
   getAvailableItems,
   getAvailableAbilities,
+  getPokemonAbilities,
   getPokemonData,
   NATURES,
   getNatureLabel,
@@ -59,12 +60,14 @@ function MiniStatBar({ stat, base, sp, nature, level }: { stat: StatID; base: nu
   const pct = Math.min(100, (calcVal / maxPossible) * 100);
 
   return (
-    <div className="flex items-center gap-1.5">
-      <span className="text-[10px] text-slate-500 w-6">{STAT_LABELS[stat]}</span>
-      <div className="flex-1 h-1.5 bg-poke-surface rounded-full overflow-hidden">
+    <div>
+      <div className="flex items-center justify-between mb-0.5">
+        <span className="text-[9px] text-slate-500">{STAT_LABELS[stat]}</span>
+        <span className="text-[9px] text-slate-400 font-mono">{calcVal}</span>
+      </div>
+      <div className="w-full h-1 bg-poke-surface rounded-full overflow-hidden">
         <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: STAT_COLORS[stat] }} />
       </div>
-      <span className="text-[10px] text-slate-400 w-7 text-right font-mono">{calcVal}</span>
     </div>
   );
 }
@@ -128,8 +131,12 @@ function TeamSlot({
 
   const allMoves = useMemo(() => getAvailableMoves(), []);
   const allItems = useMemo(() => getAvailableItems(), []);
-  const allAbilities = useMemo(() => getAvailableAbilities(), []);
   const data = pokemon.species ? getPokemonData(pokemon.species) : null;
+  // Species-specific abilities (2 max in Champions, no hidden)
+  const speciesAbilities = useMemo(() => {
+    if (!pokemon.species) return getAvailableAbilities();
+    return getPokemonAbilities(pokemon.species);
+  }, [pokemon.species]);
 
   const update = <K extends keyof PokemonState>(key: K, value: PokemonState[K]) => {
     onChange({ ...pokemon, [key]: value });
@@ -193,17 +200,16 @@ function TeamSlot({
       {pokemon.species && !expanded && data && (
         <div className="px-3 pb-3 pt-2 space-y-2">
           {/* Nature · Ability · Item · SP bar */}
-          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-x-2 text-xs">
-            <div className="flex items-center gap-1.5">
+          <div className="flex items-center justify-between gap-2 text-xs min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
               <GenBadge species={pokemon.species} />
-              <span className="text-white font-medium">{pokemon.nature}</span>
-              <span className="text-slate-700">·</span>
-              <span className="text-slate-400">{pokemon.ability || '—'}</span>
-              <span className="text-slate-700">·</span>
-              <span className="text-poke-gold">{pokemon.item || '—'}</span>
+              <span className="text-white font-medium shrink-0">{pokemon.nature}</span>
+              <span className="text-slate-700 shrink-0">·</span>
+              <span className="text-slate-400 truncate">{pokemon.ability || '—'}</span>
+              <span className="text-slate-700 shrink-0">·</span>
+              <span className="text-poke-gold truncate">{pokemon.item || '—'}</span>
             </div>
-            <div />
-            <span className={`text-xs font-mono ${totalSP === MAX_TOTAL_SP ? 'text-emerald-400' : 'text-amber-400'}`}>{totalSP}/{MAX_TOTAL_SP}</span>
+            <span className={`text-xs font-mono shrink-0 ${totalSP === MAX_TOTAL_SP ? 'text-emerald-400' : 'text-amber-400'}`}>{totalSP}/{MAX_TOTAL_SP}</span>
           </div>
           {/* Moves row */}
           <div className="flex gap-1.5 flex-wrap">
@@ -214,8 +220,8 @@ function TeamSlot({
               <span className="text-[11px] text-slate-600 italic">No moves — click optimize</span>
             )}
           </div>
-          {/* Stat bars — 6-col grid, uniform */}
-          <div className="grid grid-cols-6 gap-x-2 gap-y-0">
+          {/* Stat bars — stacked label/value above bar, no overlap possible */}
+          <div className="grid grid-cols-3 gap-x-3 gap-y-1">
             {STAT_IDS.map(s => (
               <MiniStatBar key={s} stat={s} base={data.baseStats[s]} sp={pokemon.sps[s]} nature={pokemon.nature} level={pokemon.level} />
             ))}
@@ -232,7 +238,7 @@ function TeamSlot({
 
         {/* Expanded form */}
         {pokemon.species && expanded && (
-          <div className="space-y-4 mx-3 mb-3 mt-2 border-t border-poke-border pt-3">
+          <div className="space-y-4 px-3 mb-3 mt-2 border-t border-poke-border pt-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-slate-400 mb-1">Nature</label>
@@ -248,7 +254,7 @@ function TeamSlot({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-slate-400 mb-1">Ability</label>
-                <SearchSelect options={allAbilities} value={pokemon.ability} onChange={v => update('ability', v)} placeholder="Ability..." />
+                <SearchSelect options={speciesAbilities} value={pokemon.ability} onChange={v => update('ability', v)} placeholder="Ability..." />
               </div>
               <div>
                 <label className="block text-xs text-slate-400 mb-1">Tera Type</label>
@@ -265,7 +271,7 @@ function TeamSlot({
                 <label className="text-xs text-slate-400 font-medium">Stat Points</label>
                 <span className={`text-sm font-bold ${totalSP === MAX_TOTAL_SP ? 'text-emerald-400' : 'text-amber-400'}`}>{totalSP} used / {MAX_TOTAL_SP - totalSP} free</span>
               </div>
-              <div className="grid grid-cols-6 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                 {STAT_IDS.map(stat => (
                   <div key={stat} className="text-center">
                     <label className="block text-[10px] text-slate-500 mb-0.5">{STAT_LABELS[stat]}</label>
@@ -307,7 +313,7 @@ function TeamSlot({
 
         {/* Role-aware replacement suggestions */}
         {pokemon.species && (
-          <div className="mt-3 pt-3 border-t border-poke-border">
+          <div className="mx-3 mb-3 mt-2 pt-3 border-t border-poke-border">
             <button
               onClick={() => setShowReplacements(!showReplacements)}
               className={`text-xs px-3 py-1.5 rounded-lg border transition-colors w-full ${

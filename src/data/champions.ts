@@ -13,6 +13,7 @@ import {
   FORM_ALTERNATIVES,
   type GenMeta,
 } from './championsRoster';
+import { getZAMegaByStone, type ZAMegaEntry } from './zaMegaData';
 
 export { GENERATION_META, type GenMeta } from './championsRoster';
 export { FORM_ALTERNATIVES } from './championsRoster';
@@ -135,7 +136,22 @@ function initChampionsPokemon() {
 
 export function getAvailablePokemon(): string[] {
   initChampionsPokemon();
-  return Array.from(CHAMPIONS_POKEMON_SET).sort();
+  const all = new Set(CHAMPIONS_POKEMON_SET);
+
+  // Include Rotom appliance forms — these are selectable species,
+  // not just in-battle transformations. Players pick Rotom-Wash etc.
+  if (all.has('Rotom')) {
+    for (const form of ['Rotom-Wash', 'Rotom-Heat', 'Rotom-Frost', 'Rotom-Mow', 'Rotom-Fan']) {
+      all.add(form);
+    }
+  }
+
+  // Include Basculegion gender forms
+  if (all.has('Basculegion')) {
+    all.add('Basculegion-F');
+  }
+
+  return Array.from(all).sort();
 }
 
 /**
@@ -300,9 +316,41 @@ export function resolveForm(species: string, item: string): {
     if (directMega && directMegaName !== species) {
       return { data: directMega, formName: directMegaName, isMega: true };
     }
+
+    // Z-A Mega fallback: Smogon calc ships no data for Z-A-new Mega
+    // forms (Golurk-Mega, Delphox-Mega, etc.). Synthesize a species
+    // object from the override table so UI + damage calc see the
+    // correct stats/types/ability.
+    const zaEntry = getZAMegaByStone(species, item);
+    if (zaEntry) {
+      return {
+        data: buildZAMegaSpecies(zaEntry, baseData),
+        formName: zaEntry.formName,
+        isMega: true,
+      };
+    }
   }
 
   return { data: baseData, formName: species, isMega: false };
+}
+
+// Synthesize a Smogon-shaped Specie object from a Z-A Mega override
+// entry, inheriting anything we don't explicitly override (gender,
+// eggGroups, etc.) from the base species so downstream code that
+// touches those fields doesn't blow up.
+function buildZAMegaSpecies(
+  entry: ZAMegaEntry,
+  baseData: ReturnType<typeof getPokemonData>
+): ReturnType<typeof getPokemonData> {
+  if (!baseData) return baseData;
+  return {
+    ...baseData,
+    name: entry.formName,
+    types: entry.types,
+    baseStats: entry.baseStats,
+    weightkg: entry.weightkg,
+    abilities: { 0: entry.ability },
+  } as ReturnType<typeof getPokemonData>;
 }
 
 // ─── Moves ──────────────────────────────────────────────────────────
@@ -345,6 +393,23 @@ export function getAvailableAbilities(): string[] {
     if (!abilities.includes(a.name)) abilities.push(a.name);
   });
   return abilities.sort();
+}
+
+/**
+ * Get the legal abilities for a specific Pokemon in Champions.
+ * Champions limits each Pokemon to 2 abilities (no hidden ability).
+ * Returns [ability1, ability2] — may have 1 entry if both slots are the same.
+ */
+export function getPokemonAbilities(species: string): string[] {
+  const data = getPokemonData(species);
+  if (!data) return [];
+  const abilities: string[] = [];
+  // Smogon data: abilities = { 0: "Ability1", 1: "Ability2", H: "HiddenAbility", S: "Special" }
+  const raw = data.abilities as Record<string, string>;
+  if (raw['0']) abilities.push(raw['0']);
+  if (raw['1'] && raw['1'] !== raw['0']) abilities.push(raw['1']);
+  // No hidden ability in Champions — skip raw['H']
+  return abilities;
 }
 
 // ─── Items ──────────────────────────────────────────────────────────

@@ -10,6 +10,7 @@ import {
   getAvailableMoves,
   getAvailableItems,
   getAvailableAbilities,
+  getPokemonAbilities,
   getPokemonData,
   resolveForm,
   getAlternateForms,
@@ -350,7 +351,10 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [], teamma
   const pokemon = getAvailablePokemon();
   const allMoves = useMemo(() => getAvailableMoves(), []);
   const allItems = useMemo(() => getAvailableItems(), []);
-  const allAbilities = useMemo(() => getAvailableAbilities(), []);
+  const speciesAbilities = useMemo(() => {
+    if (!state.species) return getAvailableAbilities();
+    return getPokemonAbilities(state.species);
+  }, [state.species]);
 
   // Resolve the effective form (base or Mega based on held item)
   const resolved = useMemo(() => {
@@ -640,7 +644,7 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [], teamma
         {/* Ability + Item */}
         <div className="grid grid-cols-2 gap-2">
           <SearchSelect
-            options={allAbilities}
+            options={speciesAbilities}
             value={state.ability}
             onChange={v => set({ ability: v })}
             placeholder="Ability..."

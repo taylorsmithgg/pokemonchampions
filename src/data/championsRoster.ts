@@ -71,7 +71,6 @@ const GEN_2: readonly string[] = [
 ];
 
 const GEN_3: readonly string[] = [
-  'Sceptile',
   'Pelipper',
   'Gardevoir',
   'Sableye',
@@ -262,40 +261,52 @@ export const CHAMPIONS_POKEMON_BY_GEN: Readonly<Record<number, readonly string[]
 // calculator, tier list, synergy engine, and team builder.
 
 export const REGIONAL_FORMS: readonly string[] = [
-  // Alolan forms
+  // Alolan forms (per Bulbapedia)
   'Ninetales-Alola',      // Ice/Fairy — Snow Warning, Aurora Veil
   'Raichu-Alola',         // Electric/Psychic — Surge Surfer
-  'Exeggutor-Alola',      // Grass/Dragon — Frisk
-  'Marowak-Alola',        // Fire/Ghost — Lightning Rod
-  'Muk-Alola',            // Poison/Dark — Power of Alchemy
   // Hisuian forms
   'Arcanine-Hisui',       // Fire/Rock — Intimidate, Rock Head
   'Typhlosion-Hisui',     // Fire/Ghost — Frisk
+  'Samurott-Hisui',       // Water/Dark — Sharpness
   'Decidueye-Hisui',      // Grass/Fighting — Scrappy
   'Zoroark-Hisui',        // Normal/Ghost — Illusion
   'Goodra-Hisui',         // Steel/Dragon — Sap Sipper
-  'Lilligant-Hisui',      // Grass/Fighting — Chlorophyll
+  'Avalugg-Hisui',        // Ice/Rock — Strong Jaw
   // Galarian forms
+  'Slowbro-Galar',        // Poison/Psychic — Quick Draw
   'Slowking-Galar',       // Poison/Psychic — Regenerator
+  'Stunfisk-Galar',       // Ground/Steel — Mimicry
   // Paldean forms
   'Tauros-Paldea-Combat', // Fighting — Intimidate
+  'Tauros-Paldea-Blaze',  // Fighting/Fire — Intimidate
+  'Tauros-Paldea-Aqua',   // Fighting/Water — Intimidate
+  // Alternate forms
+  'Meowstic-F',           // Psychic — Competitive (female)
+  'Lycanroc-Midnight',    // Rock — No Guard
+  'Lycanroc-Dusk',        // Rock — Tough Claws
+  'Gourgeist-Small',      // Ghost/Grass
+  'Gourgeist-Large',      // Ghost/Grass
+  'Gourgeist-Super',      // Ghost/Grass (Jumbo)
 ];
 
 /** Map of base species → their available alternate forms. */
 export const FORM_ALTERNATIVES: Readonly<Record<string, readonly string[]>> = {
   Ninetales: ['Ninetales-Alola'],
   Raichu: ['Raichu-Alola'],
-  Exeggutor: ['Exeggutor-Alola'],
-  Marowak: ['Marowak-Alola'],
-  Muk: ['Muk-Alola'],
   Arcanine: ['Arcanine-Hisui'],
   Typhlosion: ['Typhlosion-Hisui'],
+  Samurott: ['Samurott-Hisui'],
   Decidueye: ['Decidueye-Hisui'],
   Zoroark: ['Zoroark-Hisui'],
   Goodra: ['Goodra-Hisui'],
-  Lilligant: ['Lilligant-Hisui'],
+  Avalugg: ['Avalugg-Hisui'],
+  Slowbro: ['Slowbro-Galar'],
   Slowking: ['Slowking-Galar'],
-  Tauros: ['Tauros-Paldea-Combat'],
+  Stunfisk: ['Stunfisk-Galar'],
+  Tauros: ['Tauros-Paldea-Combat', 'Tauros-Paldea-Blaze', 'Tauros-Paldea-Aqua'],
+  Meowstic: ['Meowstic-F'],
+  Lycanroc: ['Lycanroc-Midnight', 'Lycanroc-Dusk'],
+  Gourgeist: ['Gourgeist-Small', 'Gourgeist-Large', 'Gourgeist-Super'],
 };
 
 // Flat list, generated from the per-gen buckets + regional forms.
@@ -408,7 +419,6 @@ export const MEGA_STONE_MAP: Readonly<Record<string, readonly string[]>> = {
   Scovillain:        ['Scovillainite'],   // Z-A — Grass/Fire
   Glimmora:          ['Glimmorite'],      // Z-A — Rock/Poison
   Meowstic:          ['Meowsticite'],     // Z-A — Psychic
-  Sceptile:          ['Sceptilite'],      // Existing Mega — Grass/Dragon
 };
 
 export const CHAMPIONS_MEGA_LIST: readonly string[] = Object.keys(MEGA_STONE_MAP);

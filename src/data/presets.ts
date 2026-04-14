@@ -922,17 +922,6 @@ const PRESETS_RAW: PokemonPreset[] = [
     moves: ['Blizzard', 'Moonblast', 'Aurora Veil', 'Protect'],
     label: 'Veil Setter',
   },
-  {
-    name: 'Sceptile (Mega Lightning Rod)',
-    species: 'Sceptile',
-    nature: 'Timid',
-    ability: 'Overgrow',
-    item: 'Sceptilite',
-    teraType: '',
-    sps: { hp: 2, atk: 0, def: 0, spa: 32, spd: 0, spe: 32 },
-    moves: ['Leaf Storm', 'Dragon Pulse', 'Focus Blast', 'Protect'],
-    label: 'Mega Lightning Rod',
-  },
 ];
 
 // Filter presets to only species in the Champions roster.

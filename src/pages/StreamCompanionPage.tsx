@@ -1,12 +1,35 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Sprite } from '../components/Sprite';
 import { QuickTeamInput } from '../components/QuickTeamInput';
-import { ScreenCapturePanel } from '../components/ScreenCapturePanel';
 import { getPokemonData, getTypeEffectiveness } from '../data/champions';
 import { getTierForPokemon, TIER_DEFINITIONS } from '../data/tierlist';
 import { useTeam } from '../contexts/TeamContext';
 import { inferOpenerStrategy, orderBringList } from '../calc/openerStrategy';
+import { resolveBuildWithSource } from '../calc/buildResolver';
+import {
+  initOcrWorker,
+  terminateOcrWorker,
+  isOcrReady,
+  startCapture,
+  stopCapture,
+  isCaptureActive,
+  grabFrame,
+  detectPokemonFromFrame,
+  type OcrDetectionResult,
+} from '../utils/ocrDetection';
+import {
+  saveFrame,
+  compressFrame,
+  listAllFrames,
+  getFrame,
+  clearAllFrames,
+  downloadArchive,
+  exportArchive,
+  type CachedFrame,
+} from '../utils/matchCache';
+import type { PokemonState } from '../types';
+import { createDefaultPokemonState } from '../types';
 
 
 // ─── Types ────────────────────────────────────────────────────────
@@ -16,15 +39,22 @@ interface MatchRecord {
   timestamp: number;
   opponentTeam: string[];
   result: 'win' | 'loss';
+  // Extended analytics fields — optional for backwards compat
+  myTeam?: string[];
+  archetype?: string;
+  durationMs?: number;
+  previewFrameId?: string;
+  resultFrameId?: string;
+  bringOrder?: string[];
 }
 
-type SourceMode = 'manual' | 'twitch' | 'screen';
 type GamePhase = 'idle' | 'preview' | 'battle';
 
 // ─── LocalStorage helpers ─────────────────────────────────────────
 
 const HISTORY_KEY = 'stream-companion-history';
 const CHANNEL_KEY = 'stream-companion-channel';
+const MY_TEAM_KEY = 'stream-companion-my-team';
 
 function loadHistory(): MatchRecord[] {
   try {
@@ -296,20 +326,174 @@ const PHASE_CONFIG: Record<GamePhase, { label: string; color: string; desc: stri
   battle:  { label: 'In Battle',     color: '#EF4444', desc: 'Battle in progress' },
 };
 
-// ─── Twitch Embed ────────────────────────────────────────────────
+// ─── Video Embed (Twitch / YouTube) ──────────────────────────────
 
-function TwitchEmbed({ channel }: { channel: string }) {
-  if (!channel) return null;
-  const embedUrl = `https://player.twitch.tv/?channel=${encodeURIComponent(channel)}&parent=${window.location.hostname}&muted=true`;
+type VideoSource = { type: 'twitch'; channel: string } | { type: 'youtube'; videoId: string } | null;
+
+function parseVideoUrl(input: string): VideoSource {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  // Twitch: twitch.tv/channel or just "channel"
+  const twitchMatch = trimmed.match(/(?:twitch\.tv\/)(\w+)/i);
+  if (twitchMatch) return { type: 'twitch', channel: twitchMatch[1] };
+
+  // YouTube: various URL formats
+  const ytMatch = trimmed.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);
+  if (ytMatch) return { type: 'youtube', videoId: ytMatch[1] };
+
+  // YouTube embed
+  const ytEmbed = trimmed.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/);
+  if (ytEmbed) return { type: 'youtube', videoId: ytEmbed[1] };
+
+  // Bare Twitch channel name (no URL, no dots, no slashes)
+  if (/^[a-zA-Z0-9_]{3,25}$/.test(trimmed)) return { type: 'twitch', channel: trimmed.toLowerCase() };
+
+  return null;
+}
+
+function VideoEmbed({ source }: { source: VideoSource }) {
+  if (!source) return null;
+
+  if (source.type === 'twitch') {
+    const embedUrl = `https://player.twitch.tv/?channel=${encodeURIComponent(source.channel)}&parent=${window.location.hostname}&muted=true`;
+    return (
+      <div className="w-full aspect-video rounded-lg overflow-hidden border border-poke-border bg-black">
+        <iframe src={embedUrl} className="w-full h-full" allowFullScreen allow="autoplay; encrypted-media" />
+      </div>
+    );
+  }
+
+  if (source.type === 'youtube') {
+    const embedUrl = `https://www.youtube.com/embed/${source.videoId}?autoplay=1&mute=1`;
+    return (
+      <div className="w-full aspect-video rounded-lg overflow-hidden border border-poke-border bg-black">
+        <iframe src={embedUrl} className="w-full h-full" allowFullScreen allow="autoplay; encrypted-media; picture-in-picture" />
+      </div>
+    );
+  }
+
+  return null;
+}
+
+// ─── Match History Row with expandable thumbnails ───────────────
+
+function MatchHistoryRow({ match, onDelete }: { match: MatchRecord; onDelete: (id: string) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const [frames, setFrames] = useState<CachedFrame[] | null>(null);
+
+  const loadFrames = useCallback(async () => {
+    if (frames) return;
+    const loaded: CachedFrame[] = [];
+    if (match.previewFrameId) {
+      const f = await getFrame(match.previewFrameId);
+      if (f) loaded.push(f);
+    }
+    if (match.resultFrameId) {
+      const f = await getFrame(match.resultFrameId);
+      if (f) loaded.push(f);
+    }
+    setFrames(loaded);
+  }, [match.previewFrameId, match.resultFrameId, frames]);
+
+  const toggle = () => {
+    if (!expanded) loadFrames();
+    setExpanded(!expanded);
+  };
+
+  const duration = match.durationMs ? `${Math.floor(match.durationMs / 60000)}:${String(Math.floor((match.durationMs % 60000) / 1000)).padStart(2, '0')}` : null;
 
   return (
-    <div className="w-full aspect-video rounded-lg overflow-hidden border border-poke-border bg-black">
-      <iframe
-        src={embedUrl}
-        className="w-full h-full"
-        allowFullScreen
-        allow="autoplay; encrypted-media"
-      />
+    <div className="rounded-lg border border-poke-border bg-poke-surface/30 overflow-hidden">
+      <div className="flex items-center gap-3 p-2.5">
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm shrink-0 ${
+          match.result === 'win' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
+        }`}>
+          {match.result === 'win' ? 'W' : 'L'}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="text-[10px] text-slate-500">vs</span>
+            {match.opponentTeam.map(opp => <Sprite key={opp} species={opp} size="sm" />)}
+            {match.archetype && (
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-poke-gold/10 text-poke-gold/70 border border-poke-gold/20 font-bold ml-1">
+                {match.archetype}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-[10px] text-slate-600">
+              {new Date(match.timestamp).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </span>
+            {duration && <span className="text-[10px] text-slate-600 font-mono">· {duration}</span>}
+          </div>
+        </div>
+        {(match.previewFrameId || match.resultFrameId) && (
+          <button onClick={toggle} className="text-[9px] px-2 py-0.5 rounded border border-sky-500/30 bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 transition-colors shrink-0">
+            {expanded ? 'Hide' : 'Replay'}
+          </button>
+        )}
+        <button onClick={() => onDelete(match.id)} className="text-slate-700 hover:text-red-400 transition-colors p-1 shrink-0" title="Delete match">
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      {expanded && (
+        <div className="border-t border-poke-border/50 p-2 space-y-2">
+          {match.myTeam && match.myTeam.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-slate-500 uppercase tracking-wider font-bold w-12">Team</span>
+              <div className="flex gap-1">
+                {match.myTeam.map(s => <Sprite key={s} species={s} size="sm" />)}
+              </div>
+            </div>
+          )}
+          {match.bringOrder && match.bringOrder.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-slate-500 uppercase tracking-wider font-bold w-12">Brought</span>
+              <div className="flex gap-1">
+                {match.bringOrder.map(s => <Sprite key={s} species={s} size="sm" />)}
+              </div>
+            </div>
+          )}
+          {frames && frames.length > 0 && (
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              {frames.map(f => (
+                <div key={f.id} className="rounded border border-poke-border/30 overflow-hidden">
+                  <div className="text-[9px] text-slate-500 px-1.5 py-0.5 bg-poke-surface/50 uppercase tracking-wider font-bold">
+                    {f.type}
+                  </div>
+                  <img src={f.dataUrl} alt={f.type} className="w-full h-auto" />
+                </div>
+              ))}
+            </div>
+          )}
+          {frames && frames.length === 0 && (
+            <div className="text-[10px] text-slate-600 italic">No frames cached for this match.</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Debug Section (toggleable) ──────────────────────────────────
+
+function DebugSection({ title, defaultOpen = false, children }: { title: string; defaultOpen?: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="rounded border border-poke-border/30 overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300 bg-poke-surface/20 hover:bg-poke-surface/40 transition-colors"
+      >
+        <span>{title}</span>
+        <svg className={`w-2.5 h-2.5 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && <div className="px-2 py-1.5">{children}</div>}
     </div>
   );
 }
@@ -317,7 +501,7 @@ function TwitchEmbed({ channel }: { channel: string }) {
 // ─── Main Component ──────────────────────────────────────────────
 
 export function StreamCompanionPage() {
-  const { team: contextTeam } = useTeam();
+  const { team: contextTeam, setTeam: setContextTeam } = useTeam();
 
   // ─── Core state ────────────────────────────────────────────────
   const [isOverlay, setIsOverlay] = useState(false);
@@ -329,20 +513,121 @@ export function StreamCompanionPage() {
   const [elapsed, setElapsed] = useState(0);
   const [lastResult, setLastResult] = useState<'win' | 'loss' | null>(null);
 
-  // Source mode
-  const [sourceMode, setSourceMode] = useState<SourceMode>('manual');
-  const [channel, setChannel] = useState(() => loadChannel());
-  const [channelInput, setChannelInput] = useState(() => loadChannel());
-  const [channelConnected, setChannelConnected] = useState(() => !!loadChannel());
+  // Per-match timer
+  const [matchStartTime, setMatchStartTime] = useState<number | null>(null);
+  const [matchElapsed, setMatchElapsed] = useState(0);
+
+  // Collapsible team
+  const [teamExpanded, setTeamExpanded] = useState(false);
+
+  // Session stats expanded
+  const [showSessionStats, setShowSessionStats] = useState(false);
+
+  // Video source
+  const [videoUrl, setVideoUrl] = useState(() => loadChannel());
+  const [videoUrlInput, setVideoUrlInput] = useState(() => loadChannel());
+  const videoSource = useMemo(() => parseVideoUrl(videoUrl), [videoUrl]);
+
+  // Auto-detection (OCR)
+  const [detecting, setDetecting] = useState(false);
+  const [, setOcrReady] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [lastOcrResult, setLastOcrResult] = useState<OcrDetectionResult | null>(null);
+  const [lastFrameUrl, setLastFrameUrl] = useState<string | null>(null);
+  // Raw (uncropped) frame — used for region selection so user can pick from full screen
+  const [lastRawFrameUrl, setLastRawFrameUrl] = useState<string | null>(null);
+  const [scanCount, setScanCount] = useState(0);
+  const [showDebug, setShowDebug] = useState(true);
+  const scanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Cooldown after W/L to avoid re-detecting stale screen data
+  const cooldownUntilRef = useRef<number>(0);
+  // Species dismissed by the user — won't be re-added by auto-detect this game
+  const [dismissedSpecies, setDismissedSpecies] = useState<Set<string>>(new Set());
+  // Frame-diff hash for keyframe selection (skip OCR on unchanged frames)
+  const lastFrameHashRef = useRef<Uint8Array | null>(null);
+  // User-defined capture region (percentages 0-1). Null = full frame.
+  const [captureRegion, setCaptureRegion] = useState<{ x: number; y: number; w: number; h: number } | null>(() => {
+    try {
+      const saved = localStorage.getItem('stream-companion-region');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
+  const [regionSelecting, setRegionSelecting] = useState(false);
+  const [regionDragStart, setRegionDragStart] = useState<{ x: number; y: number } | null>(null);
+  const [regionDragEnd, setRegionDragEnd] = useState<{ x: number; y: number } | null>(null);
+
+  // Persist region
+  useEffect(() => {
+    if (captureRegion) localStorage.setItem('stream-companion-region', JSON.stringify(captureRegion));
+    else localStorage.removeItem('stream-companion-region');
+  }, [captureRegion]);
+  // Match phase: 'preview' = scanning for team preview, 'battle' = teams locked, watching W/L, 'ended' = cooldown
+  const [detectionPhase, setDetectionPhase] = useState<'preview' | 'battle' | 'ended'>('preview');
+  // Vote accumulators across frames — species → hit count, by side
+  const leftVotesRef = useRef<Map<string, number>>(new Map());
+  const rightVotesRef = useRef<Map<string, number>>(new Map());
+  const [teamsLocked, setTeamsLocked] = useState(false);
+  // Current match ID for keyframe tagging
+  const currentMatchIdRef = useRef<string>('');
+  const previewFrameIdRef = useRef<string>('');
+  // Cache stats
+  const [cacheStats, setCacheStats] = useState<{ frames: number; bytes: number }>({ frames: 0, bytes: 0 });
 
   // Persist history
   useEffect(() => { saveHistory(history); }, [history]);
 
-  // Session timer
+  // Refresh cache stats when history or detection changes
   useEffect(() => {
-    const t = setInterval(() => setElapsed(Date.now() - sessionStart), 1000);
+    listAllFrames().then(frames => {
+      let bytes = 0;
+      for (const f of frames) bytes += f.dataUrl.length * 0.75;
+      setCacheStats({ frames: frames.length, bytes: Math.round(bytes) });
+    }).catch(() => {});
+  }, [history, scanCount]);
+
+  // Track whether we've restored from localStorage to avoid the persist
+  // effect from overwriting saved data on initial mount.
+  const restoredRef = useRef(false);
+
+  // Restore user's team from localStorage on mount
+  useEffect(() => {
+    const filled = contextTeam.filter(t => t.species);
+    if (filled.length > 0) { restoredRef.current = true; return; }
+    try {
+      const saved = localStorage.getItem(MY_TEAM_KEY);
+      if (!saved) { restoredRef.current = true; return; }
+      const species: string[] = JSON.parse(saved);
+      const validSpecies = species.filter(Boolean);
+      if (validSpecies.length === 0) { restoredRef.current = true; return; }
+      const newTeam: PokemonState[] = Array.from({ length: 6 }, (_, i) => {
+        const s = validSpecies[i];
+        if (!s) return createDefaultPokemonState();
+        const { build } = resolveBuildWithSource(s);
+        return build;
+      });
+      setContextTeam(newTeam);
+      restoredRef.current = true;
+    } catch { restoredRef.current = true; }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist user's team to localStorage — but only after initial restore
+  useEffect(() => {
+    if (!restoredRef.current) return;
+    const filled = contextTeam.filter(t => t.species).map(t => t.species);
+    localStorage.setItem(MY_TEAM_KEY, JSON.stringify(filled));
+  }, [contextTeam]);
+
+  // Session timer + match timer
+  useEffect(() => {
+    const t = setInterval(() => {
+      setElapsed(Date.now() - sessionStart);
+      if (matchStartTime) {
+        setMatchElapsed(Date.now() - matchStartTime);
+      }
+    }, 1000);
     return () => clearInterval(t);
-  }, [sessionStart]);
+  }, [sessionStart, matchStartTime]);
 
   // ─── Derived data ──────────────────────────────────────────────
   const filledMyTeam = useMemo(
@@ -401,23 +686,77 @@ export function StreamCompanionPage() {
 
   // ─── Handlers ──────────────────────────────────────────────────
 
-  const recordMatch = useCallback((result: 'win' | 'loss') => {
+  const recordMatch = useCallback((result: 'win' | 'loss', resultFrameId?: string) => {
+    const matchId = currentMatchIdRef.current || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
     const record: MatchRecord = {
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      id: matchId,
       timestamp: Date.now(),
       opponentTeam: filledOpponents,
       result,
+      myTeam: [...filledMyTeam],
+      archetype: archetypes[0]?.name,
+      durationMs: matchStartTime ? Date.now() - matchStartTime : undefined,
+      previewFrameId: previewFrameIdRef.current || undefined,
+      resultFrameId,
+      bringOrder: orderedBringList.slice(0, 4).map(b => b.species),
     };
     setHistory(prev => [record, ...prev]);
     setLastResult(result);
     setOpponentTeam([]);
-    // Flash result, then reset after a moment
-    setTimeout(() => setLastResult(null), 2000);
-  }, [filledOpponents]);
+    setGamePhase('idle');
+    setMatchStartTime(null);
+    setMatchElapsed(0);
+
+    // Cooldown: ignore detections for 8 seconds after recording
+    cooldownUntilRef.current = Date.now() + 8000;
+    // Clear dismissed list for fresh game
+    setDismissedSpecies(new Set());
+    // Reset phase machine — ready for next match's team preview
+    leftVotesRef.current = new Map();
+    rightVotesRef.current = new Map();
+    setTeamsLocked(false);
+    setDetectionPhase('preview');
+    currentMatchIdRef.current = '';
+    previewFrameIdRef.current = '';
+
+    setTimeout(() => setLastResult(null), 3000);
+  }, [filledOpponents, filledMyTeam, archetypes, matchStartTime, orderedBringList]);
 
   const deleteMatch = useCallback((id: string) => {
     setHistory(prev => prev.filter(h => h.id !== id));
   }, []);
+
+  // Full session reset — clears EVERYTHING for starting fresh
+  const resetSession = useCallback(() => {
+    setOpponentTeam([]);
+    setHistory([]);
+    setGamePhase('idle');
+    setMatchStartTime(null);
+    setMatchElapsed(0);
+    setLastResult(null);
+    setLastOcrResult(null);
+    setLastFrameUrl(null);
+    setScanCount(0);
+    setDismissedSpecies(new Set());
+    cooldownUntilRef.current = 0;
+    leftVotesRef.current = new Map();
+    rightVotesRef.current = new Map();
+    setTeamsLocked(false);
+    setDetectionPhase('preview');
+    lastFrameHashRef.current = null;
+    saveHistory([]);
+  }, []);
+
+  const handleExportArchive = useCallback(async () => {
+    const bundle = await exportArchive(history);
+    downloadArchive(bundle, `champions-archive-${new Date().toISOString().slice(0, 10)}.json`);
+  }, [history]);
+
+  const handleClearCache = useCallback(async () => {
+    if (!confirm(`Clear ${cacheStats.frames} cached frames (${Math.round(cacheStats.bytes / 1024)} KB)? History is preserved.`)) return;
+    await clearAllFrames();
+    setCacheStats({ frames: 0, bytes: 0 });
+  }, [cacheStats]);
 
   const clearHistory = useCallback(() => {
     if (confirm('Clear all match history? This cannot be undone.')) {
@@ -425,29 +764,371 @@ export function StreamCompanionPage() {
     }
   }, []);
 
-  const handleConnectChannel = useCallback(() => {
-    const trimmed = channelInput.trim().toLowerCase();
-    setChannel(trimmed);
+  const handleConnectVideo = useCallback(() => {
+    const trimmed = videoUrlInput.trim();
+    setVideoUrl(trimmed);
     saveChannel(trimmed);
-    setChannelConnected(!!trimmed);
-  }, [channelInput]);
+  }, [videoUrlInput]);
 
-  const handleDisconnectChannel = useCallback(() => {
-    setChannel('');
-    setChannelInput('');
+  const handleDisconnectVideo = useCallback(() => {
+    setVideoUrl('');
+    setVideoUrlInput('');
     saveChannel('');
-    setChannelConnected(false);
   }, []);
 
-  const handleScreenDetected = useCallback((species: string[]) => {
-    setOpponentTeam(species);
-    if (species.length > 0) setGamePhase('preview');
+  // Set your team from species names — each gets a full resolved build
+  const handleSetMyTeam = useCallback((speciesList: string[]) => {
+    const newTeam: PokemonState[] = Array.from({ length: 6 }, (_, i) => {
+      const species = speciesList[i];
+      if (!species) return createDefaultPokemonState();
+      const { build } = resolveBuildWithSource(species);
+      return build;
+    });
+    setContextTeam(newTeam);
+  }, [setContextTeam]);
+
+  // ─── Auto-detection (OCR) handlers ─────────────────────────────
+
+  const handleStartDetection = useCallback(async () => {
+    // Step 1: Init OCR if needed
+    if (!isOcrReady()) {
+      setOcrLoading(true);
+      await initOcrWorker();
+      setOcrReady(true);
+      setOcrLoading(false);
+    }
+
+    // Step 2: Start screen capture
+    try {
+      await startCapture();
+      setDetecting(true);
+      setScanCount(0);
+      setLastOcrResult(null);
+      setLastFrameUrl(null);
+    } catch {
+      // User cancelled screen share dialog
+    }
+  }, []);
+
+  const handleStopDetection = useCallback(() => {
+    stopCapture();
+    setDetecting(false);
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+  }, []);
+
+  // Single scan pass — filters out your team, respects cooldown
+  const runScan = useCallback(async () => {
+    if (!isCaptureActive() || !isOcrReady()) {
+      if (!isCaptureActive()) setDetecting(false);
+      return;
+    }
+
+    // Skip scans during post-game cooldown
+    if (Date.now() < cooldownUntilRef.current) return;
+
+    const rawFrame = grabFrame();
+    if (!rawFrame) return;
+
+    // Save raw frame URL once a scan so region selector has full view
+    if (regionSelecting || !lastRawFrameUrl) {
+      setLastRawFrameUrl(rawFrame.toDataURL('image/jpeg', 0.55));
+    }
+
+    // Apply user-defined capture region crop BEFORE any analysis.
+    // Excludes other browser tabs/windows/overlays on shared screen.
+    let frame = rawFrame;
+    if (captureRegion) {
+      const { x, y, w, h } = captureRegion;
+      const sx = Math.round(rawFrame.width * x);
+      const sy = Math.round(rawFrame.height * y);
+      const sw = Math.round(rawFrame.width * w);
+      const sh = Math.round(rawFrame.height * h);
+      const cropped = document.createElement('canvas');
+      cropped.width = sw; cropped.height = sh;
+      cropped.getContext('2d')!.drawImage(rawFrame, sx, sy, sw, sh, 0, 0, sw, sh);
+      frame = cropped;
+    }
+
+    // Keyframe gate: skip OCR on frames identical to previous scan.
+    // Cheap 64x36 luminance hash diff — under 1ms.
+    const tiny = document.createElement('canvas');
+    tiny.width = 64; tiny.height = 36;
+    const tctx = tiny.getContext('2d')!;
+    tctx.drawImage(frame, 0, 0, 64, 36);
+    const tinyData = tctx.getImageData(0, 0, 64, 36).data;
+    const hash = new Uint8Array(64 * 36);
+    for (let i = 0, j = 0; i < tinyData.length; i += 4, j++) {
+      hash[j] = (tinyData[i] + tinyData[i + 1] + tinyData[i + 2]) / 3;
+    }
+    let frameChanged = true;
+    if (lastFrameHashRef.current) {
+      let diff = 0;
+      for (let i = 0; i < hash.length; i++) diff += Math.abs(hash[i] - lastFrameHashRef.current[i]);
+      frameChanged = (diff / hash.length) > 8;
+    }
+    lastFrameHashRef.current = hash;
+    // Only skip static frames when teams are locked (battle phase).
+    // During preview, we NEED repeat scans of the same selection screen
+    // to accumulate votes across detections.
+    if (!frameChanged && detectionPhase === 'battle') return;
+
+    const result = await detectPokemonFromFrame(frame);
+    setLastOcrResult(result);
+    setScanCount(prev => prev + 1);
+
+    // Annotated preview
+    const annotated = document.createElement('canvas');
+    annotated.width = frame.width;
+    annotated.height = frame.height;
+    const actx = annotated.getContext('2d')!;
+    actx.drawImage(frame, 0, 0);
+
+    const myTeamViz = new Set(filledMyTeam);
+    for (const species of filledMyTeam) myTeamViz.add(species.split('-')[0]);
+
+    // Position rule: top-half OR right-half = opponent quadrant.
+    // Bottom-left quadrant = yours.
+    const midX = frame.width / 2;
+    const midY = frame.height / 2;
+
+    // Quadrant guide overlay
+    actx.strokeStyle = 'rgba(255,255,255,0.1)';
+    actx.lineWidth = 1;
+    actx.beginPath();
+    actx.moveTo(midX, 0); actx.lineTo(midX, frame.height);
+    actx.moveTo(0, midY); actx.lineTo(frame.width, midY);
+    actx.stroke();
+
+    // Sprite boxes — position-based color
+    for (const s of (result.spriteMatched ?? [])) {
+      const isYours = myTeamViz.has(s.species);
+      const inOpponentZone = s.y < midY || s.x > midX;
+      const color = isYours ? '#38bdf8' : inOpponentZone ? '#f97316' : '#eab308';
+      actx.strokeStyle = color;
+      actx.lineWidth = 3;
+      actx.strokeRect(s.x, s.y, 80, 80);
+      actx.fillStyle = 'rgba(0,0,0,0.75)';
+      actx.fillRect(s.x, s.y - 18, 160, 18);
+      actx.fillStyle = color;
+      actx.font = 'bold 12px system-ui';
+      actx.fillText(`${s.species} ${Math.round(s.confidence * 100)}%`, s.x + 2, s.y - 4);
+    }
+
+    // OCR text listing
+    for (const m of result.matched) {
+      const isYours = myTeamViz.has(m.species);
+      const color = isYours ? '#38bdf8' : '#22c55e';
+      actx.fillStyle = 'rgba(0,0,0,0.7)';
+      const y = 20 + result.matched.indexOf(m) * 16;
+      actx.fillRect(8, y - 12, 280, 14);
+      actx.fillStyle = color;
+      actx.font = 'bold 11px system-ui';
+      actx.fillText(`OCR ${m.species} ${Math.round(m.confidence * 100)}% [${m.side}]`, 10, y);
+    }
+
+    // Battle log
+    for (const blm of (result.battleLogMatches ?? [])) {
+      const color = blm.isOpponent ? '#ef4444' : '#38bdf8';
+      const idx = (result.battleLogMatches ?? []).indexOf(blm);
+      const y = frame.height - 20 - idx * 16;
+      actx.fillStyle = 'rgba(0,0,0,0.7)';
+      actx.fillRect(8, y - 12, 300, 14);
+      actx.fillStyle = color;
+      actx.font = 'bold 11px system-ui';
+      actx.fillText(`LOG ${blm.pattern}`, 10, y);
+    }
+
+    // Legend
+    actx.fillStyle = 'rgba(0,0,0,0.7)';
+    actx.fillRect(frame.width - 210, 5, 205, 64);
+    actx.font = 'bold 10px system-ui';
+    actx.fillStyle = '#38bdf8'; actx.fillText('■ Your team (filtered)', frame.width - 200, 18);
+    actx.fillStyle = '#f97316'; actx.fillText('■ Opponent (top/right)', frame.width - 200, 32);
+    actx.fillStyle = '#eab308'; actx.fillText('■ Ambiguous (bottom-left)', frame.width - 200, 46);
+    actx.fillStyle = '#22c55e'; actx.fillText('■ OCR text match', frame.width - 200, 60);
+
+    setLastFrameUrl(annotated.toDataURL('image/jpeg', 0.6));
+
+    // Skip menu frames
+    if (result.screenContext === 'menu') return;
+
+    // Auto-record match result — cache result keyframe first
+    if (result.matchResult && filledOpponents.length > 0) {
+      const matchId = currentMatchIdRef.current || 'unknown';
+      const frameId = `${matchId}-result-${Date.now()}`;
+      saveFrame({
+        id: frameId,
+        matchId,
+        type: 'result',
+        timestamp: Date.now(),
+        dataUrl: compressFrame(frame, 960, 0.65),
+        metadata: {
+          matchResult: result.matchResult,
+          opponentTeam: filledOpponents,
+          myTeam: filledMyTeam,
+          ocrText: result.rawText?.slice(0, 500),
+          sceneContext: result.screenContext,
+        },
+      }).catch(e => console.warn('[cache] result save failed', e));
+      recordMatch(result.matchResult, frameId);
+      return;
+    }
+
+    if (result.species.length < 1 && (!result.spriteMatched || result.spriteMatched.length < 1)) return;
+
+    // ── PHASE MACHINE ──
+    // preview: accumulate votes, wait for confident 6v6 split → lock teams
+    // battle:  teams locked, skip detection entirely (just watch W/L)
+    // ended:   cooldown after W/L, then transition back to preview
+
+    if (detectionPhase === 'battle') return; // locked, OCR W/L handled above
+
+    // Preview phase — accumulate votes across frames
+    const leftVotes = leftVotesRef.current;
+    const rightVotes = rightVotesRef.current;
+
+    // Sprite votes by position. Weight by confidence so high-conf hits
+    // reach lock faster and outrank noise.
+    for (const s of (result.spriteMatched ?? [])) {
+      if (s.confidence < 0.3) continue;
+      const isLeft = s.x < midX;
+      const map = isLeft ? leftVotes : rightVotes;
+      // 0.30→1, 0.45→2, 0.60→3, 0.75→4
+      const weight = Math.max(1, Math.round(s.confidence * 4) - 0);
+      map.set(s.species, (map.get(s.species) ?? 0) + weight);
+    }
+
+    // OCR votes by side
+    for (const m of result.matched) {
+      if (m.confidence < 0.8) continue;
+      if (m.side === 'left') leftVotes.set(m.species, (leftVotes.get(m.species) ?? 0) + 2);
+      else if (m.side === 'right') rightVotes.set(m.species, (rightVotes.get(m.species) ?? 0) + 2);
+    }
+
+    // Battle log is definitive — skip votes, go straight to lock-eligible
+    for (const blm of (result.battleLogMatches ?? [])) {
+      const map = blm.isOpponent ? rightVotes : leftVotes;
+      map.set(blm.species, (map.get(blm.species) ?? 0) + 5);
+    }
+
+    // Pick top-N by vote count per side
+    const topBy = (m: Map<string, number>, n: number) =>
+      [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, n).map(([s]) => s);
+
+    const yourTop = topBy(leftVotes, 6);
+    const oppTop = topBy(rightVotes, 6);
+
+    // Lock condition: 3+ species per side with 3+ weighted votes each.
+    // 3 votes = either 3 low-conf sightings or 1 strong hit repeated.
+    // Guarantees stability before committing slot order.
+    const confidentLeft = [...leftVotes.entries()].filter(([, v]) => v >= 3);
+    const confidentRight = [...rightVotes.entries()].filter(([, v]) => v >= 3);
+
+    if (!teamsLocked && confidentLeft.length >= 3 && confidentRight.length >= 3) {
+      // LOCK — assign teams, move to battle phase
+      if (filledMyTeam.length < 2) {
+        handleSetMyTeam(yourTop);
+      }
+      const oppTeam = oppTop.filter(s => !yourTop.includes(s) && !dismissedSpecies.has(s));
+      setOpponentTeam(oppTeam);
+      setGamePhase('preview');
+      setTeamsLocked(true);
+      setDetectionPhase('battle');
+
+      // Cache the preview keyframe — starts a new match ID
+      const matchId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      currentMatchIdRef.current = matchId;
+      const frameId = `${matchId}-preview-${Date.now()}`;
+      previewFrameIdRef.current = frameId;
+      saveFrame({
+        id: frameId,
+        matchId,
+        type: 'preview',
+        timestamp: Date.now(),
+        dataUrl: compressFrame(frame, 960, 0.65),
+        metadata: {
+          myTeam: yourTop,
+          opponentTeam: oppTeam,
+          leftVotes: Object.fromEntries(leftVotes),
+          rightVotes: Object.fromEntries(rightVotes),
+          sceneContext: result.screenContext,
+        },
+      }).catch(e => console.warn('[cache] preview save failed', e));
+      return;
+    }
+
+    // Preliminary display while still accumulating: show current top guesses
+    // so user can see progress. Use filledMyTeam filter if set.
+    const myTeamSet = new Set(filledMyTeam);
+    for (const species of filledMyTeam) myTeamSet.add(species.split('-')[0]);
+
+    if (filledMyTeam.length >= 2) {
+      // User set team manually — preliminary-populate opponents from
+      // right-side votes. Only species with 2+ weighted votes (sustained
+      // detection, not one-shot noise). Append-only to preserve slot order.
+      const confidentOpp = [...rightVotes.entries()]
+        .filter(([s, v]) => v >= 2 && !myTeamSet.has(s) && !dismissedSpecies.has(s))
+        .sort((a, b) => b[1] - a[1])
+        .map(([s]) => s);
+      if (confidentOpp.length > 0) {
+        setOpponentTeam(prev => {
+          const existing = new Set(prev.filter(Boolean));
+          let changed = false;
+          for (const s of confidentOpp) {
+            if (!existing.has(s) && existing.size < 6) { existing.add(s); changed = true; }
+          }
+          if (!changed) return prev;
+          setGamePhase('preview');
+          return [...existing];
+        });
+      }
+    }
+  }, [filledMyTeam, filledOpponents, recordMatch, handleSetMyTeam, dismissedSpecies, detectionPhase, teamsLocked, captureRegion]);
+
+  // Auto-scan loop: every 4 seconds when detection is active
+  useEffect(() => {
+    if (detecting) {
+      runScan(); // immediate first scan
+      scanIntervalRef.current = setInterval(runScan, 1000);
+    } else {
+      if (scanIntervalRef.current) {
+        clearInterval(scanIntervalRef.current);
+        scanIntervalRef.current = null;
+      }
+    }
+    return () => {
+      if (scanIntervalRef.current) {
+        clearInterval(scanIntervalRef.current);
+        scanIntervalRef.current = null;
+      }
+    };
+  }, [detecting, runScan]);
+
+  // Monitor screen capture liveness
+  useEffect(() => {
+    if (!detecting) return;
+    const check = setInterval(() => {
+      if (!isCaptureActive()) {
+        setDetecting(false);
+      }
+    }, 2000);
+    return () => clearInterval(check);
+  }, [detecting]);
+
+  // Cleanup OCR worker on unmount
+  useEffect(() => {
+    return () => { terminateOcrWorker(); };
   }, []);
 
   // Auto-set phase based on opponent input
   useEffect(() => {
     if (filledOpponents.length > 0 && gamePhase === 'idle') {
       setGamePhase('preview');
+      setMatchStartTime(Date.now());
+      setMatchElapsed(0);
     }
     if (filledOpponents.length === 0 && gamePhase === 'preview') {
       setGamePhase('idle');
@@ -467,153 +1148,270 @@ export function StreamCompanionPage() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [filledOpponents.length, recordMatch]);
 
+
   // ─── Overlay mode ──────────────────────────────────────────────
 
   if (isOverlay) {
     return (
-      <div className="text-white min-h-screen" style={{ background: 'linear-gradient(135deg, rgba(10,10,20,0.92) 0%, rgba(15,12,30,0.88) 100%)' }}>
-        {/* Top bar */}
-        <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full border-2 border-white/60 relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-[45%] bg-poke-red" />
-              <div className="absolute bottom-0 left-0 right-0 h-[45%] bg-white/80" />
-            </div>
-            <span className="text-xs font-bold tracking-wide text-white/80">CHAMPIONS</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <span className="text-emerald-400 font-black text-xl tracking-tight">{wins}</span>
-              <span className="text-white/20 font-black">:</span>
-              <span className="text-red-400 font-black text-xl tracking-tight">{losses}</span>
-            </div>
-            {totalGames > 0 && (
-              <span className={`text-sm font-bold px-2 py-0.5 rounded ${
-                winRate >= 60 ? 'bg-emerald-500/20 text-emerald-400' :
-                winRate >= 50 ? 'bg-amber-500/20 text-amber-300' :
-                'bg-red-500/20 text-red-400'
-              }`}>{winRate}%</span>
-            )}
-            {streak.count >= 2 && (
-              <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
-                streak.type === 'win' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'
-              }`}>{streak.count}{streak.type === 'win' ? 'W' : 'L'} streak</span>
-            )}
-          </div>
-          <button onClick={() => setIsOverlay(false)} className="text-white/20 hover:text-white/60 text-xs">Exit</button>
-        </div>
+      <div className="fixed inset-0 overflow-hidden text-white" style={{ background: 'transparent' }}>
+        <style>{`
+          html, body { background: transparent !important; }
+          @keyframes pokeballSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+          @keyframes metallicShine {
+            0%, 100% { background-position: -200% 0; }
+            50% { background-position: 200% 0; }
+          }
+          @keyframes trainerGlow {
+            0%, 100% { box-shadow: 0 0 25px rgba(255,215,0,0.35), inset 0 0 20px rgba(255,215,0,0.15); }
+            50% { box-shadow: 0 0 45px rgba(255,215,0,0.55), inset 0 0 30px rgba(255,215,0,0.25); }
+          }
+          .stadium-panel {
+            isolation: isolate;
+            background: linear-gradient(135deg, rgba(15,18,40,0.88) 0%, rgba(25,15,50,0.82) 100%);
+            border: 2px solid rgba(255,215,0,0.35);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(196,13,31,0.2), inset 0 1px 0 rgba(255,255,255,0.08);
+            backdrop-filter: blur(12px);
+          }
+          .stadium-panel-red { border-color: rgba(196,13,31,0.45) !important; }
+          .stadium-panel-blue { border-color: rgba(0,117,190,0.45) !important; }
+          .stadium-panel-gold { border-color: rgba(255,215,0,0.5) !important; }
+          .stadium-title {
+            background: linear-gradient(90deg, #fde68a 0%, #ffd700 40%, #fff 50%, #ffd700 60%, #fde68a 100%);
+            background-size: 200% 100%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            animation: metallicShine 4s ease-in-out infinite;
+          }
+          .champions-red { color: #c40d1f; }
+          .champions-blue { color: #0075be; }
+          .champions-gold { color: #ffd700; }
+        `}</style>
 
-        {/* Streak dots */}
-        {history.length > 0 && (
-          <div className="px-4 py-1.5 flex items-center gap-0.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-            {history.slice(0, 20).map(h => (
-              <div key={h.id} className={`w-2 h-2 rounded-full transition-all ${
-                h.result === 'win' ? 'bg-emerald-400 shadow-sm shadow-emerald-500/50' :
-                'bg-red-400 shadow-sm shadow-red-500/50'
-              }`} />
-            ))}
-            {totalGames > 0 && <span className="text-[9px] text-white/20 ml-auto">{totalGames} games</span>}
+        {/* ═══ YOUR TEAM — bottom-left ═══ */}
+        <div className="absolute bottom-6 left-6 stadium-panel stadium-panel-blue rounded-2xl px-4 py-3 z-20" style={{ minWidth: '380px' }}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-1 h-4 rounded" style={{ background: 'linear-gradient(180deg,#0075be,#003d7a)' }} />
+              <span className="text-[10px] font-black tracking-[0.25em] champions-blue">TRAINER</span>
+            </div>
+            <span className="text-[9px] font-mono text-white/40">{filledMyTeam.length}/6</span>
           </div>
-        )}
-
-        {/* Opponent Team */}
-        {filledOpponents.length > 0 ? (
-          <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-            <div className="text-[9px] text-white/30 uppercase tracking-widest font-bold mb-2">OPPONENT</div>
-            <div className="flex gap-2">
-              {filledOpponents.map(opp => (
-                <div key={opp} className="flex flex-col items-center gap-0.5">
-                  <Sprite species={opp} size="md" />
-                  <span className="text-[9px] text-white/50">{opp}</span>
+          {filledMyTeam.length > 0 ? (
+            <div className="flex gap-1">
+              {filledMyTeam.map(species => (
+                <div key={species} className="flex flex-col items-center group">
+                  <div className="relative w-14 h-14 flex items-center justify-center rounded-lg" style={{ background: 'radial-gradient(circle, rgba(0,117,190,0.25) 0%, transparent 70%)' }}>
+                    <Sprite species={species} size="lg" />
+                  </div>
+                  <span className="text-[8px] text-white/60 font-semibold truncate max-w-[60px]">{species}</span>
                 </div>
               ))}
             </div>
-          </div>
-        ) : (
-          <div className="px-4 py-4 text-center">
-            <div className="text-white/15 text-xs">Waiting for opponent team...</div>
-          </div>
-        )}
+          ) : (
+            <div className="h-14 flex items-center justify-center">
+              <span className="text-[10px] text-white/25">
+                <span>Awaiting team</span><span className="animate-pulse">...</span>
+              </span>
+            </div>
+          )}
+        </div>
 
-        {/* Archetype */}
-        {archetypes.length > 0 && (
-          <div className="px-4 py-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+        {/* ═══ OPPONENT — top-right ═══ */}
+        <div className="absolute top-6 right-6 stadium-panel stadium-panel-red rounded-2xl px-4 py-3 z-20" style={{ minWidth: '380px' }}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[9px] font-mono text-white/40">{filledOpponents.length}/6</span>
             <div className="flex items-center gap-2">
-              <span className="text-[9px] text-white/30 uppercase tracking-widest font-bold">TYPE</span>
-              <span className="text-sm font-bold text-poke-gold">{archetypes[0].name}</span>
-              {archetypes[0].counterTips?.[0] && <span className="text-[10px] text-white/30 ml-auto">{archetypes[0].counterTips[0]}</span>}
+              <span className="text-[10px] font-black tracking-[0.25em] champions-red">OPPONENT</span>
+              <div className="w-1 h-4 rounded" style={{ background: 'linear-gradient(180deg,#c40d1f,#7a0410)' }} />
             </div>
           </div>
-        )}
+          {filledOpponents.length > 0 ? (
+            <div className="flex gap-1 flex-row-reverse">
+              {filledOpponents.map(species => (
+                <div key={species} className="flex flex-col items-center group">
+                  <div className="relative w-14 h-14 flex items-center justify-center rounded-lg" style={{ background: 'radial-gradient(circle, rgba(196,13,31,0.25) 0%, transparent 70%)' }}>
+                    <Sprite species={species} size="lg" />
+                  </div>
+                  <span className="text-[8px] text-white/60 font-semibold truncate max-w-[60px]">{species}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="h-14 flex items-center justify-center">
+              <span className="text-[10px] text-white/25">
+                <span>Scouting</span><span className="animate-pulse">...</span>
+              </span>
+            </div>
+          )}
+          {archetypes.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-white/10 flex items-center gap-2">
+              <span className="text-[8px] font-bold tracking-widest text-white/40 uppercase">Type</span>
+              <span className="text-[11px] font-bold champions-gold">{archetypes[0].name}</span>
+            </div>
+          )}
+        </div>
 
-        {/* Bring List */}
+        {/* ═══ CENTER POKEBALL SCOREBOARD ═══ */}
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2">
+          <div className="stadium-panel rounded-full flex items-center justify-center" style={{ width: '240px', height: '240px', padding: '12px' }}>
+            {/* Outer pokeball ring */}
+            <div
+              className="relative w-full h-full rounded-full overflow-hidden flex items-center justify-center"
+              style={{
+                animation: streak.count >= 3 ? 'trainerGlow 1.8s ease-in-out infinite' : undefined,
+                border: '4px solid #0b0b16',
+              }}
+            >
+              {/* Top red half */}
+              <div className="absolute top-0 left-0 right-0 h-1/2" style={{ background: 'linear-gradient(180deg, #e3142a 0%, #c40d1f 100%)' }} />
+              {/* Bottom white half */}
+              <div className="absolute bottom-0 left-0 right-0 h-1/2" style={{ background: 'linear-gradient(180deg, #f5f5f5 0%, #d8d8d8 100%)' }} />
+              {/* Middle band */}
+              <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-[10px] bg-black" />
+              {/* Center button */}
+              <div
+                className="relative z-10 rounded-full bg-white flex items-center justify-center"
+                style={{
+                  width: '55%', height: '55%',
+                  border: '5px solid #0b0b16',
+                  boxShadow: 'inset 0 0 0 3px #fff, inset 0 0 20px rgba(0,0,0,0.3)',
+                }}
+              >
+                <div className="flex flex-col items-center justify-center leading-none">
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-black text-3xl text-emerald-600 tracking-tighter">{wins}</span>
+                    <span className="font-black text-xl text-slate-400">·</span>
+                    <span className="font-black text-3xl text-red-600 tracking-tighter">{losses}</span>
+                  </div>
+                  {totalGames > 0 && (
+                    <div className="text-[10px] font-bold text-slate-700 mt-0.5 tracking-wide">{winRate}% WR</div>
+                  )}
+                  {streak.count >= 2 && (
+                    <div className={`text-[9px] font-black uppercase tracking-widest mt-0.5 ${
+                      streak.type === 'win' ? 'text-emerald-600' : 'text-red-600'
+                    }`}>
+                      {streak.count}{streak.type === 'win' ? 'W' : 'L'} STREAK
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* Title banner */}
+          <div className="stadium-panel rounded-lg px-5 py-1.5">
+            <div className="text-lg font-black tracking-[0.3em] stadium-title">CHAMPIONS</div>
+          </div>
+          {/* Recent streak dots */}
+          {history.length > 0 && (
+            <div className="stadium-panel rounded-full px-3 py-1 flex items-center gap-1">
+              {history.slice(0, 15).map(h => (
+                <div
+                  key={h.id}
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    h.result === 'win' ? 'bg-emerald-400' : 'bg-red-500'
+                  }`}
+                  style={{ boxShadow: `0 0 4px ${h.result === 'win' ? 'rgba(74,222,128,0.6)' : 'rgba(239,68,68,0.6)'}` }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ═══ BRING LIST — bottom-center ═══ */}
         {bringList.length > 0 && (
-          <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-            <div className="text-[9px] text-white/30 uppercase tracking-widest font-bold mb-2">BRING LIST</div>
-            <div className="space-y-1.5">
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 stadium-panel stadium-panel-gold rounded-xl px-4 py-2.5 z-20">
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="w-1 h-3 rounded" style={{ background: 'linear-gradient(180deg,#ffd700,#b8860b)' }} />
+              <span className="text-[9px] font-black tracking-[0.25em] champions-gold">BRING ORDER</span>
+            </div>
+            <div className="flex gap-1.5">
               {orderedBringList.slice(0, 4).map((rec, i) => (
-                <div key={rec.species} className={`flex items-center gap-2 px-2 py-1 rounded ${
-                  i < 2 ? 'bg-white/[0.03]' : 'opacity-50'
-                }`}>
-                  <span className={`text-[10px] font-black w-4 ${
-                    i === 0 ? 'text-poke-gold' : i < 2 ? 'text-white/40' : 'text-white/20'
-                  }`}>{i + 1}</span>
-                  <Sprite species={rec.species} size="sm" />
-                  <span className="text-xs text-white/80 font-medium flex-1">{rec.species}</span>
-                  <span className="text-[8px] text-white/25 font-bold">{rec.role}</span>
-                  <span className={`text-[10px] font-mono ${rec.score >= 3 ? 'text-emerald-400/60' : rec.score >= 0 ? 'text-white/20' : 'text-red-400/60'}`}>
-                    {rec.score >= 0 ? '+' : ''}{rec.score}
-                  </span>
+                <div key={rec.species} className={`flex flex-col items-center ${i < 2 ? '' : 'opacity-60'}`}>
+                  <div
+                    className="w-11 h-11 rounded-md flex items-center justify-center relative"
+                    style={{
+                      background: i === 0
+                        ? 'radial-gradient(circle, rgba(255,215,0,0.35) 0%, transparent 70%)'
+                        : 'radial-gradient(circle, rgba(255,215,0,0.12) 0%, transparent 70%)',
+                      border: i < 2 ? '1px solid rgba(255,215,0,0.4)' : '1px solid rgba(255,255,255,0.08)',
+                    }}
+                  >
+                    <Sprite species={rec.species} size="md" />
+                    <span className={`absolute -top-1 -left-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black ${
+                      i === 0 ? 'bg-poke-gold text-black' : 'bg-slate-700 text-white/70'
+                    }`}>{i + 1}</span>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Opener Strategy (compact overlay version) */}
+        {/* ═══ LEAD CARD — right side, if opener strategy ═══ */}
         {openerStrategy && (
-          <div className="px-4 py-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-            <div className="text-[9px] text-white/30 uppercase tracking-widest font-bold mb-1.5">LEAD — {openerStrategy.archetype}</div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <Sprite species={openerStrategy.lead[0]} size="md" />
-              <span className="text-white/15 text-xs">+</span>
-              <Sprite species={openerStrategy.lead[1]} size="md" />
+          <div className="absolute top-1/2 -translate-y-1/2 right-6 stadium-panel rounded-xl px-3 py-2.5 z-20" style={{ maxWidth: '220px' }}>
+            <div className="text-[8px] font-black tracking-[0.25em] champions-gold mb-1">LEAD PAIR</div>
+            <div className="flex items-center justify-center gap-1 mb-2">
+              <Sprite species={openerStrategy.lead[0]} size="lg" />
+              <span className="champions-gold font-black">+</span>
+              <Sprite species={openerStrategy.lead[1]} size="lg" />
             </div>
-            <div className="text-[9px] text-sky-400/60 uppercase tracking-widest font-bold mb-1">T1</div>
-            <div className="text-[10px] text-white/60 mb-0.5">{openerStrategy.lead[0]}: {openerStrategy.turn1.mon1Action}</div>
-            <div className="text-[10px] text-white/60 mb-1">{openerStrategy.lead[1]}: {openerStrategy.turn1.mon2Action}</div>
-            <div className="text-[9px] text-white/25 uppercase tracking-widest font-bold mb-0.5">T2</div>
-            <div className="text-[10px] text-white/40">{openerStrategy.turn2.action}</div>
+            <div className="text-[8px] font-bold tracking-widest text-sky-400/70 mb-0.5">TURN 1</div>
+            <div className="text-[9px] text-white/70 leading-tight line-clamp-2 mb-1">{openerStrategy.turn1.mon1Action}</div>
+            <div className="text-[9px] text-white/70 leading-tight line-clamp-2">{openerStrategy.turn1.mon2Action}</div>
           </div>
         )}
 
-        {/* Legacy Lead fallback */}
-        {!openerStrategy && leadSuggestion && (
-          <div className="px-4 py-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-            <div className="text-[9px] text-white/30 uppercase tracking-widest font-bold mb-1.5">LEAD</div>
-            <div className="flex items-center gap-2">
-              <Sprite species={leadSuggestion.lead1} size="md" />
-              <span className="text-white/15 text-xs">+</span>
-              <Sprite species={leadSuggestion.lead2} size="md" />
-            </div>
+        {/* ═══ MATCH TIMER — top-left subtle ═══ */}
+        {matchStartTime && (
+          <div className="absolute top-6 left-6 stadium-panel rounded-lg px-3 py-1.5 z-20">
+            <div className="text-[8px] font-black tracking-widest text-white/40 uppercase">Match</div>
+            <div className="text-sm font-bold font-mono text-white">{formatElapsed(matchElapsed).replace(/^00:/, '')}</div>
           </div>
         )}
 
-        {/* W/L buttons */}
-        <div className="px-4 py-3 flex gap-2">
+        {/* ═══ CONTROLS — stream-ok buttons, minimal ═══ */}
+        <div className="absolute bottom-6 right-6 z-20 flex flex-col gap-1.5">
+          <div className="flex gap-1.5">
+            <button
+              onClick={() => recordMatch('win')}
+              className="stadium-panel rounded-lg px-4 py-2 font-black text-xs tracking-widest text-emerald-400 hover:text-emerald-300 transition-colors active:scale-95"
+            >
+              WIN
+            </button>
+            <button
+              onClick={() => recordMatch('loss')}
+              className="stadium-panel rounded-lg px-4 py-2 font-black text-xs tracking-widest text-red-400 hover:text-red-300 transition-colors active:scale-95"
+            >
+              LOSS
+            </button>
+          </div>
           <button
-            onClick={() => recordMatch('win')}
-            className="flex-1 py-2 rounded-lg font-black text-sm tracking-wider transition-all bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/25 hover:border-emerald-500/40 active:scale-95"
+            onClick={() => setIsOverlay(false)}
+            className="text-[9px] text-white/25 hover:text-white/60 transition-colors font-bold tracking-widest text-right"
           >
-            WIN
-          </button>
-          <button
-            onClick={() => recordMatch('loss')}
-            className="flex-1 py-2 rounded-lg font-black text-sm tracking-wider transition-all bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/25 hover:border-red-500/40 active:scale-95"
-          >
-            LOSS
+            EXIT OVERLAY
           </button>
         </div>
+
+        {/* Flash banner on recent result */}
+        {lastResult && (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none"
+            style={{ animation: 'resultFlash 3s ease-out forwards' }}>
+            <div
+              className="stadium-panel rounded-2xl px-16 py-6"
+              style={{
+                border: `3px solid ${lastResult === 'win' ? '#22c55e' : '#ef4444'}`,
+                boxShadow: `0 0 60px ${lastResult === 'win' ? 'rgba(34,197,94,0.6)' : 'rgba(239,68,68,0.6)'}`,
+              }}
+            >
+              <div className={`text-6xl font-black tracking-widest ${lastResult === 'win' ? 'text-emerald-400' : 'text-red-400'}`}>
+                {lastResult === 'win' ? 'VICTORY' : 'DEFEAT'}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -624,10 +1422,23 @@ export function StreamCompanionPage() {
 
   return (
     <div className="min-h-screen bg-poke-darkest text-white flex flex-col">
+      <style>{`
+        @keyframes resultFlash {
+          0% { transform: scale(0.8); opacity: 0; }
+          15% { transform: scale(1.05); opacity: 1; }
+          30% { transform: scale(1); }
+          80% { opacity: 1; }
+          100% { opacity: 0; }
+        }
+        @keyframes scanLine {
+          0% { top: 0; }
+          100% { top: 100%; }
+        }
+      `}</style>
       {/* ═══ STICKY TOP BAR: Scoreboard + Controls ═══ */}
       <header className="border-b border-poke-border bg-gradient-to-r from-poke-darker via-poke-dark to-poke-darker sticky top-0 z-40">
         <div className="h-[2px] bg-gradient-to-r from-transparent via-poke-red to-transparent" />
-        <div className="max-w-3xl mx-auto px-4 py-2">
+        <div className="max-w-6xl mx-auto px-4 py-2">
           {/* Row 1: Brand + nav */}
           <div className="flex items-center justify-between mb-2">
             <Link to="/" className="flex items-center gap-2 shrink-0">
@@ -657,6 +1468,48 @@ export function StreamCompanionPage() {
               >
                 History ({history.length})
               </button>
+              <button
+                onClick={resetSession}
+                className="text-[10px] px-2 py-1 bg-poke-surface border border-poke-border text-slate-400 rounded hover:text-red-400 hover:border-red-500/30 transition-colors"
+                title="Clear all detection data, opponents, and history for a fresh session"
+              >
+                Reset
+              </button>
+              {!teamsLocked && detecting && (leftVotesRef.current.size > 0 || rightVotesRef.current.size > 0) && (
+                <button
+                  onClick={() => {
+                    const topBy = (m: Map<string, number>, n: number) =>
+                      [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, n).map(([s]) => s);
+                    const yourTop = topBy(leftVotesRef.current, 6);
+                    const oppTop = topBy(rightVotesRef.current, 6);
+                    if (filledMyTeam.length < 2) handleSetMyTeam(yourTop);
+                    setOpponentTeam(oppTop.filter(s => !yourTop.includes(s)));
+                    setTeamsLocked(true);
+                    setDetectionPhase('battle');
+                    const matchId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+                    currentMatchIdRef.current = matchId;
+                  }}
+                  className="text-[10px] px-2 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded hover:bg-emerald-500/20 transition-colors"
+                  title={`Lock current best guesses (L:${leftVotesRef.current.size} R:${rightVotesRef.current.size})`}
+                >
+                  Lock Now
+                </button>
+              )}
+              {teamsLocked && (
+                <button
+                  onClick={() => {
+                    setTeamsLocked(false);
+                    setDetectionPhase('preview');
+                    leftVotesRef.current = new Map();
+                    rightVotesRef.current = new Map();
+                    setOpponentTeam([]);
+                  }}
+                  className="text-[10px] px-2 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded hover:bg-amber-500/20 transition-colors"
+                  title="Re-detect teams from next frame"
+                >
+                  Re-detect
+                </button>
+              )}
               <Link to="/" className="text-[10px] px-2 py-1 bg-poke-surface border border-poke-border text-slate-400 rounded hover:text-white transition-colors">Calc</Link>
               <Link to="/team-builder" className="text-[10px] px-2 py-1 bg-poke-surface border border-poke-border text-slate-400 rounded hover:text-white transition-colors">Builder</Link>
             </div>
@@ -703,14 +1556,74 @@ export function StreamCompanionPage() {
                   ))}
                 </div>
               )}
+              {matchStartTime && (
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-poke-red/10 text-poke-red border border-poke-red/20">
+                  Match {formatElapsed(matchElapsed).replace(/^00:/, '')}
+                </span>
+              )}
               <span className="text-xs text-slate-600 font-mono">{formatElapsed(elapsed)}</span>
             </div>
           </div>
         </div>
+        {/* Session Stats Row */}
+        {totalGames >= 1 && (
+          <div className="border-t border-poke-border/50">
+            <div className="max-w-6xl mx-auto px-4">
+              <button
+                onClick={() => setShowSessionStats(!showSessionStats)}
+                className="w-full flex items-center justify-center gap-2 py-1 text-[9px] text-slate-600 hover:text-slate-400 transition-colors"
+              >
+                <span>Session Stats</span>
+                <svg className={`w-2.5 h-2.5 transition-transform ${showSessionStats ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </button>
+              {showSessionStats && (
+                <div className="flex items-center justify-center gap-3 pb-2">
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-poke-surface border border-poke-border">
+                    <span className="text-[9px] text-slate-500 uppercase">Pace</span>
+                    <span className="text-[11px] font-bold text-white">
+                      {elapsed > 60000 ? (totalGames / (elapsed / 3600000)).toFixed(1) : '--'}/hr
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-poke-surface border border-poke-border">
+                    <span className="text-[9px] text-slate-500 uppercase">Streak</span>
+                    <span className={`text-[11px] font-bold ${
+                      streak.type === 'win' ? 'text-emerald-400' : streak.type === 'loss' ? 'text-red-400' : 'text-slate-400'
+                    }`}>
+                      {streak.count > 0 ? `${streak.count}${streak.type === 'win' ? 'W' : 'L'}` : '--'}
+                    </span>
+                    {streak.count >= 3 && streak.type === 'win' && <span className="text-[9px]">🔥</span>}
+                  </div>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-poke-surface border border-poke-border">
+                    <span className="text-[9px] text-slate-500 uppercase">Trend</span>
+                    {(() => {
+                      if (totalGames < 4) return <span className="text-[11px] text-slate-500">--</span>;
+                      const half = Math.floor(history.length / 2);
+                      const recentWins = history.slice(0, half).filter(h => h.result === 'win').length;
+                      const earlyWins = history.slice(half).filter(h => h.result === 'win').length;
+                      const recentRate = recentWins / half;
+                      const earlyRate = earlyWins / (history.length - half);
+                      const trending = recentRate > earlyRate + 0.05 ? 'up' : recentRate < earlyRate - 0.05 ? 'down' : 'flat';
+                      return (
+                        <span className={`text-[11px] font-bold ${
+                          trending === 'up' ? 'text-emerald-400' : trending === 'down' ? 'text-red-400' : 'text-amber-400'
+                        }`}>
+                          {trending === 'up' ? '▲' : trending === 'down' ? '▼' : '—'}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </header>
 
-      {/* ═══ MAIN CONTENT ═══ */}
-      <div className="flex-1 max-w-3xl mx-auto w-full px-4 py-4 space-y-4">
+      {/* ═══ MAIN CONTENT — 2-column on wide screens ═══ */}
+      <div className="flex-1 max-w-6xl mx-auto w-full px-4 py-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
+      {/* Left column: stream, debug, opponent input */}
+      <div className="space-y-4">
 
         {/* ═══ GAME PHASE INDICATOR ═══ */}
         <div
@@ -741,7 +1654,17 @@ export function StreamCompanionPage() {
             {(['idle', 'preview', 'battle'] as GamePhase[]).map(p => (
               <button
                 key={p}
-                onClick={() => setGamePhase(p)}
+                onClick={() => {
+                  setGamePhase(p);
+                  if ((p === 'preview' || p === 'battle') && !matchStartTime) {
+                    setMatchStartTime(Date.now());
+                    setMatchElapsed(0);
+                  }
+                  if (p === 'idle') {
+                    setMatchStartTime(null);
+                    setMatchElapsed(0);
+                  }
+                }}
                 className={`px-2 py-1 rounded text-[10px] font-bold transition-all border ${
                   gamePhase === p
                     ? 'text-white border-transparent'
@@ -758,124 +1681,605 @@ export function StreamCompanionPage() {
         {/* Result flash banner */}
         {lastResult && (
           <div
-            className={`text-center py-3 rounded-xl font-black text-lg animate-pulse ${
+            className={`text-center py-4 rounded-xl font-black text-xl ${
               lastResult === 'win'
-                ? 'bg-emerald-900/40 text-emerald-300 border border-emerald-700/50'
-                : 'bg-red-900/40 text-red-300 border border-red-700/50'
+                ? 'bg-emerald-900/40 text-emerald-300 border-2 border-emerald-500/60 shadow-lg shadow-emerald-500/20'
+                : 'bg-red-900/40 text-red-300 border-2 border-red-500/60 shadow-lg shadow-red-500/20'
             }`}
+            style={{
+              animation: 'resultFlash 3s ease-out forwards',
+            }}
           >
             {lastResult === 'win' ? 'VICTORY' : 'DEFEAT'}
+            {lastResult === 'win' && <span className="block text-xs font-bold text-emerald-400/60 mt-0.5 tracking-widest">GG</span>}
           </div>
         )}
 
-        {/* ═══ YOUR TEAM (compact strip) ═══ */}
-        <div className="poke-panel px-4 py-2.5">
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold shrink-0">Your Team</span>
-            {filledMyTeam.length > 0 ? (
-              <div className="flex items-center gap-2 flex-wrap flex-1">
-                {filledMyTeam.map(species => (
-                  <div key={species} className="flex items-center gap-1">
-                    <Sprite species={species} size="sm" />
-                    <span className="text-xs text-slate-300">{species}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <Link
-                to="/team-builder"
-                className="text-xs text-poke-blue hover:text-poke-blue-light transition-colors"
-              >
-                Load team in Builder &rarr;
-              </Link>
-            )}
-          </div>
-        </div>
-
-        {/* ═══ SOURCE PANEL (tabbed) ═══ */}
-        <div className="poke-panel overflow-hidden">
-          {/* Tabs */}
-          <div className="flex border-b border-poke-border">
-            {([
-              { key: 'manual' as SourceMode, label: 'Manual' },
-              { key: 'twitch' as SourceMode, label: 'Twitch' },
-              { key: 'screen' as SourceMode, label: 'Screen Capture' },
-            ]).map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setSourceMode(tab.key)}
-                className={`flex-1 px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-colors ${
-                  sourceMode === tab.key
-                    ? 'text-white bg-poke-surface border-b-2 border-poke-red'
-                    : 'text-slate-500 hover:text-slate-300'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Tab content */}
-          <div className="p-4">
-            {sourceMode === 'twitch' && (
-              <div className="space-y-3">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={channelInput}
-                    onChange={e => setChannelInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleConnectChannel()}
-                    placeholder="Twitch channel name..."
-                    className="flex-1 px-3 py-2 bg-poke-surface border border-poke-border rounded-lg text-sm text-white placeholder:text-slate-600 focus:border-purple-500/50 focus:outline-none"
-                  />
+        {/* ═══ YOUR TEAM ═══ */}
+        <div className="poke-panel p-4">
+          {filledMyTeam.length >= 2 && !teamExpanded ? (
+            <>
+              {/* Collapsed: compact sprite strip */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Your Team</span>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                    filledMyTeam.length === 6 ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
+                  }`}>{filledMyTeam.length}/6</span>
+                </div>
+                <div className="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto">
+                  {filledMyTeam.map(species => (
+                    <div key={species} className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-poke-surface border border-poke-border shrink-0">
+                      <Sprite species={species} size="sm" />
+                      <span className="text-[10px] text-slate-400 font-medium">{species}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
                   <button
-                    onClick={handleConnectChannel}
-                    className="px-4 py-2 bg-purple-600/20 border border-purple-500/40 text-purple-400 rounded-lg text-xs font-bold hover:bg-purple-600/30 transition-colors"
+                    onClick={() => setTeamExpanded(true)}
+                    className="text-[10px] px-2 py-1 rounded bg-poke-surface border border-poke-border text-slate-400 hover:text-white hover:border-poke-blue/40 transition-colors font-bold"
                   >
-                    {channelConnected && channel ? 'Update' : 'Connect'}
+                    Edit
                   </button>
-                  {channelConnected && channel && (
-                    <button
-                      onClick={handleDisconnectChannel}
-                      className="px-3 py-2 bg-poke-surface border border-poke-border text-slate-500 rounded-lg text-xs hover:text-red-400 transition-colors"
-                    >
-                      Stop
-                    </button>
+                  <button
+                    onClick={() => handleSetMyTeam([])}
+                    className="text-[10px] px-2 py-1 rounded bg-poke-surface border border-poke-border text-slate-600 hover:text-red-400 hover:border-red-500/30 transition-colors"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Expanded: full QuickTeamInput */}
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Your Team</span>
+                  {filledMyTeam.length > 0 && filledMyTeam.length < 6 && (
+                    <span className="text-[10px] text-amber-400/60">{filledMyTeam.length}/6</span>
+                  )}
+                  {filledMyTeam.length === 6 && (
+                    <span className="text-[10px] text-emerald-400/60">6/6</span>
                   )}
                 </div>
-                {channelConnected && channel && <TwitchEmbed channel={channel} />}
-                {!channelConnected && (
-                  <div className="text-xs text-slate-600 text-center py-2">
-                    Enter a Twitch channel to embed the stream. You will still need to enter opponents manually.
-                  </div>
+                <div className="flex items-center gap-2">
+                  {filledMyTeam.length >= 2 && (
+                    <button onClick={() => setTeamExpanded(false)} className="text-[10px] text-poke-blue hover:text-poke-blue-light transition-colors font-bold">Done</button>
+                  )}
+                  {filledMyTeam.length > 0 && (
+                    <button onClick={() => handleSetMyTeam([])} className="text-[10px] text-slate-600 hover:text-red-400 transition-colors">Clear</button>
+                  )}
+                  {filledMyTeam.length > 0 && (
+                    <Link to="/team-builder" className="text-[10px] text-poke-blue hover:text-poke-blue-light transition-colors">Edit in Builder</Link>
+                  )}
+                </div>
+              </div>
+              {filledMyTeam.length === 0 && (
+                <div className="text-[10px] text-slate-600 mb-2">Enter your team to unlock bring list, threats, and opener strategy</div>
+              )}
+              <QuickTeamInput
+                value={filledMyTeam}
+                onChange={handleSetMyTeam}
+                maxSlots={6}
+              />
+            </>
+          )}
+        </div>
+
+        {/* ═══ WATCH + AUTO-DETECT ═══ */}
+        <div className="poke-panel overflow-hidden">
+          {/* URL input row + auto-detect button */}
+          <div className="p-3 flex gap-2 items-center">
+            <input
+              type="text"
+              value={videoUrlInput}
+              onChange={e => setVideoUrlInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleConnectVideo()}
+              placeholder="Paste Twitch or YouTube URL, or type a channel name..."
+              className="flex-1 px-3 py-2 bg-poke-surface border border-poke-border rounded-lg text-sm text-white placeholder:text-slate-600 focus:border-purple-500/50 focus:outline-none"
+            />
+            {!videoSource ? (
+              <button onClick={handleConnectVideo} className="px-4 py-2 bg-purple-600/20 border border-purple-500/40 text-purple-400 rounded-lg text-xs font-bold hover:bg-purple-600/30 transition-colors shrink-0">
+                Watch
+              </button>
+            ) : (
+              <button onClick={handleDisconnectVideo} className="px-3 py-2 bg-poke-surface border border-poke-border text-slate-600 rounded-lg text-xs hover:text-red-400 transition-colors shrink-0">
+                Close
+              </button>
+            )}
+            <div className="w-px h-6 bg-poke-border shrink-0" />
+            {!detecting ? (
+              <button
+                onClick={handleStartDetection}
+                disabled={ocrLoading}
+                className={`px-4 py-2 rounded-lg border text-xs font-bold transition-colors shrink-0 flex items-center gap-1.5 ${
+                  ocrLoading
+                    ? 'border-poke-border bg-poke-surface text-slate-600 cursor-wait'
+                    : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+                }`}
+                title="Share your screen to auto-detect Pokemon names via OCR"
+              >
+                {ocrLoading ? (
+                  <><span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />Loading OCR...</>
+                ) : (
+                  <><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>Auto-Detect</>
                 )}
-              </div>
-            )}
-
-            {sourceMode === 'screen' && (
-              <ScreenCapturePanel onDetected={handleScreenDetected} />
-            )}
-
-            {sourceMode === 'manual' && (
-              <div className="text-xs text-slate-500 text-center py-2">
-                Type opponent Pokemon names below. No video source needed.
-              </div>
+              </button>
+            ) : (
+              <button
+                onClick={handleStopDetection}
+                className="px-4 py-2 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 text-xs font-bold hover:bg-red-500/20 transition-colors shrink-0 flex items-center gap-1.5"
+              >
+                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                Stop
+              </button>
             )}
           </div>
+
+          {/* Video embed */}
+          {videoSource && <VideoEmbed source={videoSource} />}
+
+          {/* ═══ DEBUG PANEL — comprehensive, all sections toggleable ═══ */}
+          {(detecting || lastOcrResult) && (
+            <div className="border-t border-poke-border">
+              {/* Header bar — always visible when detection has run */}
+              <div className="flex items-center justify-between px-3 py-2">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  {detecting && <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />}
+                  {lastOcrResult && (
+                    <>
+                      {lastOcrResult.screenContext === 'menu' && (
+                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-slate-500/20 text-slate-400 border border-slate-500/20 shrink-0">MENU</span>
+                      )}
+                      {lastOcrResult.screenContext === 'battle' && (
+                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 shrink-0">BATTLE</span>
+                      )}
+                      {lastOcrResult.screenContext === 'unknown' && (
+                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-poke-surface text-slate-500 border border-poke-border shrink-0">SCANNING</span>
+                      )}
+                      {lastOcrResult.matchResult && (
+                        <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                          lastOcrResult.matchResult === 'win' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/20 text-red-400 border border-red-500/20'
+                        }`}>
+                          {lastOcrResult.matchResult === 'win' ? 'WIN' : 'LOSS'} DETECTED
+                        </span>
+                      )}
+                      <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                        detectionPhase === 'battle' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20' :
+                        detectionPhase === 'preview' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/20' :
+                        'bg-slate-500/20 text-slate-400 border border-slate-500/20'
+                      }`}>
+                        {teamsLocked ? 'LOCKED' : detectionPhase.toUpperCase()}
+                      </span>
+                      <span className="text-[10px] text-slate-600 truncate">
+                        {lastOcrResult.matched.length}T · {lastOcrResult.spriteMatched?.length ?? 0}I · L:{leftVotesRef.current.size} R:{rightVotesRef.current.size} · #{scanCount} · {lastOcrResult.durationMs}ms
+                      </span>
+                    </>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {detecting && (
+                    <button onClick={runScan} className="text-[9px] px-1.5 py-0.5 rounded bg-violet-500/15 border border-violet-500/30 text-violet-400 font-bold hover:bg-violet-500/25 transition-colors">
+                      Scan
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowDebug(!showDebug)}
+                    className="text-[9px] px-1.5 py-0.5 rounded bg-poke-surface border border-poke-border text-slate-500 hover:text-white transition-colors font-bold"
+                  >
+                    {showDebug ? 'Hide' : 'Debug'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Expandable debug sections */}
+              {showDebug && lastOcrResult && (
+                <div className="px-3 pb-3 space-y-1">
+
+                  {/* Section: Frame Preview — with region-of-interest picker */}
+                  <DebugSection title={`Frame Capture${captureRegion ? ' · ROI active' : ''}`} defaultOpen>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-[10px]">
+                        {!regionSelecting ? (
+                          <button
+                            onClick={() => { setRegionSelecting(true); setRegionDragStart(null); setRegionDragEnd(null); }}
+                            className="px-2 py-0.5 rounded bg-violet-500/15 border border-violet-500/30 text-violet-400 font-bold hover:bg-violet-500/25 transition-colors"
+                          >
+                            {captureRegion ? 'Redraw Region' : 'Set Region'}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => { setRegionSelecting(false); setRegionDragStart(null); setRegionDragEnd(null); }}
+                            className="px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400 font-bold"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                        {captureRegion && !regionSelecting && (
+                          <button
+                            onClick={() => setCaptureRegion(null)}
+                            className="px-2 py-0.5 rounded bg-poke-surface border border-poke-border text-slate-400 hover:text-red-400 transition-colors"
+                          >
+                            Clear ROI
+                          </button>
+                        )}
+                        {regionSelecting && (
+                          <span className="text-amber-400">Drag on image to select game area</span>
+                        )}
+                        {captureRegion && !regionSelecting && (
+                          <span className="text-slate-500 font-mono">
+                            {Math.round(captureRegion.x * 100)},{Math.round(captureRegion.y * 100)} · {Math.round(captureRegion.w * 100)}×{Math.round(captureRegion.h * 100)}
+                          </span>
+                        )}
+                      </div>
+                      {lastFrameUrl ? (
+                        <div
+                          className="relative inline-block w-full"
+                          onMouseDown={regionSelecting ? (e) => {
+                            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                            const x = (e.clientX - rect.left) / rect.width;
+                            const y = (e.clientY - rect.top) / rect.height;
+                            setRegionDragStart({ x, y });
+                            setRegionDragEnd({ x, y });
+                          } : undefined}
+                          onMouseMove={regionSelecting && regionDragStart ? (e) => {
+                            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                            const x = (e.clientX - rect.left) / rect.width;
+                            const y = (e.clientY - rect.top) / rect.height;
+                            setRegionDragEnd({ x, y });
+                          } : undefined}
+                          onMouseUp={regionSelecting && regionDragStart && regionDragEnd ? () => {
+                            const x0 = Math.min(regionDragStart.x, regionDragEnd.x);
+                            const y0 = Math.min(regionDragStart.y, regionDragEnd.y);
+                            const x1 = Math.max(regionDragStart.x, regionDragEnd.x);
+                            const y1 = Math.max(regionDragStart.y, regionDragEnd.y);
+                            const w = x1 - x0, h = y1 - y0;
+                            if (w > 0.05 && h > 0.05) {
+                              setCaptureRegion({ x: x0, y: y0, w, h });
+                            }
+                            setRegionSelecting(false);
+                            setRegionDragStart(null);
+                            setRegionDragEnd(null);
+                          } : undefined}
+                          style={{ cursor: regionSelecting ? 'crosshair' : 'default', userSelect: 'none' }}
+                        >
+                          <img src={regionSelecting ? (lastRawFrameUrl ?? lastFrameUrl) : lastFrameUrl} alt="Captured frame" className="w-full h-auto object-contain rounded border border-poke-border/20 block pointer-events-none" draggable={false} />
+                          {/* Live drag rectangle */}
+                          {regionSelecting && regionDragStart && regionDragEnd && (
+                            <div
+                              className="absolute border-2 border-violet-400 bg-violet-400/10 pointer-events-none"
+                              style={{
+                                left: `${Math.min(regionDragStart.x, regionDragEnd.x) * 100}%`,
+                                top: `${Math.min(regionDragStart.y, regionDragEnd.y) * 100}%`,
+                                width: `${Math.abs(regionDragEnd.x - regionDragStart.x) * 100}%`,
+                                height: `${Math.abs(regionDragEnd.y - regionDragStart.y) * 100}%`,
+                              }}
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-slate-600 py-2">No frame captured yet — click Auto-Detect to share your screen</div>
+                      )}
+                    </div>
+                  </DebugSection>
+
+                  {/* Section: Screen Context */}
+                  <DebugSection title="Screen Context" defaultOpen>
+                    <div className={`text-[10px] ${
+                      lastOcrResult.screenContext === 'menu' ? 'text-slate-400' :
+                      lastOcrResult.screenContext === 'battle' ? 'text-emerald-400' : 'text-slate-500'
+                    }`}>
+                      {lastOcrResult.screenContext === 'menu' && '⏸ '}
+                      {lastOcrResult.screenContext === 'battle' && '⚔ '}
+                      {lastOcrResult.screenContextDebug || 'No context signal'}
+                    </div>
+                    {lastOcrResult.sideDetection?.hasOpposingLabel && (
+                      <div className="text-[10px] mt-1 text-violet-400">
+                        Side: {lastOcrResult.sideDetection.debug}
+                      </div>
+                    )}
+                    {lastOcrResult.matchResultDebug && (
+                      <div className={`text-[10px] mt-1 font-bold ${
+                        lastOcrResult.matchResult === 'win' ? 'text-emerald-400' : 'text-red-400'
+                      }`}>
+                        Result: {lastOcrResult.matchResultDebug}
+                      </div>
+                    )}
+                  </DebugSection>
+
+                  {/* Section: Vote Accumulator — shows what's building toward lock */}
+                  {!teamsLocked && (leftVotesRef.current.size > 0 || rightVotesRef.current.size > 0) && (
+                    <DebugSection title={`Vote Accumulator — L:${leftVotesRef.current.size} R:${rightVotesRef.current.size} (needs 3+ each to lock)`} defaultOpen>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <div className="text-[9px] text-sky-400 uppercase tracking-wider font-bold mb-1">Left (Yours)</div>
+                          <div className="space-y-0.5">
+                            {[...leftVotesRef.current.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([s, v]) => (
+                              <div key={s} className="flex items-center gap-1 text-[10px]">
+                                <Sprite species={s} size="sm" />
+                                <span className="text-white flex-1 truncate">{s}</span>
+                                <span className="text-sky-400 font-mono">×{v}</span>
+                              </div>
+                            ))}
+                            {leftVotesRef.current.size === 0 && <span className="text-[10px] text-slate-600">None yet</span>}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[9px] text-red-400 uppercase tracking-wider font-bold mb-1">Right (Opponent)</div>
+                          <div className="space-y-0.5">
+                            {[...rightVotesRef.current.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([s, v]) => (
+                              <div key={s} className="flex items-center gap-1 text-[10px]">
+                                <Sprite species={s} size="sm" />
+                                <span className="text-white flex-1 truncate">{s}</span>
+                                <span className="text-red-400 font-mono">×{v}</span>
+                              </div>
+                            ))}
+                            {rightVotesRef.current.size === 0 && <span className="text-[10px] text-slate-600">None yet</span>}
+                          </div>
+                        </div>
+                      </div>
+                    </DebugSection>
+                  )}
+
+                  {/* Section: Battle Log Matches — highest confidence */}
+                  {(lastOcrResult.battleLogMatches?.length ?? 0) > 0 && (
+                    <DebugSection title={`Battle Log — ${lastOcrResult.battleLogMatches!.length} found`} defaultOpen>
+                      <div className="space-y-1">
+                        {lastOcrResult.battleLogMatches!.map((blm, i) => (
+                          <div key={i} className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded border text-[10px] ${
+                            blm.isOpponent ? 'bg-red-500/10 border-red-500/20' : 'bg-sky-500/10 border-sky-500/20'
+                          }`}>
+                            <Sprite species={blm.species} size="sm" />
+                            <span className="text-white font-medium">{blm.species}</span>
+                            <span className={`text-[8px] font-bold px-1 rounded ${blm.isOpponent ? 'bg-red-500/20 text-red-400' : 'bg-sky-500/20 text-sky-400'}`}>
+                              {blm.isOpponent ? 'OPPONENT' : 'YOURS'}
+                            </span>
+                            <span className="text-slate-600">"{blm.pattern}"</span>
+                          </div>
+                        ))}
+                      </div>
+                    </DebugSection>
+                  )}
+
+                  {/* Section: OCR Text Matches */}
+                  <DebugSection title={`Text Detection — ${lastOcrResult.matched.length} matches`} defaultOpen={lastOcrResult.matched.length > 0}>
+                    {lastOcrResult.matched.length > 0 ? (
+                      <div className="flex gap-1.5 flex-wrap">
+                        {lastOcrResult.matched.map(m => {
+                          const isMyTeam = filledMyTeam.includes(m.species);
+                          const isTracked = filledOpponents.includes(m.species);
+                          return (
+                            <div key={`ocr-${m.species}`} className={`flex items-center gap-1 px-1.5 py-0.5 rounded border ${
+                              isMyTeam ? 'bg-sky-500/10 border-sky-500/20' : isTracked ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-poke-gold/10 border-poke-gold/20'
+                            }`}>
+                              <Sprite species={m.species} size="sm" />
+                              <span className="text-[10px] text-white font-medium">{m.species}</span>
+                              <span className={`text-[8px] font-bold px-1 rounded ${
+                                isMyTeam ? 'bg-sky-500/20 text-sky-400' : isTracked ? 'bg-emerald-500/20 text-emerald-400' : 'bg-poke-gold/20 text-poke-gold'
+                              }`}>{isMyTeam ? 'YOURS' : isTracked ? 'TRACKED' : 'NEW'}</span>
+                              <span className="text-[9px] text-slate-600">"{m.token}" {Math.round(m.confidence * 100)}%{m.side !== 'unknown' ? ` [${m.side}]` : ''}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-[10px] text-slate-600">No text matches this frame</div>
+                    )}
+                  </DebugSection>
+
+                  {/* Section: Sprite Icon Matches */}
+                  <DebugSection title={`Sprite Detection — ${lastOcrResult.spriteMatched?.length ?? 0} matches`} defaultOpen={(lastOcrResult.spriteMatched?.length ?? 0) > 0}>
+                    {(lastOcrResult.spriteMatched?.length ?? 0) > 0 ? (
+                      <div className="flex gap-1.5 flex-wrap">
+                        {lastOcrResult.spriteMatched!.map(s => {
+                          const isMyTeam = filledMyTeam.includes(s.species);
+                          const fromOcr = lastOcrResult.matched.some(m => m.species === s.species);
+                          return (
+                            <div key={`spr-${s.species}`} className={`flex items-center gap-1 px-1.5 py-0.5 rounded border ${
+                              isMyTeam ? 'bg-sky-500/10 border-sky-500/20' : fromOcr ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-violet-500/10 border-violet-500/20'
+                            }`}>
+                              <Sprite species={s.species} size="sm" />
+                              <span className="text-[10px] text-white font-medium">{s.species}</span>
+                              <span className={`text-[8px] font-bold px-1 rounded ${
+                                isMyTeam ? 'bg-sky-500/20 text-sky-400' : fromOcr ? 'bg-emerald-500/20 text-emerald-400' : 'bg-violet-500/20 text-violet-400'
+                              }`}>{isMyTeam ? 'YOURS' : fromOcr ? 'OCR+ICON' : 'ICON'}</span>
+                              <span className="text-[9px] text-slate-600">{Math.round(s.confidence * 100)}% @ ({Math.round(s.x)},{Math.round(s.y)})</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-[10px] text-slate-600">No sprite matches this frame</div>
+                    )}
+                  </DebugSection>
+
+                  {/* Section: Accumulated Opponents */}
+                  <DebugSection title={`Opponent Accumulator — ${filledOpponents.length}/6`} defaultOpen={filledOpponents.length > 0}>
+                    {filledOpponents.length > 0 ? (
+                      <div className="flex gap-1.5 flex-wrap">
+                        {filledOpponents.map(s => (
+                          <div key={s} className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/20">
+                            <Sprite species={s} size="sm" />
+                            <span className="text-[10px] text-white">{s}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-[10px] text-slate-600">No opponents accumulated yet</div>
+                    )}
+                  </DebugSection>
+
+                  {/* Section: Near Misses */}
+                  <DebugSection title={`Near Misses — ${lastOcrResult.rejected?.length ?? 0}`} defaultOpen={false}>
+                    {(lastOcrResult.rejected?.length ?? 0) > 0 ? (
+                      <div className="flex gap-1 flex-wrap">
+                        {lastOcrResult.rejected!.map((r, i) => (
+                          <span key={i} className="text-[9px] px-1.5 py-0.5 rounded bg-poke-surface border border-poke-border/30 text-slate-500">
+                            "{r.token}" <span className="text-slate-700">— {r.reason}</span>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-[10px] text-slate-600">No near misses</div>
+                    )}
+                  </DebugSection>
+
+                  {/* Section: Raw OCR */}
+                  <DebugSection title={`Raw OCR — ${lastOcrResult.tokens.length} tokens · pass: ${lastOcrResult.bestPass}`} defaultOpen={false}>
+                    <pre className="p-2 rounded bg-poke-surface/50 border border-poke-border/30 text-slate-500 text-[9px] max-h-32 overflow-auto whitespace-pre-wrap break-all font-mono">
+                      {lastOcrResult.rawText || '(empty)'}
+                    </pre>
+                  </DebugSection>
+
+                  {/* Cooldown indicator */}
+                  {detecting && Date.now() < cooldownUntilRef.current && (
+                    <div className="text-[10px] text-amber-400 flex items-center gap-1.5 pt-1">
+                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                      Post-game cooldown — ignoring scans until next match starts
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ═══ STATUS DASHBOARD — always visible ═══ */}
+        <div className="poke-panel p-4">
+          <div className="grid grid-cols-3 gap-3 mb-3">
+            {/* Your Team status */}
+            <div className={`rounded-lg p-2.5 border ${filledMyTeam.length >= 2 ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-amber-500/20 bg-amber-500/5'}`}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <div className={`w-2 h-2 rounded-full ${filledMyTeam.length >= 2 ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`} />
+                <span className="text-[9px] text-slate-500 uppercase tracking-wider font-bold">Your Team</span>
+              </div>
+              {filledMyTeam.length > 0 ? (
+                <div className="flex items-center gap-1 flex-wrap">
+                  {filledMyTeam.map(s => <Sprite key={s} species={s} size="sm" />)}
+                  <span className="text-[10px] text-slate-400 ml-auto">{filledMyTeam.length}/6</span>
+                </div>
+              ) : (
+                <div className="text-[10px] text-amber-400/70">
+                  {detecting
+                    ? `Auto-detecting (${leftVotesRef.current.size} left / ${rightVotesRef.current.size} right votes)`
+                    : 'Not set — enter above or enable Auto-Detect'}
+                </div>
+              )}
+            </div>
+
+            {/* Opponent status */}
+            <div className={`rounded-lg p-2.5 border ${filledOpponents.length > 0 ? 'border-red-500/20 bg-red-500/5' : 'border-poke-border bg-poke-surface/30'}`}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <div className={`w-2 h-2 rounded-full ${filledOpponents.length > 0 ? 'bg-red-400' : 'bg-slate-600'}`} />
+                <span className="text-[9px] text-slate-500 uppercase tracking-wider font-bold">Opponent</span>
+              </div>
+              {filledOpponents.length > 0 ? (
+                <div className="flex items-center gap-1 flex-wrap">
+                  {filledOpponents.map(s => <Sprite key={s} species={s} size="sm" />)}
+                  <span className="text-[10px] text-slate-400 ml-auto">{filledOpponents.length}/6</span>
+                </div>
+              ) : (
+                <div className="text-[10px] text-slate-500">Waiting — enter below</div>
+              )}
+            </div>
+
+            {/* Analysis status */}
+            <div className={`rounded-lg p-2.5 border ${
+              bringList.length > 0 ? 'border-emerald-500/20 bg-emerald-500/5' :
+              filledOpponents.length > 0 && filledMyTeam.length < 2 ? 'border-amber-500/20 bg-amber-500/5' :
+              'border-poke-border bg-poke-surface/30'
+            }`}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <div className={`w-2 h-2 rounded-full ${bringList.length > 0 ? 'bg-emerald-400' : filledOpponents.length > 0 ? 'bg-amber-400' : 'bg-slate-600'}`} />
+                <span className="text-[9px] text-slate-500 uppercase tracking-wider font-bold">Analysis</span>
+              </div>
+              {bringList.length > 0 ? (
+                <div className="text-[10px] text-emerald-400">
+                  Ready — {archetypes[0]?.name || 'Unknown'} detected
+                </div>
+              ) : filledOpponents.length > 0 && filledMyTeam.length < 2 ? (
+                <div className="text-[10px] text-amber-400/70">Need your team (2+ Pokemon)</div>
+              ) : filledOpponents.length > 0 ? (
+                <div className="text-[10px] text-emerald-400/70">Computing...</div>
+              ) : (
+                <div className="text-[10px] text-slate-500">Enter both teams</div>
+              )}
+            </div>
+          </div>
+
+          {/* Quick summary when analysis is ready */}
+          {archetypes.length > 0 && (
+            <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-poke-surface/50 border border-poke-border/50">
+              <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold shrink-0">Matchup</span>
+              <span className="text-xs font-bold text-poke-gold">{archetypes[0].name}</span>
+              {archetypes[0].counterTips?.[0] && (
+                <span className="text-[10px] text-slate-400 truncate flex-1">{archetypes[0].counterTips[0]}</span>
+              )}
+              {bringList.length > 0 && (
+                <div className="flex items-center gap-1 shrink-0 ml-auto">
+                  <span className="text-[9px] text-slate-600">Bring:</span>
+                  {orderedBringList.slice(0, 4).map(b => (
+                    <Sprite key={b.species} species={b.species} size="sm" />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ═══ OPPONENT TEAM INPUT ═══ */}
         <div className="poke-panel p-4">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-2">
             <div className="text-sm font-bold text-poke-red uppercase tracking-wider">Opponent Team</div>
-            <div className="text-[10px] text-slate-600">Type names, Tab to accept | Paste to bulk-add</div>
+            <div className="flex items-center gap-2">
+              {detecting && filledOpponents.length > 0 && (
+                <span className="text-[9px] text-slate-600">Click X on wrong detections</span>
+              )}
+              <div className="text-[10px] text-slate-600">Tab to accept | Paste to bulk-add</div>
+            </div>
           </div>
+          {/* Detected opponents with dismiss buttons */}
+          {filledOpponents.length > 0 && detecting && (
+            <div className="flex gap-1.5 flex-wrap mb-2">
+              {filledOpponents.map(species => (
+                <div key={species} className="flex items-center gap-1 pl-1.5 pr-0.5 py-0.5 rounded-lg bg-poke-surface border border-poke-border group">
+                  <Sprite species={species} size="sm" />
+                  <span className="text-[10px] text-white">{species}</span>
+                  <button
+                    onClick={() => {
+                      setOpponentTeam(prev => prev.filter(s => s !== species));
+                      setDismissedSpecies(prev => new Set([...prev, species]));
+                    }}
+                    className="w-4 h-4 flex items-center justify-center rounded text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    title={`Remove ${species} — won't be re-added this game`}
+                  >
+                    <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           <QuickTeamInput
             value={filledOpponents}
             onChange={setOpponentTeam}
             maxSlots={6}
           />
+          {dismissedSpecies.size > 0 && (
+            <div className="flex items-center gap-1.5 mt-2 text-[9px] text-slate-600">
+              <span>Dismissed:</span>
+              {[...dismissedSpecies].map(s => (
+                <span key={s} className="px-1 py-0.5 rounded bg-poke-surface border border-poke-border/30 line-through">{s}</span>
+              ))}
+              <button onClick={() => setDismissedSpecies(new Set())} className="text-slate-500 hover:text-white transition-colors ml-1">Reset</button>
+            </div>
+          )}
         </div>
+      </div>{/* end left column */}
+
+        {/* Right column: analysis */}
+        <div className="space-y-4">
 
         {/* ═══ LIVE ANALYSIS (appears with 1+ opponents) ═══ */}
         {filledOpponents.length >= 1 && (
@@ -904,6 +2308,16 @@ export function StreamCompanionPage() {
                       )}
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Missing team notice */}
+            {filledMyTeam.length < 2 && (
+              <div className="poke-panel p-3 border-amber-500/20">
+                <div className="flex items-center gap-2 text-xs text-amber-400">
+                  <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  Enter your team above to see bring list, threats, and opener strategy
                 </div>
               </div>
             )}
@@ -1064,52 +2478,46 @@ export function StreamCompanionPage() {
           </div>
         )}
 
+      </div>{/* end right column */}
+      </div>{/* end grid */}
+
         {/* ═══ MATCH HISTORY (collapsible) ═══ */}
         {showHistory && (
           <div className="poke-panel p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Match History</div>
-              {history.length > 0 && (
+              <div className="flex items-center gap-3">
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Match History</div>
+                <div className="text-[10px] text-slate-600">
+                  {cacheStats.frames} frames · {Math.round(cacheStats.bytes / 1024)} KB cached
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={clearHistory}
-                  className="text-[10px] text-slate-600 hover:text-red-400 transition-colors"
+                  onClick={handleExportArchive}
+                  className="text-[10px] px-2 py-1 rounded bg-sky-500/10 border border-sky-500/30 text-sky-400 hover:bg-sky-500/20 transition-colors"
+                  title="Download JSON with all matches + cached keyframes"
                 >
-                  Clear All
+                  Export
                 </button>
-              )}
+                <button
+                  onClick={handleClearCache}
+                  className="text-[10px] text-slate-600 hover:text-amber-400 transition-colors"
+                >
+                  Clear Cache
+                </button>
+                {history.length > 0 && (
+                  <button onClick={clearHistory} className="text-[10px] text-slate-600 hover:text-red-400 transition-colors">
+                    Clear History
+                  </button>
+                )}
+              </div>
             </div>
             {history.length === 0 ? (
               <div className="text-xs text-slate-600 text-center py-4">No matches recorded yet.</div>
             ) : (
-              <div className="space-y-2 max-h-96 overflow-y-auto">
+              <div className="space-y-1.5 max-h-[480px] overflow-y-auto">
                 {history.map(match => (
-                  <div key={match.id} className="flex items-center gap-3 p-2.5 rounded-lg border border-poke-border bg-poke-surface/30">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm shrink-0 ${
-                      match.result === 'win' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
-                    }`}>
-                      {match.result === 'win' ? 'W' : 'L'}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1 flex-wrap">
-                        <span className="text-[10px] text-slate-500">vs</span>
-                        {match.opponentTeam.map(opp => (
-                          <Sprite key={opp} species={opp} size="sm" />
-                        ))}
-                      </div>
-                      <span className="text-[10px] text-slate-600">
-                        {new Date(match.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => deleteMatch(match.id)}
-                      className="text-slate-700 hover:text-red-400 transition-colors p-1 shrink-0"
-                      title="Delete match"
-                    >
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
+                  <MatchHistoryRow key={match.id} match={match} onDelete={deleteMatch} />
                 ))}
               </div>
             )}
@@ -1119,7 +2527,7 @@ export function StreamCompanionPage() {
 
       {/* ═══ STICKY BOTTOM: W/L BUTTONS ═══ */}
       <div className="sticky bottom-0 z-40 border-t border-poke-border bg-poke-darker/95 backdrop-blur-sm">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex gap-3">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex gap-3">
           <button
             onClick={() => recordMatch('win')}
             disabled={filledOpponents.length === 0}

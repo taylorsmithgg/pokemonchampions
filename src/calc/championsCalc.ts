@@ -4,6 +4,7 @@
 import { calculate, Pokemon, Move, Field, Side } from '@smogon/calc';
 import type { StatID, StatsTable } from '@smogon/calc';
 import { getMoveBP } from '../data/champions';
+import { getZAMegaByStone } from '../data/zaMegaData';
 import type { PokemonState, FieldState } from '../types';
 
 // Convert our SP-based Pokemon state to @smogon/calc Pokemon
@@ -18,13 +19,30 @@ function buildCalcPokemon(state: PokemonState): Pokemon {
     evs[stat] = Math.min((state.sps[stat] || 0) * 4, 252);
   }
 
+  // Z-A Megas have no Smogon species data. Pass `overrides` on the
+  // Pokemon ctor so the calc engine uses Mega stats + types, and
+  // force the Mega's ability (player's pre-Mega ability choice no
+  // longer applies once Mega Evolution triggers).
+  const zaMega = getZAMegaByStone(state.species, state.item);
+  const overrides = zaMega
+    ? {
+        overrides: {
+          baseStats: zaMega.baseStats,
+          types: zaMega.types as any,
+          weightkg: zaMega.weightkg,
+          abilities: { 0: zaMega.ability },
+        } as any,
+      }
+    : {};
+
   return new Pokemon(9 as any, state.species, {
+    ...overrides,
     level: state.level,
     nature: state.nature as any,
     evs,
     ivs: { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 },
     item: (state.item || undefined) as any,
-    ability: (state.ability || undefined) as any,
+    ability: (zaMega ? zaMega.ability : state.ability || undefined) as any,
     boosts: state.boosts,
     status: (state.status || undefined) as any,
     curHP: state.currentHp,

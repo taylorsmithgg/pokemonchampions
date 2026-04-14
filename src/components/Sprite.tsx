@@ -7,7 +7,7 @@ import { getSpriteUrl, getSpriteFallbackUrl } from '../utils/sprites';
 
 interface SpriteProps {
   species: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
   className?: string;
 }
 
@@ -16,6 +16,7 @@ const SIZES = {
   md: 'w-12 h-12',
   lg: 'w-16 h-16',
   xl: 'w-24 h-24',
+  xxl: 'w-32 h-32',
 };
 
 export function Sprite({ species, size = 'md', className = '' }: SpriteProps) {

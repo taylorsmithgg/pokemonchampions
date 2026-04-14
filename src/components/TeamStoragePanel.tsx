@@ -150,7 +150,7 @@ export function TeamStoragePanel({ team, onLoadTeam }: TeamStoragePanelProps) {
   }, [showExportMenu]);
 
   return (
-    <div className="poke-panel border border-poke-border rounded-xl overflow-hidden">
+    <div className="poke-panel border border-poke-border rounded-xl">
       {/* Collapse header */}
       <button
         onClick={() => setIsOpen(o => !o)}
