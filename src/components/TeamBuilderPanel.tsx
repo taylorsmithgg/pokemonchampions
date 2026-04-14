@@ -41,6 +41,8 @@ interface TeamBuilderPanelProps {
   onLoadToCalc: (pokemon: PokemonState, side: 'attacker' | 'defender') => void;
   isOpen: boolean;
   onClose: () => void;
+  /** When true, renders as full-page content without the modal overlay. */
+  fullScreen?: boolean;
 }
 
 function MiniStatBar({ stat, base, sp, nature, level }: { stat: StatID; base: number; sp: number; nature: NatureName; level: number }) {
@@ -369,7 +371,7 @@ function TeamSlot({
   );
 }
 
-export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose }: TeamBuilderPanelProps) {
+export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose, fullScreen = false }: TeamBuilderPanelProps) {
   const [importText, setImportText] = useState('');
   const [showImport, setShowImport] = useState(false);
   const [format, setFormat] = useState<BattleFormat>(DEFAULT_FORMAT);
@@ -543,7 +545,115 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
   const warnings = audit.issues.filter(i => i.severity === 'warning');
   const goods = audit.issues.filter(i => i.severity === 'good');
 
-  if (!isOpen) return null;
+  if (!isOpen && !fullScreen) return null;
+
+  if (fullScreen) {
+    // Full-page mode: render the content panel directly, no modal
+    return (
+      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-4" style={{ backgroundColor: 'transparent' }}>
+        {/* Reuse the same internal content */}
+        <div className="sticky top-0 z-20 border-b border-poke-border mb-4 -mx-4 px-4 py-3" style={{ backgroundColor: 'rgba(10,10,21,0.9)', backdropFilter: 'blur(8px)' }}>
+          <div className="flex gap-2 flex-wrap items-center">
+            <FormatSelector value={format.id} onChange={setFormat} />
+            <button onClick={handleBuildTeam} className="text-sm px-4 py-1.5 bg-gradient-to-r from-poke-red to-poke-red-dark text-white rounded-lg font-bold hover:from-poke-red-light hover:to-poke-red transition-all shadow-lg shadow-poke-red/20">Build Team</button>
+            <button onClick={handleOptimizeAll} className="text-sm px-4 py-1.5 bg-poke-gold/15 border border-poke-gold/40 text-poke-gold rounded-lg font-bold hover:bg-poke-gold/25 transition-colors flex items-center gap-1.5">
+              <OptimizeIcon className="w-4 h-4" />Optimize All
+            </button>
+            <button onClick={() => setShowImport(!showImport)} className="text-xs px-3 py-1.5 bg-poke-surface border border-poke-border text-slate-400 rounded-lg hover:text-white transition-colors">Import</button>
+            <button onClick={() => onChange(Array.from({ length: 6 }, () => createDefaultPokemonState()))} className="text-xs px-3 py-1.5 bg-poke-surface border border-poke-border text-slate-400 rounded-lg hover:text-poke-red transition-colors">Clear</button>
+            <div className="ml-auto flex items-center gap-2">
+              <span className={`text-lg font-black ${scoreColor}`}>{audit.score}</span>
+              <span className="text-xs text-slate-500">/100</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Team slots — 3-column grid in full-screen */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+          {team.map((slot, i) => (
+            <TeamSlot
+              key={i}
+              index={i}
+              pokemon={slot}
+              team={team}
+              format={format}
+              onChange={(state) => updateSlot(i, state)}
+              onReplace={(species) => {
+                const data = getPokemonData(species);
+                const preset = PRESETS.find((p: any) => p.species === species);
+                updateSlot(i, preset ? {
+                  ...createDefaultPokemonState(),
+                  species: preset.species,
+                  nature: preset.nature,
+                  ability: preset.ability,
+                  item: preset.item,
+                  sps: { ...preset.sps },
+                  moves: [...preset.moves, '', '', '', ''].slice(0, 4),
+                } : {
+                  ...createDefaultPokemonState(),
+                  species,
+                  ability: (data?.abilities?.[0] || '') as string,
+                });
+              }}
+              onAutoFill={() => handleAutoFill(i)}
+              onLoadToCalc={side => onLoadToCalc(slot, side)}
+            />
+          ))}
+        </div>
+
+        {/* Suggested next picks */}
+        {nextPicks.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-sm font-bold text-white mb-2">Suggested Next Pick</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+              {nextPicks.slice(0, 6).map((pick) => (
+                <button
+                  key={pick.species}
+                  onClick={() => {
+                    const emptyIdx = team.findIndex(p => !p.species);
+                    if (emptyIdx === -1) return;
+                    const preset = PRESETS.find((p: any) => p.species === pick.species);
+                    const data = getPokemonData(pick.species);
+                    const newTeam = [...team];
+                    newTeam[emptyIdx] = preset ? {
+                      ...createDefaultPokemonState(),
+                      species: preset.species,
+                      nature: preset.nature,
+                      ability: preset.ability,
+                      item: preset.item,
+                      sps: { ...preset.sps },
+                      moves: [...preset.moves, '', '', '', ''].slice(0, 4),
+                    } : {
+                      ...createDefaultPokemonState(),
+                      species: pick.species,
+                      ability: (data?.abilities?.[0] || '') as string,
+                    };
+                    onChange(newTeam);
+                  }}
+                  className="flex items-center gap-3 p-3 rounded-lg border border-poke-border text-left transition-colors hover:border-poke-red/30"
+                  style={{ backgroundColor: '#1a1b30' }}
+                >
+                  <img src={getSpriteUrl(pick.species)} alt={pick.species} className="w-12 h-12 object-contain shrink-0" loading="lazy" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-sm font-bold text-white">{pick.species}</span>
+                      <span className="text-xs text-poke-gold font-mono">+{pick.score}</span>
+                    </div>
+                    <div className="text-xs text-slate-500 leading-snug">{pick.reasons.slice(0, 2).join(' · ')}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Lineup Flexibility */}
+        {audit.lineupReport && audit.lineupReport.lineups.length > 0 && (
+          <LineupFlexibilitySection report={audit.lineupReport} format={format} />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex">

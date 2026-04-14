@@ -13,6 +13,8 @@ import { TeamBuilderPanel } from './components/TeamBuilderPanel';
 import { DiscoveryPanel } from './components/DiscoveryPanel';
 import { FAQPage } from './pages/FAQPage';
 import { TierListPage } from './pages/TierListPage';
+import { TeamBuilderPage } from './pages/TeamBuilderPage';
+import { TeamProvider } from './contexts/TeamContext';
 import type { TeamMember } from './data/teams';
 import {
   createDefaultPokemonState,
@@ -193,17 +195,17 @@ function Calculator() {
               </svg>
               <span className="text-xs hidden sm:inline">Teams</span>
             </button>
-            <button
-              onClick={() => setShowTeamBuilder(true)}
+            <Link
+              to="/team-builder"
               className="p-2 sm:px-3 sm:py-1.5 rounded-lg bg-poke-surface border border-poke-border text-slate-400 hover:border-poke-red/40 hover:text-poke-red-light transition-colors flex items-center gap-1.5"
-              title="Team Builder"
+              title="Team Builder — Full Screen"
             >
               <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
               </svg>
               <span className="text-xs hidden sm:inline">Builder</span>
-            </button>
+            </Link>
             <Link
               to="/faq"
               className="hidden sm:flex text-xs px-3 py-1.5 rounded-lg bg-poke-surface border border-poke-border text-slate-400 hover:border-white/30 hover:text-white transition-colors items-center"
@@ -392,14 +394,17 @@ function Calculator() {
 function App() {
   return (
     <HashRouter>
-      <PokemonActionsProvider>
-        <Routes>
-          <Route path="/" element={<Calculator />} />
-          <Route path="/tier-list" element={<TierListPage />} />
-          <Route path="/faq" element={<FAQPage />} />
-          <Route path="/faq/:slug" element={<FAQPage />} />
-        </Routes>
-      </PokemonActionsProvider>
+      <TeamProvider>
+        <PokemonActionsProvider>
+          <Routes>
+            <Route path="/" element={<Calculator />} />
+            <Route path="/team-builder" element={<TeamBuilderPage />} />
+            <Route path="/tier-list" element={<TierListPage />} />
+            <Route path="/faq" element={<FAQPage />} />
+            <Route path="/faq/:slug" element={<FAQPage />} />
+          </Routes>
+        </PokemonActionsProvider>
+      </TeamProvider>
     </HashRouter>
   );
 }
