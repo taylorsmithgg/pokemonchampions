@@ -15,6 +15,7 @@
 // either format.
 
 import { getAvailablePokemon, getPokemonData, getDefensiveMultiplier, hasChampionsMega, isChampionsPokemon } from '../data/champions';
+import { getEffectiveBaseStats } from '../data/abilityClassification';
 import { MEGA_STONE_MAP } from '../data/championsRoster';
 import { COMMUNITY_TIER_LIST } from '../data/tierlist';
 import {
@@ -204,13 +205,16 @@ function scoreSweeperValue(species: string): { score: number; reasons: string[] 
   const reasons: string[] = [];
   let score = 0;
 
-  const bs = data.baseStats;
+  // Use effective stats — ability modifiers like Huge Power (2× Atk)
+  // are applied before scoring so Azumarill scores as 100+ Atk, not 50.
+  const abilities = data.abilities ? Object.values(data.abilities).map(a => a as string) : [];
+  const bs = getEffectiveBaseStats(data.baseStats, abilities);
   const maxOffense = Math.max(bs.atk, bs.spa);
   const spe = bs.spe;
 
-  // Raw stat baseline
-  if (maxOffense >= 130) { score += 8; reasons.push(`Elite offense (${maxOffense})`); }
-  else if (maxOffense >= 110) { score += 6; reasons.push(`Strong offense (${maxOffense})`); }
+  // Raw stat baseline (ability-adjusted)
+  if (maxOffense >= 130) { score += 8; reasons.push(`Elite offense (${maxOffense}${bs.atk !== data.baseStats.atk || bs.spa !== data.baseStats.spa ? ' effective via ability' : ''})`); }
+  else if (maxOffense >= 110) { score += 6; reasons.push(`Strong offense (${maxOffense}${bs.atk !== data.baseStats.atk ? ' effective' : ''})`); }
   else if (maxOffense >= 90) score += 4;
 
   // Speed tier

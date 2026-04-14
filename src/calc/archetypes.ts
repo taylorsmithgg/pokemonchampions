@@ -4,6 +4,7 @@
 import { getPokemonData } from '../data/champions';
 import { getCachedUsageStats } from '../data/liveData';
 import { getPresetsBySpecies } from '../data/presets';
+import { getEffectiveBaseStats } from '../data/abilityClassification';
 import type { StatsTable } from '@smogon/calc';
 import type { NatureName } from '../types';
 
@@ -20,15 +21,17 @@ export interface Archetype {
 export function detectArchetype(species: string, sps: StatsTable, nature: NatureName): string {
   const data = getPokemonData(species);
   if (!data) return 'Unknown';
-  const bs = data.baseStats;
+  // Use effective stats — Huge Power etc. change the classification
+  const abilities = data.abilities ? Object.values(data.abilities).map(a => a as string) : [];
+  const bs = getEffectiveBaseStats(data.baseStats, abilities);
   const isPhys = bs.atk > bs.spa;
   const mainOff = isPhys ? sps.atk : sps.spa;
   const maxBaseOff = Math.max(bs.atk, bs.spa);
   const isMinSpeed = sps.spe === 0 && ['Brave', 'Quiet', 'Relaxed', 'Sassy'].includes(nature);
 
-  // Species with weak offense and high bulk should never be called a
-  // Trick Room Attacker or Bulky Attacker — they're walls no matter
-  // what spread the user picks.
+  // Species with weak EFFECTIVE offense and high bulk should never be
+  // called an Attacker — but Huge Power Azumarill has 100 effective Atk,
+  // so it won't trigger this.
   const isInherentlyDefensive = maxBaseOff < 80 && bs.hp + Math.max(bs.def, bs.spd) > 200;
   if (isInherentlyDefensive) {
     if (sps.hp >= 20 && sps.def >= sps.spd) return 'Physical Wall';
@@ -50,7 +53,9 @@ export function detectArchetype(species: string, sps: StatsTable, nature: Nature
 export function getArchetypes(species: string): Archetype[] {
   const data = getPokemonData(species);
   if (!data) return [];
-  const bs = data.baseStats;
+  // Use effective stats — Huge Power Azumarill scores as 100 Atk, not 50
+  const abilities = data.abilities ? Object.values(data.abilities).map(a => a as string) : [];
+  const bs = getEffectiveBaseStats(data.baseStats, abilities);
   const isPhys = bs.atk > bs.spa;
   const maxOff = Math.max(bs.atk, bs.spa);
   const bulk = bs.hp + Math.max(bs.def, bs.spd);

@@ -23,6 +23,7 @@
 // predictions. This is the analysis nobody else is doing yet.
 
 import { getAvailablePokemon, getPokemonData, getDefensiveMultiplier, hasChampionsMega, isChampionsPokemon } from '../data/champions';
+import { getEffectiveBaseStats } from '../data/abilityClassification';
 import { MEGA_STONE_MAP } from '../data/championsRoster';
 import { COMMUNITY_TIER_LIST } from '../data/tierlist';
 import {
@@ -328,12 +329,17 @@ function scoreOffensivePressure(species: string, pool: string[]): { score: numbe
   const reasons: string[] = [];
   let score = 0;
 
-  const bs = data.baseStats;
   const types = [...data.types] as string[];
+  // Use EFFECTIVE base stats — accounts for ability modifiers like
+  // Huge Power (2× Atk), Pure Power, Fur Coat, etc. This is what
+  // auto-discovers Azumarill as a 100+ Atk threat instead of a
+  // 50-Atk wall.
+  const abilities = data.abilities ? Object.values(data.abilities).map(a => a as string) : [];
+  const bs = getEffectiveBaseStats(data.baseStats, abilities);
 
-  // Raw offensive stats
+  // Raw offensive stats (ability-adjusted)
   const maxOffense = Math.max(bs.atk, bs.spa);
-  if (maxOffense >= 130) { score += 7; reasons.push(`Elite offensive stat (${maxOffense})`); }
+  if (maxOffense >= 130) { score += 7; reasons.push(`Elite offense (${maxOffense} effective${bs.atk !== data.baseStats.atk ? ' via ability' : ''})`); }
   else if (maxOffense >= 110) score += 5;
   else if (maxOffense >= 90) score += 3;
 

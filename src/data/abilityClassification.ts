@@ -91,6 +91,43 @@ export const ABILITY_SCORING: Record<string, { bonus: number; reason: string; ca
   stalwart: { bonus: 2, reason: 'Stalwart bypasses redirection — ignores Follow Me / Rage Powder', category: 'offense' },
 };
 
+// ─── Stat modifiers ────────────────────────────────────────────────
+// Abilities that effectively change a base stat for competitive
+// purposes. The projection engines should use these when scoring
+// offensive or defensive potential — otherwise Huge Power Azumarill
+// scores as a 50-base-Atk wall instead of a 100+ Atk sweeper.
+
+export interface StatModifier {
+  stat: 'atk' | 'def' | 'spa' | 'spd' | 'spe';
+  multiplier: number;
+}
+
+/** Abilities that multiply an effective base stat. */
+export const ABILITY_STAT_MODIFIERS: Record<string, StatModifier[]> = {
+  'huge power': [{ stat: 'atk', multiplier: 2 }],
+  'pure power': [{ stat: 'atk', multiplier: 2 }],
+  'fur coat': [{ stat: 'def', multiplier: 2 }],
+  'ice scales': [{ stat: 'spd', multiplier: 2 }],
+  'gorilla tactics': [{ stat: 'atk', multiplier: 1.5 }],
+};
+
+/** Get effective base stats for a species, accounting for ability modifiers. */
+export function getEffectiveBaseStats(
+  baseStats: { hp: number; atk: number; def: number; spa: number; spd: number; spe: number },
+  abilities: string[],
+): { hp: number; atk: number; def: number; spa: number; spd: number; spe: number } {
+  const effective = { ...baseStats };
+  for (const ability of abilities) {
+    const mods = ABILITY_STAT_MODIFIERS[ability.toLowerCase()];
+    if (mods) {
+      for (const mod of mods) {
+        effective[mod.stat] = Math.round(effective[mod.stat] * mod.multiplier);
+      }
+    }
+  }
+  return effective;
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────
 
 /** Check if an ability sets weather and return the weather type. */

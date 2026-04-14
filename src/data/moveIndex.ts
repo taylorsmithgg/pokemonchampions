@@ -12,7 +12,7 @@
 import { getAvailablePokemon, getPokemonData } from './champions';
 import { PRESETS } from './presets';
 import { getCachedUsageStats } from './liveData';
-import { WEATHER_SETTERS as WEATHER_SETTER_MAP, WEATHER_ABUSERS as WEATHER_ABUSER_MAP } from './abilityClassification';
+import { WEATHER_SETTERS as WEATHER_SETTER_MAP, WEATHER_ABUSERS as WEATHER_ABUSER_MAP, ABILITY_SCORING } from './abilityClassification';
 
 // ─── Move categories for classification ────────────────────────────
 
@@ -226,6 +226,34 @@ export function buildMoveRoleSet(moveSet: Set<string>): Set<string> {
     if (speciesRunsMove(species, moveSet)) result.add(species);
   }
   return result;
+}
+
+/** Find species with high-impact abilities that have NO preset or live
+ *  data — these are blind spots the system might be undervaluing. */
+export function findBlindSpots(): Array<{ species: string; ability: string; reason: string }> {
+  ensureIndex();
+  const blindSpots: Array<{ species: string; ability: string; reason: string }> = [];
+
+  for (const species of getAvailablePokemon()) {
+    const moves = _moveIndex!.get(species);
+    // Skip species that already have presets or live data (they're in the index)
+    if (moves && moves.size > 0) continue;
+
+    const data = getPokemonData(species);
+    if (!data?.abilities) continue;
+    for (const slot of Object.values(data.abilities)) {
+      const abilityLower = (slot as string).toLowerCase();
+      const bonus = ABILITY_SCORING[abilityLower];
+      if (bonus && bonus.bonus >= 4) {
+        blindSpots.push({
+          species,
+          ability: slot as string,
+          reason: bonus.reason,
+        });
+      }
+    }
+  }
+  return blindSpots;
 }
 
 /** Build a set of all Champions species with a given ability (case-insensitive). */
