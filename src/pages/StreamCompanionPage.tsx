@@ -1594,18 +1594,19 @@ export function StreamCompanionPage() {
               >
                 <div className="flex flex-col items-center justify-center leading-none">
                   <div className="flex items-baseline gap-1.5">
-                    <span className="font-black text-3xl tracking-tighter" style={{ color: '#4ade80', textShadow: '0 0 6px rgba(0,0,0,0.9), 0 2px 4px rgba(0,0,0,0.8)' }}>{wins}</span>
-                    <span className="font-black text-lg" style={{ color: '#ffd700' }}>-</span>
-                    <span className="font-black text-3xl tracking-tighter" style={{ color: '#f87171', textShadow: '0 0 6px rgba(0,0,0,0.9), 0 2px 4px rgba(0,0,0,0.8)' }}>{losses}</span>
+                    <span className="font-black text-3xl tracking-tighter" style={{ color: '#4ade80', WebkitTextStroke: '1.5px #064e3b', textShadow: '0 2px 4px rgba(0,0,0,0.9)' }}>{wins}</span>
+                    <span className="font-black text-lg" style={{ color: '#ffd700', WebkitTextStroke: '1px #78350f' }}>-</span>
+                    <span className="font-black text-3xl tracking-tighter" style={{ color: '#f87171', WebkitTextStroke: '1.5px #7f1d1d', textShadow: '0 2px 4px rgba(0,0,0,0.9)' }}>{losses}</span>
                   </div>
                   {totalGames > 0 && (
-                    <div className="text-[11px] font-black mt-0.5 tracking-widest" style={{ color: '#ffd700', textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>{winRate}%</div>
+                    <div className="text-[11px] font-black mt-0.5 tracking-widest" style={{ color: '#ffd700', WebkitTextStroke: '0.5px #78350f', textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>{winRate}%</div>
                   )}
                   {streak.count >= 2 && (
                     <div
                       className="text-[9px] font-black uppercase tracking-widest mt-1"
                       style={{
                         color: '#ffd700',
+                        WebkitTextStroke: '0.5px #78350f',
                         textShadow: '0 1px 3px rgba(0,0,0,0.9)',
                       }}
                     >
