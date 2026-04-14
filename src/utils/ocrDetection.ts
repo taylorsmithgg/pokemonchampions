@@ -691,11 +691,20 @@ export async function detectPokemonFromFrame(
         }
       };
 
-      // Selection screen: 6 opponent slots in right column (x 78-96%, evenly spaced)
+      // Selection screen: 6 opponent slots in right column (x 78-96%)
       for (let i = 0; i < 6; i++) {
         const slotY = ch * (0.08 + i * 0.135);
         const slotH = ch * 0.12;
         await matchRegion(cw * 0.78, slotY, cw * 0.18, slotH, 'right');
+      }
+
+      // Selection screen: 6 YOUR team icon sprites in left column
+      // Small icons at x 1-7%, same vertical slots as the names.
+      // Catches nicknamed Pokemon that OCR can't identify by text.
+      for (let i = 0; i < 6; i++) {
+        const slotY = ch * (0.08 + i * 0.145);
+        const slotH = ch * 0.11;
+        await matchRegion(cw * 0.01, slotY, cw * 0.07, slotH, 'left');
       }
 
       // Battle screen: small icon sprites in HP bar panels
