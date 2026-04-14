@@ -236,3 +236,79 @@ export function buildAbilitySet(abilityLower: string): Set<string> {
   }
   return result;
 }
+
+// ─── Weather / archetype core detection helpers ────────────────────
+// These let projection engines discover weather setters, weather
+// abusers, and archetype anchors from ability data instead of
+// hardcoded species lists.
+
+const WEATHER_SETTER_ABILITIES: Record<string, string> = {
+  drought: 'Sun',
+  drizzle: 'Rain',
+  'sand stream': 'Sand',
+  'snow warning': 'Snow',
+  'mega sol': 'Sun',
+};
+
+const WEATHER_ABUSER_ABILITIES: Record<string, string> = {
+  chlorophyll: 'Sun',
+  'solar power': 'Sun',
+  'swift swim': 'Rain',
+  'rain dish': 'Rain',
+  'sand rush': 'Sand',
+  'sand force': 'Sand',
+  'sand veil': 'Sand',
+  'slush rush': 'Snow',
+  'ice body': 'Snow',
+  'snow cloak': 'Snow',
+};
+
+export interface WeatherCore {
+  weather: string;
+  setters: string[];
+  abusers: string[];
+}
+
+/** Discover all weather cores from the Champions roster by scanning abilities. */
+export function discoverWeatherCores(): WeatherCore[] {
+  ensureIndex();
+  const settersByWeather = new Map<string, string[]>();
+  const abusersByWeather = new Map<string, string[]>();
+
+  for (const species of getAvailablePokemon()) {
+    const abilities = getSpeciesAbilities(species);
+    for (const ability of abilities) {
+      const lower = ability.toLowerCase();
+      const setWeather = WEATHER_SETTER_ABILITIES[lower];
+      if (setWeather) {
+        if (!settersByWeather.has(setWeather)) settersByWeather.set(setWeather, []);
+        settersByWeather.get(setWeather)!.push(species);
+      }
+      const abuseWeather = WEATHER_ABUSER_ABILITIES[lower];
+      if (abuseWeather) {
+        if (!abusersByWeather.has(abuseWeather)) abusersByWeather.set(abuseWeather, []);
+        abusersByWeather.get(abuseWeather)!.push(species);
+      }
+    }
+  }
+
+  const cores: WeatherCore[] = [];
+  for (const [weather, setters] of settersByWeather) {
+    cores.push({
+      weather,
+      setters,
+      abusers: abusersByWeather.get(weather) ?? [],
+    });
+  }
+  return cores;
+}
+
+/** Get all species that set a specific weather via ability. */
+export function getWeatherSetters(weather: string): string[] {
+  return discoverWeatherCores().find(c => c.weather === weather)?.setters ?? [];
+}
+
+/** Get all species that abuse a specific weather via ability. */
+export function getWeatherAbusers(weather: string): string[] {
+  return discoverWeatherCores().find(c => c.weather === weather)?.abusers ?? [];
+}

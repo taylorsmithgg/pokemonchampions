@@ -16,10 +16,12 @@
 
 import { getAvailablePokemon, getPokemonData, getDefensiveMultiplier, hasChampionsMega } from '../data/champions';
 import { MEGA_STONE_MAP } from '../data/championsRoster';
+import { NORMAL_TIER_LIST } from '../data/tierlist';
 import {
   buildSetupIndex, buildMoveRoleSet,
   HAZARD_MOVES, HAZARD_REMOVAL_MOVES, RECOVERY_MOVES, PIVOT_MOVES as PIVOT_MOVE_SET,
   PHAZING_MOVES, STATUS_MOVES,
+  discoverWeatherCores,
 } from '../data/moveIndex';
 
 // ─── Types ─────────────────────────────────────────────────────────
@@ -488,97 +490,112 @@ function detectSinglesCores(rankings: SinglesProjection[]): SinglesArchetypeCore
   const cores: SinglesArchetypeCore[] = [];
   const has = (n: string) => eligible.has(n);
 
-  // Hyper Offense — fast setup sweepers + Stealth Rock lead
-  if ((has('Garchomp') || has('Mimikyu') || has('Dragonite')) && (has('Hippowdon') || has('Tyranitar') || has('Glimmora'))) {
+  // All role sets derived dynamically from moveIndex — no hardcoded
+  // species. Adding a preset with Stealth Rock auto-enrolls a species
+  // as a hazard setter for core detection.
+  const hazardSetters = [...buildMoveRoleSet(HAZARD_MOVES)].filter(has);
+  const setupSweepers = [...buildMoveRoleSet(new Set([
+    'Swords Dance', 'Dragon Dance', 'Nasty Plot', 'Calm Mind',
+    'Quiver Dance', 'Shell Smash', 'Bulk Up',
+  ]))].filter(has);
+  const pivotUsers = [...buildMoveRoleSet(PIVOT_MOVE_SET)].filter(has);
+  const recoveryUsers = [...buildMoveRoleSet(RECOVERY_MOVES)].filter(has);
+  const hazardRemovers = [...buildMoveRoleSet(HAZARD_REMOVAL_MOVES)].filter(has);
+
+  // Walls: HP + (Def + SpD)/2 > 200
+  const walls = [...eligible].filter(s => {
+    const d = getPokemonData(s);
+    if (!d) return false;
+    return d.baseStats.hp + (d.baseStats.def + d.baseStats.spd) / 2 > 200;
+  });
+
+  // ─── Hyper Offense — hazard setter + setup sweepers ───────────
+  if (hazardSetters.length > 0 && setupSweepers.length >= 2) {
     cores.push({
       name: 'Hyper Offense',
-      description: 'Fast setup sweepers chain one-shot kills while a hazard lead chips the opponent\'s switch-ins. Every member is an offensive threat — nothing passive.',
-      anchors: ['Garchomp', 'Mimikyu', 'Dragonite'].filter(has).slice(0, 2),
-      partners: ['Glimmora', 'Weavile', 'Volcarona', 'Kingambit', 'Dragapult'].filter(has),
+      description: `Hazard lead (${hazardSetters.slice(0, 2).join(' / ')}) + setup sweepers chain OHKOs through chipped switch-ins. Every slot is an offensive threat.`,
+      anchors: setupSweepers.slice(0, 2),
+      partners: [...hazardSetters.slice(0, 2), ...setupSweepers.slice(2, 5)].filter(s => !setupSweepers.slice(0, 2).includes(s)),
       winCondition: 'Set Stealth Rock → force switches → setup sweep through weakened team',
       requires: ['Hazard setter', 'Multiple setup sweepers'],
     });
   }
 
-  // Balance — hazards + pivot + wincon + wall
-  if (has('Corviknight') || has('Hippowdon')) {
+  // ─── Balance — hazards + pivot + wincon + wall ────────────────
+  if (hazardSetters.length > 0 && pivotUsers.length > 0 && walls.length > 0) {
+    const balanceAnchors = [...new Set([...hazardSetters.slice(0, 1), ...walls.filter(w => recoveryUsers.includes(w)).slice(0, 1)])];
     cores.push({
       name: 'Balance',
-      description: 'A balanced team with a hazard setter, a defensive pivot (Regenerator preferred), a setup sweeper, and a bulky wall. Wins via attrition + setup in the endgame.',
-      anchors: ['Hippowdon', 'Corviknight'].filter(has).slice(0, 2),
-      partners: ['Clefable', 'Garchomp', 'Dragonite', 'Slowking', 'Hydreigon'].filter(has),
+      description: `Hazard setter + Regenerator pivot + setup sweeper + bulky wall. Wins via attrition + setup in the endgame.`,
+      anchors: balanceAnchors.slice(0, 2),
+      partners: [...pivotUsers.slice(0, 2), ...setupSweepers.slice(0, 2), ...hazardRemovers.slice(0, 1)].filter(s => !balanceAnchors.includes(s)).slice(0, 5),
       winCondition: 'Attrition via hazards + pivot cycling → setup sweeper cleans late game',
       requires: ['Hazard setter', 'Recovery user', 'Wincon'],
     });
   }
 
-  // Stall — full walls + Toxic + hazards
-  if (has('Hippowdon') && has('Clefable')) {
+  // ─── Stall — recovery walls + status spreaders ────────────────
+  const recoveryWalls = walls.filter(w => recoveryUsers.includes(w));
+  if (recoveryWalls.length >= 3) {
     cores.push({
       name: 'Stall',
-      description: 'Heavy defensive core — multiple walls with recovery, Toxic stall, and hazard chip. Wins by outlasting anything that isn\'t a wallbreaker.',
-      anchors: ['Hippowdon', 'Clefable'].filter(has),
-      partners: ['Corviknight', 'Slowking', 'Umbreon', 'Sylveon', 'Milotic'].filter(has),
-      winCondition: 'Passive damage via Toxic + hazards + Sand chip, kept up by recovery',
-      requires: ['Toxic user', 'Hazards', 'Hazard control', 'Bulky walls'],
+      description: `Full-wall attrition: ${recoveryWalls.slice(0, 3).join(', ')} + Toxic + hazards. Outlasts everything that isn\'t a dedicated wallbreaker.`,
+      anchors: recoveryWalls.slice(0, 2),
+      partners: [...hazardSetters.slice(0, 1), ...hazardRemovers.slice(0, 1), ...recoveryWalls.slice(2, 5)].filter(s => !recoveryWalls.slice(0, 2).includes(s)).slice(0, 5),
+      winCondition: 'Passive damage via Toxic + hazards, kept alive by recovery',
+      requires: ['Toxic user', 'Hazards', 'Hazard control', 'Multiple recovery walls'],
     });
   }
 
-  // Rain Offense — Pelipper Drizzle + rain sweepers
-  if (has('Pelipper')) {
+  // ─── Weather cores (derived from abilities) ───────────────────
+  const weatherCores = discoverWeatherCores();
+  const W_NAMES: Record<string, string> = { Sun: 'Sun Offense', Sand: 'Sand Offense', Rain: 'Rain Offense', Snow: 'Snow Offense' };
+  const W_DESC: Record<string, string> = {
+    Sun: 'Sun setter + Chlorophyll sweepers. Solar Beam has no charge turn.',
+    Sand: 'Sand Stream chip + Sand Rush Speed doublers.',
+    Rain: 'Drizzle boosts Water STAB + Swift Swim Speed.',
+    Snow: 'Snow Warning enables Aurora Veil + Slush Rush sweepers.',
+  };
+  for (const wc of weatherCores) {
+    const setters = wc.setters.filter(has);
+    const abusers = wc.abusers.filter(has);
+    if (setters.length === 0) continue;
     cores.push({
-      name: 'Rain Offense',
-      description: 'Pelipper sets Rain via Drizzle, enabling Primarina and Greninja to abuse boosted Water STAB. Dragon cleaners follow up.',
-      anchors: ['Pelipper'],
-      partners: ['Primarina', 'Greninja', 'Dragonite', 'Garchomp'].filter(has),
-      winCondition: 'Rain-boosted Water attacks break walls; cleaners sweep survivors',
-      requires: ['Drizzle setter', 'Water attackers'],
+      name: W_NAMES[wc.weather] ?? `${wc.weather} Offense`,
+      description: W_DESC[wc.weather] ?? `${wc.weather} weather core.`,
+      anchors: setters.slice(0, 2),
+      partners: abusers.filter(s => !setters.includes(s)).slice(0, 5),
+      winCondition: `${wc.weather} weather advantage`,
+      requires: [`${wc.weather} setter`, `${wc.weather} abuser`],
     });
   }
 
-  // Sand Offense — Tyranitar + Excadrill Sand Rush
-  if (has('Tyranitar') && has('Excadrill')) {
-    cores.push({
-      name: 'Sand Offense',
-      description: 'Tyranitar sets Sand via Sand Stream, Excadrill doubles its speed with Sand Rush and sweeps through the weakened field. Classic singles powerhouse.',
-      anchors: ['Tyranitar', 'Excadrill'],
-      partners: ['Garchomp', 'Gliscor', 'Rhyperior', 'Mamoswine'].filter(has),
-      winCondition: 'Excadrill outspeeds the entire meta in Sand, cleans with Earthquake + Iron Head',
-      requires: ['Sand Stream', 'Sand Rush'],
+  // ─── Trick Room (derived from move access) ────────────────────
+  const trSetters = [...buildMoveRoleSet(new Set(['Trick Room']))].filter(has);
+  if (trSetters.length > 0) {
+    const slowBreakers = [...eligible].filter(s => {
+      const d = getPokemonData(s);
+      return d && d.baseStats.spe <= 55 && Math.max(d.baseStats.atk, d.baseStats.spa) >= 90 && !trSetters.includes(s);
     });
+    if (slowBreakers.length > 0) {
+      cores.push({
+        name: 'Trick Room',
+        description: `${trSetters.slice(0, 2).join(' / ')} flips the speed tier for slow wallbreakers.`,
+        anchors: trSetters.slice(0, 2),
+        partners: slowBreakers.slice(0, 5),
+        winCondition: 'Setup Trick Room → slow attackers outspeed for 5 turns → sweep',
+        requires: ['Trick Room setter', 'Slow wallbreakers'],
+      });
+    }
   }
 
-  // Sun Offense
-  if (has('Charizard') || has('Meganium')) {
-    cores.push({
-      name: 'Sun Offense',
-      description: 'Mega Charizard Y (Drought) or Mega Meganium (Mega Sol) enables Chlorophyll sweepers and Fire-boosted STAB. Solar Beam has no charge turn.',
-      anchors: ['Charizard', 'Meganium'].filter(has).slice(0, 1),
-      partners: ['Venusaur', 'Victreebel', 'Torkoal', 'Arcanine'].filter(has),
-      winCondition: 'Sun-boosted Fire + Chlorophyll speed break through walls',
-      requires: ['Sun setter', 'Chlorophyll abuser'],
-    });
-  }
-
-  // Trick Room
-  if (has('Hatterene') || has('Reuniclus')) {
-    cores.push({
-      name: 'Trick Room',
-      description: 'Psychic-type setter (Hatterene / Reuniclus / Slowking) flips the speed tier, and slow wallbreakers like Rhyperior or Conkeldurr clean up with reversed priority.',
-      anchors: ['Hatterene', 'Reuniclus', 'Slowking'].filter(has).slice(0, 2),
-      partners: ['Rhyperior', 'Conkeldurr', 'Mamoswine', 'Kingambit'].filter(has),
-      winCondition: 'Setup Trick Room → slow attackers outspeed for 5 turns → sweep',
-      requires: ['Trick Room setter', 'Slow wallbreakers'],
-    });
-  }
-
-  // Volt-Turn
-  if (has('Rotom') || has('Corviknight')) {
+  // ─── Volt-Turn (derived from pivot move access) ───────────────
+  if (pivotUsers.length >= 3) {
     cores.push({
       name: 'Volt-Turn',
-      description: 'Momentum-based team using Volt Switch, U-turn, and Parting Shot to keep the advantageous matchup on the field at all times. Wears down the opponent through pivot chains.',
-      anchors: ['Rotom', 'Corviknight', 'Scizor'].filter(has).slice(0, 2),
-      partners: ['Hydreigon', 'Dragapult', 'Garchomp', 'Weavile'].filter(has),
+      description: `Momentum-based: ${pivotUsers.slice(0, 3).join(' + ')} pivot chain wears the opponent through hazard chip.`,
+      anchors: pivotUsers.slice(0, 2),
+      partners: [...hazardSetters.slice(0, 1), ...setupSweepers.slice(0, 2)].filter(s => !pivotUsers.slice(0, 2).includes(s)).slice(0, 4),
       winCondition: 'Pivot chains force favorable matchups; hazards chip every entry',
       requires: ['Pivot moves on 3+ members', 'Hazard setter'],
     });
@@ -691,10 +708,14 @@ export function generateSinglesProjection(): SinglesProjectionReport {
   insights.push(`Status condition nerfs (paralysis 1/8, sleep 2-3 turns) directly benefit setup sweepers — expect Dragon Dance and Quiver Dance teams to be stronger than in mainline Singles.`);
   insights.push(`Without Gholdengo, the "Good as Gold nuke" archetype is dead. Kingambit and Archaludon inherit the Steel win-condition slot via Supreme Overlord and Stamina + Electro Shot respectively.`);
 
-  // Dark horses
+  // Dark horses: strong projection but NOT in the static community
+  // S/A+ tier. Derived from data — no hardcoded exclusion list.
+  const staticTop = new Set(
+    NORMAL_TIER_LIST.filter(e => e.tier === 'S' || e.tier === 'A+').map(e => e.name)
+  );
   const darkHorses = rankings
     .filter(r => r.tier === 'A' || r.tier === 'A+')
-    .filter(r => !['Garchomp', 'Dragonite', 'Tyranitar', 'Hippowdon', 'Dragapult', 'Greninja', 'Volcarona', 'Hydreigon', 'Mimikyu', 'Gengar'].includes(r.species))
+    .filter(r => !staticTop.has(r.species))
     .slice(0, 6);
 
   return {

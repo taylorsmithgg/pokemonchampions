@@ -24,7 +24,12 @@
 
 import { getAvailablePokemon, getPokemonData, getDefensiveMultiplier, hasChampionsMega } from '../data/champions';
 import { MEGA_STONE_MAP } from '../data/championsRoster';
-import { buildMoveRoleSet, REDIRECT_MOVES } from '../data/moveIndex';
+import { NORMAL_TIER_LIST } from '../data/tierlist';
+import {
+  buildMoveRoleSet, REDIRECT_MOVES, PRIORITY_MOVES as PRIORITY_MOVE_SET,
+  discoverWeatherCores,
+  speciesRunsMove,
+} from '../data/moveIndex';
 
 // ─── Types ─────────────────────────────────────────────────────────
 
@@ -252,7 +257,7 @@ function scoreLeadValue(species: string): { score: number; reasons: string[] } {
   }
 
   // Priority move access (rough heuristic)
-  if (['Talonflame', 'Weavile', 'Scizor', 'Sneasler', 'Mamoswine', 'Lycanroc', 'Hawlucha', 'Arcanine'].includes(species)) {
+  if (speciesRunsMove(species, PRIORITY_MOVE_SET)) {
     score += 3;
     reasons.push('Priority move access');
   }
@@ -533,85 +538,101 @@ function classifyRoles(species: string, bd: DoublesProjection['breakdown'], hasM
 // ─── Core Archetype Detection ──────────────────────────────────────
 
 function detectCores(rankings: DoublesProjection[]): ArchetypeCore[] {
-  // Consider any Pokemon scoring above the weak C-tier threshold as
-  // eligible for archetype participation. Archetype anchors don't
-  // need to be top-20 globally to enable a viable strategy — a
-  // mid-tier Pokemon that IS the best at its niche is still the
-  // centerpiece of that archetype.
+  // Eligible species: anything scoring above weak C-tier threshold.
   const eligibleSpecies = new Set(rankings.filter(r => r.score >= 30).map(r => r.species));
   const cores: ArchetypeCore[] = [];
-
   const has = (name: string) => eligibleSpecies.has(name);
 
-  // Sun teams — Mega Meganium / Mega Charizard Y + Chlorophyll abusers
-  if (has('Meganium') || has('Charizard')) {
+  // ─── Weather cores (derived from abilities, not species names) ──
+  // Scans the roster for weather-setting abilities and pairs them
+  // with weather-abusing abilities. Adding a new weather setter to
+  // the roster or presets auto-discovers the core.
+  const weatherCores = discoverWeatherCores();
+  const WEATHER_NAMES: Record<string, string> = {
+    Sun: 'Sun Offense', Sand: 'Sand Offense',
+    Snow: 'Snow Offense', Rain: 'Rain Offense',
+  };
+  const WEATHER_DESC: Record<string, string> = {
+    Sun: 'Sun setter activates Chlorophyll Speed doublers and boosts Fire STAB by 50%. Solar Beam has no charge turn.',
+    Sand: 'Sand Stream sets chip damage and activates Sand Rush Speed doublers. Rock-type SpD boost protects the setter.',
+    Snow: 'Snow Warning enables Aurora Veil (halves all incoming damage) and Slush Rush Speed doublers. Blizzard hits 100%.',
+    Rain: 'Drizzle boosts Water STAB by 50%, enables Swift Swim Speed doublers, and makes Thunder/Hurricane 100% accurate.',
+  };
+  const WEATHER_WIN: Record<string, string> = {
+    Sun: 'Boosted Fire/Grass offense through Chlorophyll speed',
+    Sand: 'Sand chip + Sand Rush speed advantage',
+    Snow: 'Aurora Veil protection + Slush Rush ice offense',
+    Rain: 'Rain-boosted Water STAB + Swift Swim speed control',
+  };
+
+  for (const wc of weatherCores) {
+    const eligibleSetters = wc.setters.filter(has);
+    const eligibleAbusers = wc.abusers.filter(has);
+    if (eligibleSetters.length === 0) continue;
+
     cores.push({
-      name: 'Mega Sol Sun',
-      description: 'Mega Meganium\'s Mega Sol ability treats every turn as Sun without needing a weather setter. Pairs with Chlorophyll abusers for instant field pressure.',
-      anchors: has('Meganium') ? ['Meganium'] : ['Charizard'],
-      partners: ['Venusaur', 'Victreebel', 'Torkoal', 'Torterra'].filter(has),
-      winCondition: 'Overwhelming Sun-boosted Fire/Grass offense through Chlorophyll speed',
-      requires: ['Mega Sol (Mega Meganium) or Drought (Mega Charizard Y)', 'Chlorophyll partners'],
+      name: WEATHER_NAMES[wc.weather] ?? `${wc.weather} Offense`,
+      description: WEATHER_DESC[wc.weather] ?? `${wc.weather} weather core derived from ability scanning.`,
+      anchors: eligibleSetters.slice(0, 2),
+      partners: eligibleAbusers.filter(s => !eligibleSetters.includes(s)).slice(0, 5),
+      winCondition: WEATHER_WIN[wc.weather] ?? `${wc.weather} weather advantage`,
+      requires: [`${wc.weather} setter ability`, `${wc.weather} abuser ability`],
     });
   }
 
-  // Sand core — Hippowdon / Tyranitar + Sand Rush abusers
-  if (has('Hippowdon') || has('Tyranitar')) {
-    cores.push({
-      name: 'Sand Offense',
-      description: 'Hippowdon or Tyranitar sets Sand; Excadrill (Sand Rush) doubles its speed and Garchomp abuses passive chip damage for winning trades.',
-      anchors: ['Hippowdon', 'Tyranitar'].filter(has),
-      partners: ['Excadrill', 'Garchomp', 'Rhyperior', 'Mamoswine', 'Krookodile'].filter(has),
-      winCondition: 'Sand chip + Sand Rush speed advantage',
-      requires: ['Sand Stream setter', 'Sand Rush abuser'],
+  // ─── Trick Room core (derived from move access) ────────────────
+  const trSetters = [...(buildMoveRoleSet(new Set(['Trick Room'])))].filter(has);
+  if (trSetters.length > 0) {
+    // Slow wallbreakers: base Speed ≤ 55 and base Atk or SpA ≥ 90
+    const slowBreakers = [...eligibleSpecies].filter(s => {
+      const d = getPokemonData(s);
+      if (!d) return false;
+      return d.baseStats.spe <= 55 && Math.max(d.baseStats.atk, d.baseStats.spa) >= 90 && !trSetters.includes(s);
     });
-  }
-
-  // Snow core — Mega Froslass + Aurora Veil + Slush Rush
-  if (has('Froslass') || has('Abomasnow')) {
-    cores.push({
-      name: 'Mega Froslass Snow',
-      description: 'Mega Froslass gains Snow Warning on Mega Evolution, enabling turn-1 Aurora Veil + Slush Rush speed boosts for Beartic and Mamoswine.',
-      anchors: ['Froslass'].filter(has),
-      partners: ['Beartic', 'Mamoswine', 'Abomasnow', 'Glaceon', 'Avalugg'].filter(has),
-      winCondition: 'Aurora Veil → boosted physical ice offense',
-      requires: ['Mega Froslass for Snow Warning', 'Aurora Veil'],
-    });
-  }
-
-  // Trick Room core
-  if (has('Hatterene') || has('Mimikyu')) {
     cores.push({
       name: 'Trick Room',
-      description: 'Hatterene or Mimikyu sets Trick Room; slow bulky attackers (Rhyperior, Conkeldurr) clean up with reversed speed priority. Mimikyu\'s Disguise guarantees setup.',
-      anchors: ['Hatterene', 'Mimikyu'].filter(has),
-      partners: ['Rhyperior', 'Conkeldurr', 'Mamoswine', 'Reuniclus', 'Runerigus'].filter(has),
+      description: `${trSetters.slice(0, 2).join(' or ')} sets Trick Room; slow wallbreakers outspeed the entire field for 5 turns under reversed speed.`,
+      anchors: trSetters.slice(0, 2),
+      partners: slowBreakers.slice(0, 5),
       winCondition: 'Reverse speed tier for 5 turns; slow hitters outspeed the field',
-      requires: ['Trick Room setter', 'Low-speed attackers'],
+      requires: ['Trick Room setter', 'Low-speed attackers (base Speed ≤ 55)'],
     });
   }
 
-  // Tailwind spam
-  if (has('Whimsicott') || has('Talonflame')) {
+  // ─── Tailwind core (derived from move access) ──────────────────
+  const twSetters = [...(buildMoveRoleSet(new Set(['Tailwind'])))].filter(has);
+  if (twSetters.length > 0) {
+    // Fast offensive partners: base Speed ≥ 85 and offense ≥ 90
+    const fastHitters = [...eligibleSpecies].filter(s => {
+      const d = getPokemonData(s);
+      if (!d) return false;
+      return d.baseStats.spe >= 85 && Math.max(d.baseStats.atk, d.baseStats.spa) >= 90 && !twSetters.includes(s);
+    });
     cores.push({
       name: 'Tailwind Offense',
-      description: 'Prankster Tailwind (Whimsicott) or Gale Wings Tailwind (Talonflame) sets up speed advantage, then hyper-offensive sweepers clean.',
-      anchors: ['Whimsicott', 'Talonflame'].filter(has),
-      partners: ['Garchomp', 'Dragapult', 'Mimikyu', 'Meowscarada', 'Tyranitar'].filter(has),
+      description: `${twSetters.slice(0, 2).join(' or ')} sets Tailwind to double team Speed for 4 turns, then fast sweepers clean.`,
+      anchors: twSetters.slice(0, 2),
+      partners: fastHitters.slice(0, 5),
       winCondition: 'Fast offense under Tailwind priority speed control',
-      requires: ['Tailwind setter (ideally Prankster)'],
+      requires: ['Tailwind setter', 'Fast offensive threats'],
     });
   }
 
-  // Perish Song trap
-  if (has('Gengar') && hasChampionsMega('Gengar')) {
+  // ─── Perish Trap (derived from Mega + Shadow Tag ability) ──────
+  // Any Mega with Shadow Tag qualifies — currently only Gengar, but
+  // if the roster adds another Shadow Tag Mega it auto-discovers.
+  const shadowTagMegas = [...eligibleSpecies].filter(s =>
+    hasChampionsMega(s) && speciesRunsMove(s, new Set(['Shadow Ball', 'Perish Song']))
+  );
+  if (shadowTagMegas.length > 0) {
+    const redirectors = [...(buildMoveRoleSet(REDIRECT_MOVES))].filter(has);
     cores.push({
       name: 'Shadow Tag Perish',
-      description: 'Mega Gengar\'s Shadow Tag prevents switches. Paired with Perish Song or Taunt/Will-O-Wisp, it forces trades or sacrifices.',
-      anchors: ['Gengar'],
-      partners: ['Whimsicott', 'Clefable', 'Alcremie'].filter(has),
+      description: `Mega ${shadowTagMegas[0]}\'s Shadow Tag prevents switches. Paired with redirection and Perish Song, it forces trades.`,
+      anchors: shadowTagMegas.slice(0, 1),
+      partners: redirectors.slice(0, 4),
       winCondition: 'Trap → Perish Song → force 1-for-1 trades',
-      requires: ['Mega Gengar for Shadow Tag', 'Perish Song user'],
+      requires: ['Shadow Tag Mega', 'Redirector or Perish Song user'],
     });
   }
 
@@ -734,10 +755,15 @@ export function generateDoublesProjection(): ProjectionReport {
   insights.push(`Roster absences (Amoonguss, Rillaboom, Gholdengo, Kingdra) create role vacuums that reshape the meta. Clefable, Meowscarada, Archaludon, and Primarina are the most direct beneficiaries.`);
   insights.push(`The Fake Out nerf (unusable on switch-in) matters more for offensive Fake Out users like Mega Lopunny than for Incineroar, which uses Fake Out as turn-2 support anyway.`);
 
-  // ─── Dark horses: strong score, not in any obvious top-tier list ──
+  // ─── Dark horses: strong projection score but NOT in the static
+  // community S/A+ tier. These are the picks WE think are underrated.
+  // Derived from data — no hardcoded exclusion list.
+  const staticTop = new Set(
+    NORMAL_TIER_LIST.filter(e => e.tier === 'S' || e.tier === 'A+').map(e => e.name)
+  );
   const darkHorses = rankings
     .filter(r => r.tier === 'A' || r.tier === 'A+')
-    .filter(r => !['Incineroar', 'Garchomp', 'Dragapult', 'Whimsicott', 'Mimikyu', 'Greninja', 'Gengar', 'Charizard', 'Tyranitar', 'Hippowdon'].includes(r.species))
+    .filter(r => !staticTop.has(r.species))
     .slice(0, 6);
 
   return {

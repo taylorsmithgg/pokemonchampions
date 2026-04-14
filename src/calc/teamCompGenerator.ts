@@ -31,6 +31,11 @@ import { analyzeTeamLineups, DOUBLES_FORMAT, SINGLES_FORMAT } from './lineupAnal
 import { getPokemonData } from '../data/champions';
 import { MEGA_STONE_MAP } from '../data/championsRoster';
 import { getPresetsBySpecies } from '../data/presets';
+import {
+  buildMoveRoleSet, speciesHasAbility,
+  HAZARD_MOVES, HAZARD_REMOVAL_MOVES, SETUP_MOVES,
+  PIVOT_MOVES as PIVOT_MOVE_SET, REDIRECT_MOVES,
+} from '../data/moveIndex';
 import { createDefaultPokemonState } from '../types';
 import type { PokemonState, NatureName } from '../types';
 import type { StatsTable } from '@smogon/calc';
@@ -177,37 +182,31 @@ interface RoleGaps {
   needsWincon: boolean;
 }
 
-const KNOWN_FAKE_OUT = new Set([
-  'Incineroar', 'Kangaskhan', 'Meowscarada', 'Lopunny', 'Infernape',
-  'Lycanroc', 'Weavile', 'Glalie', 'Mr. Rime', 'Pangoro',
-]);
-const KNOWN_TAILWIND = new Set([
-  'Whimsicott', 'Talonflame', 'Pelipper', 'Pidgeot', 'Noivern',
-  'Corviknight', 'Altaria', 'Dragonite', 'Aerodactyl', 'Gyarados',
-]);
-const KNOWN_TRICK_ROOM = new Set([
-  'Hatterene', 'Mimikyu', 'Reuniclus', 'Cofagrigus', 'Polteageist',
-  'Runerigus', 'Gourgeist', 'Slowking', 'Slowbro', 'Alcremie',
-]);
-const KNOWN_REDIRECTION = new Set([
-  'Clefable', 'Togekiss', 'Audino', 'Volcarona', 'Vivillon',
-]);
-const KNOWN_PIVOT_MOVES = new Set([
-  'Incineroar', 'Corviknight', 'Scizor', 'Hydreigon', 'Greninja',
-  'Rotom', 'Dragapult', 'Whimsicott', 'Gengar',
-]);
+// All role sets derived from moveIndex — no hardcoded species lists.
+const FAKE_OUT_MOVES = new Set(['Fake Out']);
+const TAILWIND_MOVES = new Set(['Tailwind']);
+const TRICK_ROOM_MOVES = new Set(['Trick Room']);
+
+let _fakeOutSet: Set<string> | null = null;
+let _tailwindSet: Set<string> | null = null;
+let _trickRoomSet: Set<string> | null = null;
+let _redirectSet: Set<string> | null = null;
+let _pivotSet: Set<string> | null = null;
+
+function getFakeOutUsers() { if (!_fakeOutSet) _fakeOutSet = buildMoveRoleSet(FAKE_OUT_MOVES); return _fakeOutSet; }
+function getTailwindUsers() { if (!_tailwindSet) _tailwindSet = buildMoveRoleSet(TAILWIND_MOVES); return _tailwindSet; }
+function getTrickRoomUsers() { if (!_trickRoomSet) _trickRoomSet = buildMoveRoleSet(TRICK_ROOM_MOVES); return _trickRoomSet; }
+function getRedirectors() { if (!_redirectSet) _redirectSet = buildMoveRoleSet(REDIRECT_MOVES); return _redirectSet; }
+function getPivotUsers() { if (!_pivotSet) _pivotSet = buildMoveRoleSet(PIVOT_MOVE_SET); return _pivotSet; }
 
 function detectGaps(members: readonly string[]): RoleGaps {
   return {
-    needsFakeOut: !members.some(s => KNOWN_FAKE_OUT.has(s)),
-    needsTailwind: !members.some(s => KNOWN_TAILWIND.has(s)),
-    needsTrickRoom: !members.some(s => KNOWN_TRICK_ROOM.has(s)),
-    needsIntimidate: !members.some(s => {
-      const ability = (getPokemonData(s)?.abilities?.[0] || '') as string;
-      return ability === 'Intimidate';
-    }),
-    needsRedirection: !members.some(s => KNOWN_REDIRECTION.has(s)),
-    needsWincon: false, // computed below per-core
+    needsFakeOut: !members.some(s => getFakeOutUsers().has(s)),
+    needsTailwind: !members.some(s => getTailwindUsers().has(s)),
+    needsTrickRoom: !members.some(s => getTrickRoomUsers().has(s)),
+    needsIntimidate: !members.some(s => speciesHasAbility(s, 'intimidate')),
+    needsRedirection: !members.some(s => getRedirectors().has(s)),
+    needsWincon: false,
   };
 }
 
@@ -250,13 +249,10 @@ function buildTeamForCore(
     .sort((a, b) => b.score - a.score);
 
   const gapResolvers: Array<{ need: keyof RoleGaps; test: (r: DoublesProjection) => boolean }> = [
-    { need: 'needsFakeOut', test: r => KNOWN_FAKE_OUT.has(r.species) },
-    { need: 'needsTailwind', test: r => KNOWN_TAILWIND.has(r.species) || KNOWN_TRICK_ROOM.has(r.species) },
-    { need: 'needsIntimidate', test: r => {
-      const a = (getPokemonData(r.species)?.abilities?.[0] || '') as string;
-      return a === 'Intimidate';
-    }},
-    { need: 'needsRedirection', test: r => KNOWN_REDIRECTION.has(r.species) },
+    { need: 'needsFakeOut', test: r => getFakeOutUsers().has(r.species) },
+    { need: 'needsTailwind', test: r => getTailwindUsers().has(r.species) || getTrickRoomUsers().has(r.species) },
+    { need: 'needsIntimidate', test: r => speciesHasAbility(r.species, 'intimidate') },
+    { need: 'needsRedirection', test: r => getRedirectors().has(r.species) },
   ];
 
   for (const { need, test } of gapResolvers) {
@@ -361,11 +357,11 @@ function buildTeamForCore(
     keyInteractions.push(`${core.anchors.join(' + ')} ${core.requires.length > 0 ? `via ${core.requires[0]}` : 'as the core'}`);
   }
   keyInteractions.push(core.winCondition);
-  if (members.some(m => KNOWN_FAKE_OUT.has(m.species))) {
-    keyInteractions.push(`Fake Out pressure from ${members.find(m => KNOWN_FAKE_OUT.has(m.species))!.species}`);
+  if (members.some(m => getFakeOutUsers().has(m.species))) {
+    keyInteractions.push(`Fake Out pressure from ${members.find(m => getFakeOutUsers().has(m.species))!.species}`);
   }
-  if (members.some(m => KNOWN_TAILWIND.has(m.species) || KNOWN_TRICK_ROOM.has(m.species))) {
-    const speedCon = members.find(m => KNOWN_TAILWIND.has(m.species) || KNOWN_TRICK_ROOM.has(m.species))!;
+  if (members.some(m => getTailwindUsers().has(m.species) || getTrickRoomUsers().has(m.species))) {
+    const speedCon = members.find(m => getTailwindUsers().has(m.species) || getTrickRoomUsers().has(m.species))!;
     keyInteractions.push(`Speed control via ${speedCon.species}`);
   }
 
@@ -530,23 +526,14 @@ export function generateDoublesTeams(): GeneratedDoublesTeam[] {
 // enforcement) but pulls anchors and partners from the Singles
 // projection engine.
 
-const SINGLES_HAZARD_SETTERS = new Set([
-  'Hippowdon', 'Tyranitar', 'Garchomp', 'Skarmory', 'Forretress',
-  'Glimmora', 'Sandaconda', 'Aerodactyl', 'Excadrill', 'Empoleon',
-  'Kingambit', 'Archaludon',
-]);
+// Singles role sets derived from moveIndex — no hardcoded species.
+let _sHazardSetters: Set<string> | null = null;
+let _sHazardRemovers: Set<string> | null = null;
+let _sSetupSweepers: Set<string> | null = null;
 
-const SINGLES_HAZARD_REMOVERS = new Set([
-  'Corviknight', 'Dragapult', 'Scizor', 'Hatterene', 'Excadrill',
-  'Forretress',
-]);
-
-const SINGLES_SETUP_SWEEPERS = new Set([
-  'Garchomp', 'Gyarados', 'Dragonite', 'Volcarona', 'Mimikyu',
-  'Lucario', 'Gengar', 'Tyranitar', 'Weavile', 'Scizor',
-  'Meowscarada', 'Kingambit', 'Feraligatr', 'Baxcalibur',
-  'Sneasler', 'Ceruledge', 'Armarouge', 'Hydreigon',
-]);
+function getSinglesHazardSetters() { if (!_sHazardSetters) _sHazardSetters = buildMoveRoleSet(HAZARD_MOVES); return _sHazardSetters; }
+function getSinglesHazardRemovers() { if (!_sHazardRemovers) _sHazardRemovers = buildMoveRoleSet(HAZARD_REMOVAL_MOVES); return _sHazardRemovers; }
+function getSinglesSetupSweepers() { if (!_sSetupSweepers) _sSetupSweepers = buildMoveRoleSet(SETUP_MOVES); return _sSetupSweepers; }
 
 interface SinglesRoleGaps {
   needsHazards: boolean;
@@ -558,15 +545,15 @@ interface SinglesRoleGaps {
 
 function detectSinglesGaps(members: readonly string[]): SinglesRoleGaps {
   return {
-    needsHazards: !members.some(s => SINGLES_HAZARD_SETTERS.has(s)),
-    needsHazardRemoval: !members.some(s => SINGLES_HAZARD_REMOVERS.has(s)),
-    needsSweeper: !members.some(s => SINGLES_SETUP_SWEEPERS.has(s)),
+    needsHazards: !members.some(s => getSinglesHazardSetters().has(s)),
+    needsHazardRemoval: !members.some(s => getSinglesHazardRemovers().has(s)),
+    needsSweeper: !members.some(s => getSinglesSetupSweepers().has(s)),
     needsWall: !members.some(s => {
       const d = getPokemonData(s);
       if (!d) return false;
       return d.baseStats.hp + (d.baseStats.def + d.baseStats.spd) / 2 > 200;
     }),
-    needsPivot: !members.some(s => KNOWN_PIVOT_MOVES.has(s)),
+    needsPivot: !members.some(s => getPivotUsers().has(s)),
   };
 }
 
@@ -601,10 +588,10 @@ function buildSinglesTeamForCore(
     .sort((a, b) => b.score - a.score);
 
   const gapResolvers: Array<{ need: keyof SinglesRoleGaps; test: (r: SinglesProjection) => boolean }> = [
-    { need: 'needsHazards', test: r => SINGLES_HAZARD_SETTERS.has(r.species) },
-    { need: 'needsHazardRemoval', test: r => SINGLES_HAZARD_REMOVERS.has(r.species) },
-    { need: 'needsSweeper', test: r => SINGLES_SETUP_SWEEPERS.has(r.species) },
-    { need: 'needsPivot', test: r => KNOWN_PIVOT_MOVES.has(r.species) },
+    { need: 'needsHazards', test: r => getSinglesHazardSetters().has(r.species) },
+    { need: 'needsHazardRemoval', test: r => getSinglesHazardRemovers().has(r.species) },
+    { need: 'needsSweeper', test: r => getSinglesSetupSweepers().has(r.species) },
+    { need: 'needsPivot', test: r => getPivotUsers().has(r.species) },
     { need: 'needsWall', test: r => {
       const d = getPokemonData(r.species);
       if (!d) return false;
@@ -684,9 +671,9 @@ function buildSinglesTeamForCore(
   const keyInteractions: string[] = [];
   keyInteractions.push(`${core.anchors.join(' + ')} as the ${core.name.toLowerCase()} core`);
   keyInteractions.push(core.winCondition);
-  const hazardSetter = members.find(m => SINGLES_HAZARD_SETTERS.has(m.species));
+  const hazardSetter = members.find(m => getSinglesHazardSetters().has(m.species));
   if (hazardSetter) keyInteractions.push(`Hazards from ${hazardSetter.species} chip every switch-in`);
-  const sweeper = members.find(m => SINGLES_SETUP_SWEEPERS.has(m.species));
+  const sweeper = members.find(m => getSinglesSetupSweepers().has(m.species));
   if (sweeper) keyInteractions.push(`Setup sweeper ${sweeper.species} wins the endgame`);
 
   const threats: string[] = [];
