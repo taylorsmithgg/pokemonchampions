@@ -80,6 +80,10 @@ export const STATUS_MOVES = new Set([
 export const TRICK_ROOM_MOVE = 'Trick Room';
 export const TAILWIND_MOVE = 'Tailwind';
 
+export const SKILL_SWAP_MOVES = new Set(['Skill Swap']);
+export const WIDE_GUARD_MOVES = new Set(['Wide Guard']);
+export const HELPING_HAND_MOVES = new Set(['Helping Hand']);
+
 export const SACRIFICE_SCALE_MOVES = new Set(['Last Respects']);
 export const SACRIFICE_SCALE_ABILITIES = new Set(['supreme overlord']);
 

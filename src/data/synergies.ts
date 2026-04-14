@@ -12,6 +12,7 @@ import {
   likelyHasSpreadEQ as sharedLikelyHasSpreadEQ,
   SETUP_MOVES, SUB_PASS_MOVES, PIVOT_MOVES, PRIORITY_MOVES,
   SACRIFICE_SCALE_MOVES, SACRIFICE_SCALE_ABILITIES,
+  SKILL_SWAP_MOVES, WIDE_GUARD_MOVES, HELPING_HAND_MOVES,
 } from './moveIndex';
 import {
   WEATHER_SETTERS, WEATHER_ABUSERS, TYPE_IMMUNE_ABILITIES, TYPE_ABSORB_ABILITIES,
@@ -648,6 +649,84 @@ function scoreDoublesCombos(a: AnalyzedPokemon, b: AnalyzedPokemon): SynergyReas
         strength: 2,
       });
     }
+  }
+
+  // 8. Skill Swap ability transfer
+  //    If A has Skill Swap AND a powerful offensive ability (Huge Power,
+  //    Pure Power, etc.), it can transfer that ability to B who has
+  //    higher base Attack. This is the Mega Starmie → Tyranitar combo.
+  const aHasSkillSwap = speciesRunsMove(a.name, SKILL_SWAP_MOVES);
+  const bHasSkillSwap = speciesRunsMove(b.name, SKILL_SWAP_MOVES);
+  const powerAbilities = ['huge power', 'pure power'];
+
+  if (aHasSkillSwap) {
+    const aHasPowerAbility = a.abilities.some(ab => powerAbilities.includes(ab.toLowerCase()));
+    if (aHasPowerAbility && b.baseStats.atk >= 90) {
+      const effectiveAtk = b.baseStats.atk * 2;
+      reasons.push({
+        type: 'support',
+        label: 'Skill Swap → Huge Power Transfer',
+        description: `${a.name} passes Huge Power via Skill Swap → ${b.name} gets ${effectiveAtk} effective Attack. One-turn Swords Dance equivalent without setup.`,
+        strength: 5,
+      });
+    }
+  }
+  if (bHasSkillSwap) {
+    const bHasPowerAbility = b.abilities.some(ab => powerAbilities.includes(ab.toLowerCase()));
+    if (bHasPowerAbility && a.baseStats.atk >= 90) {
+      const effectiveAtk = a.baseStats.atk * 2;
+      reasons.push({
+        type: 'support',
+        label: 'Skill Swap → Huge Power Transfer',
+        description: `${b.name} passes Huge Power via Skill Swap → ${a.name} gets ${effectiveAtk} effective Attack.`,
+        strength: 5,
+      });
+    }
+  }
+
+  // 9. Wide Guard + spread-move user
+  //    Wide Guard protects both slots from spread moves including your
+  //    own Earthquake — key combo for enabling free EQ spam.
+  const aHasWideGuard = speciesRunsMove(a.name, WIDE_GUARD_MOVES);
+  const bHasWideGuard = speciesRunsMove(b.name, WIDE_GUARD_MOVES);
+  if (aHasWideGuard && likelyHasSpreadEQ(b.name)) {
+    reasons.push({
+      type: 'support',
+      label: 'Wide Guard + Earthquake',
+      description: `${a.name} Wide Guards while ${b.name} Earthquakes — protects your side from the spread damage while hitting both opponents.`,
+      strength: 3,
+    });
+  }
+  if (bHasWideGuard && likelyHasSpreadEQ(a.name)) {
+    reasons.push({
+      type: 'support',
+      label: 'Wide Guard + Earthquake',
+      description: `${b.name} Wide Guards while ${a.name} Earthquakes freely.`,
+      strength: 3,
+    });
+  }
+
+  // 10. Helping Hand + high-offense partner
+  //     Helping Hand boosts the partner's attack by 50% — pairs best
+  //     with already-powerful attackers for OHKO thresholds.
+  const aHasHelpingHand = speciesRunsMove(a.name, HELPING_HAND_MOVES);
+  const bHasHelpingHand = speciesRunsMove(b.name, HELPING_HAND_MOVES);
+  const highOffenseThreshold = 110;
+  if (aHasHelpingHand && Math.max(b.baseStats.atk, b.baseStats.spa) >= highOffenseThreshold) {
+    reasons.push({
+      type: 'support',
+      label: 'Helping Hand Boost',
+      description: `${a.name} Helping Hands → ${b.name}'s attacks deal 50% more damage. Pushes OHKOs past defensive thresholds.`,
+      strength: 2,
+    });
+  }
+  if (bHasHelpingHand && Math.max(a.baseStats.atk, a.baseStats.spa) >= highOffenseThreshold) {
+    reasons.push({
+      type: 'support',
+      label: 'Helping Hand Boost',
+      description: `${b.name} Helping Hands → ${a.name}'s attacks deal 50% more damage.`,
+      strength: 2,
+    });
   }
 
   return reasons;
