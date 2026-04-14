@@ -263,13 +263,20 @@ export function suggestLeadPartners(pokemon: PokemonState): LeadScore[] {
 
   const results: LeadScore[] = [];
   const relevantTiers = ['S', 'A+', 'A'];
+  const seen = new Set<string>();
 
   for (const entry of [...NORMAL_TIER_LIST, ...MEGA_TIER_LIST]) {
     if (!relevantTiers.includes(entry.tier)) continue;
     if (entry.name === pokemon.species) continue;
 
     // For Megas, use the base species name for data lookup
-    const speciesName = entry.isMega ? entry.name.replace('Mega ', '') : entry.name;
+    const speciesName = entry.isMega ? entry.name.replace('Mega ', '').replace(/ [XY]$/, '') : entry.name;
+
+    // Deduplicate — a species can appear in both normal and Mega lists
+    if (seen.has(speciesName)) continue;
+    seen.add(speciesName);
+
+    if (speciesName === pokemon.species) continue;
 
     // Build a PokemonState from preset or defaults
     const preset = PRESETS.find(p => p.species === speciesName);
