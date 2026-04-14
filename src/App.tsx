@@ -14,6 +14,7 @@ import { DiscoveryPanel } from './components/DiscoveryPanel';
 import { FAQPage } from './pages/FAQPage';
 import { TierListPage } from './pages/TierListPage';
 import { TeamBuilderPage } from './pages/TeamBuilderPage';
+import { BattleAssistantPage } from './pages/BattleAssistantPage';
 import { TeamProvider } from './contexts/TeamContext';
 import type { TeamMember } from './data/teams';
 import {
@@ -205,6 +206,16 @@ function Calculator() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
               </svg>
               <span className="text-xs hidden sm:inline">Builder</span>
+            </Link>
+            <Link
+              to="/battle"
+              className="p-2 sm:px-3 sm:py-1.5 rounded-lg bg-poke-surface border border-poke-border text-slate-400 hover:border-emerald-500/40 hover:text-emerald-400 transition-colors flex items-center gap-1.5"
+              title="Battle Assistant — Live matchup analysis"
+            >
+              <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span className="text-xs hidden sm:inline">Battle</span>
             </Link>
             <Link
               to="/faq"
@@ -399,6 +410,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Calculator />} />
             <Route path="/team-builder" element={<TeamBuilderPage />} />
+            <Route path="/battle" element={<BattleAssistantPage />} />
             <Route path="/tier-list" element={<TierListPage />} />
             <Route path="/faq" element={<FAQPage />} />
             <Route path="/faq/:slug" element={<FAQPage />} />
