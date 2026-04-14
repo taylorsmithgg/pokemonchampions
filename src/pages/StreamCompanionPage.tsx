@@ -1603,10 +1603,13 @@ export function StreamCompanionPage() {
                   )}
                   {streak.count >= 2 && (
                     <div
-                      className="text-[9px] font-black uppercase tracking-widest mt-1"
-                      style={{ color: '#ffd700', WebkitTextStroke: '0.5px #fff' }}
+                      className="text-[9px] font-black uppercase tracking-widest mt-1 px-2 py-0.5 rounded-full"
+                      style={{
+                        color: streak.type === 'win' ? '#4ade80' : '#fb7185',
+                        background: 'rgba(0,0,0,0.7)',
+                      }}
                     >
-                      {streak.count}{streak.type === 'win' ? 'W' : 'L'} STREAK
+                      {streak.count}{streak.type === 'win' ? 'W' : 'L'}
                     </div>
                   )}
                 </div>
