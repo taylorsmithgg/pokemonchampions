@@ -1593,18 +1593,19 @@ export function StreamCompanionPage() {
                 }}
               >
                 <div className="flex flex-col items-center justify-center leading-none">
-                  <div className="flex items-baseline gap-1" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
-                    <span className="font-black text-3xl text-emerald-300 tracking-tighter">{wins}</span>
-                    <span className="font-black text-xl text-white/40">·</span>
-                    <span className="font-black text-3xl text-red-300 tracking-tighter">{losses}</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-black text-3xl text-white tracking-tighter" style={{ textShadow: '0 0 12px #22c55e, 0 0 24px #22c55e' }}>{wins}</span>
+                    <span className="font-black text-xl text-white/60">:</span>
+                    <span className="font-black text-3xl text-white tracking-tighter" style={{ textShadow: '0 0 12px #ef4444, 0 0 24px #ef4444' }}>{losses}</span>
                   </div>
                   {totalGames > 0 && (
-                    <div className="text-[10px] font-bold text-white mt-0.5 tracking-wide" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>{winRate}% WR</div>
+                    <div className="text-[10px] font-black text-white/90 mt-0.5 tracking-widest" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>{winRate}%</div>
                   )}
                   {streak.count >= 2 && (
-                    <div className={`text-[9px] font-black uppercase tracking-widest mt-0.5 ${
-                      streak.type === 'win' ? 'text-emerald-300' : 'text-red-300'
-                    }`} style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+                    <div
+                      className="text-[9px] font-black uppercase tracking-widest mt-0.5 text-white"
+                      style={{ textShadow: streak.type === 'win' ? '0 0 8px #22c55e, 0 0 16px #22c55e' : '0 0 8px #ef4444, 0 0 16px #ef4444' }}
+                    >
                       {streak.count}{streak.type === 'win' ? 'W' : 'L'} STREAK
                     </div>
                   )}
