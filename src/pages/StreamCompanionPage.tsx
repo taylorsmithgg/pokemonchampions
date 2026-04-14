@@ -1027,24 +1027,29 @@ export function StreamCompanionPage() {
     const myTeamViz = new Set(filledMyTeam);
     for (const species of filledMyTeam) myTeamViz.add(species.split('-')[0]);
 
-    // Position rule: top-half OR right-half = opponent quadrant.
-    // Bottom-left quadrant = yours.
+    // Y-axis split: bottom = yours, top = opponent (singles + doubles)
     const midX = frame.width / 2;
     const midY = frame.height / 2;
 
-    // Quadrant guide overlay
-    actx.strokeStyle = 'rgba(255,255,255,0.1)';
+    // Horizontal midline guide (Y-axis split)
+    actx.strokeStyle = 'rgba(255,255,255,0.15)';
     actx.lineWidth = 1;
     actx.beginPath();
-    actx.moveTo(midX, 0); actx.lineTo(midX, frame.height);
     actx.moveTo(0, midY); actx.lineTo(frame.width, midY);
     actx.stroke();
+    // Labels
+    actx.fillStyle = 'rgba(0,0,0,0.5)';
+    actx.fillRect(4, midY - 14, 80, 14);
+    actx.fillRect(4, midY + 2, 80, 14);
+    actx.font = 'bold 10px system-ui';
+    actx.fillStyle = '#f97316'; actx.fillText('▲ OPPONENT', 6, midY - 4);
+    actx.fillStyle = '#38bdf8'; actx.fillText('▼ YOURS', 6, midY + 13);
 
-    // Sprite boxes — position-based color
+    // Sprite boxes — Y position determines color
     for (const s of (result.spriteMatched ?? [])) {
       const isYours = myTeamViz.has(s.species);
-      const inOpponentZone = s.y < midY || s.x > midX;
-      const color = isYours ? '#38bdf8' : inOpponentZone ? '#f97316' : '#eab308';
+      const inTop = s.y < midY;
+      const color = isYours ? '#38bdf8' : inTop ? '#f97316' : '#eab308';
       actx.strokeStyle = color;
       actx.lineWidth = 3;
       actx.strokeRect(s.x, s.y, 80, 80);
@@ -1083,10 +1088,10 @@ export function StreamCompanionPage() {
     actx.fillStyle = 'rgba(0,0,0,0.7)';
     actx.fillRect(frame.width - 210, 5, 205, 64);
     actx.font = 'bold 10px system-ui';
-    actx.fillStyle = '#38bdf8'; actx.fillText('■ Your team (filtered)', frame.width - 200, 18);
-    actx.fillStyle = '#f97316'; actx.fillText('■ Opponent (top/right)', frame.width - 200, 32);
-    actx.fillStyle = '#eab308'; actx.fillText('■ Ambiguous (bottom-left)', frame.width - 200, 46);
-    actx.fillStyle = '#22c55e'; actx.fillText('■ OCR text match', frame.width - 200, 60);
+    actx.fillStyle = '#38bdf8'; actx.fillText('■ Your team (bottom)', frame.width - 200, 18);
+    actx.fillStyle = '#f97316'; actx.fillText('■ Opponent (top)', frame.width - 200, 32);
+    actx.fillStyle = '#eab308'; actx.fillText('■ Ambiguous', frame.width - 200, 46);
+    actx.fillStyle = '#22c55e'; actx.fillText('■ OCR text', frame.width - 200, 60);
 
     setLastFrameUrl(annotated.toDataURL('image/jpeg', 0.6));
 
@@ -1140,12 +1145,12 @@ export function StreamCompanionPage() {
       let bestOpp: { species: string; conf: number } | null = null;
       for (const s of (result.spriteMatched ?? [])) {
         if (s.confidence < 0.3) continue;
-        const inBottomLeft = s.x < midX && s.y > midY;
-        const inTopRight = s.x > midX && s.y < midY;
-        if (inBottomLeft && filledMyTeam.includes(s.species)) {
+        const inBottom = s.y > midY; // your mons — works for singles + doubles
+        const inTop = s.y < midY;   // opponent mons
+        if (inBottom && filledMyTeam.includes(s.species)) {
           if (!bestYour || s.confidence > bestYour.conf) bestYour = { species: s.species, conf: s.confidence };
         }
-        if (inTopRight && filledOpponents.includes(s.species)) {
+        if (inTop && filledOpponents.includes(s.species)) {
           if (!bestOpp || s.confidence > bestOpp.conf) bestOpp = { species: s.species, conf: s.confidence };
         }
       }
@@ -1170,18 +1175,15 @@ export function StreamCompanionPage() {
     const committed = committedSidesRef.current;
     const wrongHits = wrongSideHitsRef.current;
     for (const s of (result.spriteMatched ?? [])) {
-      if (s.confidence < 0.22) continue; // lowered to catch dark/desaturated sprites
-      const isLeft = s.x < midX;
+      if (s.confidence < 0.22) continue;
       const isBottom = s.y > midY;
-      const isTop = s.y < midY;
-      // FIELD POSITION BOOST: bottom-left = your active mon (4× weight),
-      // top-right = opponent active mon (4× weight). These are battlefield
-      // sprite positions during battle — strong ground-truth signal.
-      const onYourField = isLeft && isBottom;
-      const onOpponentField = !isLeft && isTop;
-      const fieldMultiplier = (onYourField || onOpponentField) ? 4 : 1;
+      // Y-axis = primary team signal. Works for singles AND doubles:
+      // Bottom half = your mons (both slots in doubles). Top = opponent.
+      const onField = isBottom || s.y < midY; // always on one side
+      const fieldMultiplier = onField ? 4 : 1;
       const weight = Math.max(1, Math.round(s.confidence * 4)) * fieldMultiplier;
-      const detectedSide: 'left' | 'right' = isLeft ? 'left' : 'right';
+      // 'left' = your team votes, 'right' = opponent votes (naming legacy)
+      const detectedSide: 'left' | 'right' = isBottom ? 'left' : 'right';
 
       let targetSide: 'left' | 'right';
       const existing = committed.get(s.species);
