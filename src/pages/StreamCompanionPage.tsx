@@ -505,6 +505,8 @@ export function StreamCompanionPage() {
 
   // ─── Core state ────────────────────────────────────────────────
   const [isOverlay, setIsOverlay] = useState(false);
+  // Embedded preview of the overlay inside companion view — keeps detection running
+  const [showOverlayPreview, setShowOverlayPreview] = useState(false);
   const [history, setHistory] = useState<MatchRecord[]>(() => loadHistory());
   const [showHistory, setShowHistory] = useState(false);
   const [opponentTeam, setOpponentTeam] = useState<string[]>([]);
@@ -1151,9 +1153,9 @@ export function StreamCompanionPage() {
 
   // ─── Overlay mode ──────────────────────────────────────────────
 
-  if (isOverlay) {
-    return (
-      <div className="fixed inset-0 overflow-hidden text-white" style={{ background: 'transparent' }}>
+  // Shared overlay render — used full-screen AND embedded preview
+  const overlayJSX = (
+    <div className={isOverlay ? 'fixed inset-0 overflow-hidden text-white' : 'absolute inset-0 overflow-hidden text-white rounded-lg'} style={{ background: 'transparent' }}>
         <style>{`
           html, body { background: transparent !important; }
           @keyframes pokeballSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -1413,8 +1415,9 @@ export function StreamCompanionPage() {
           </div>
         )}
       </div>
-    );
-  }
+  );
+
+  if (isOverlay) return overlayJSX;
 
   // ─── Full Layout ───────────────────────────────────────────────
 
@@ -1452,9 +1455,20 @@ export function StreamCompanionPage() {
             </Link>
             <div className="flex items-center gap-1.5">
               <button
+                onClick={() => setShowOverlayPreview(v => !v)}
+                className={`text-[10px] px-2 py-1 border rounded transition-colors ${
+                  showOverlayPreview
+                    ? 'bg-poke-gold/15 border-poke-gold/40 text-poke-gold'
+                    : 'bg-poke-surface border-poke-border text-slate-400 hover:text-poke-gold hover:border-poke-gold/40'
+                }`}
+                title="Embedded overlay preview (detection keeps running)"
+              >
+                Preview
+              </button>
+              <button
                 onClick={() => setIsOverlay(true)}
                 className="text-[10px] px-2 py-1 bg-poke-surface border border-poke-border text-slate-400 rounded hover:text-poke-gold hover:border-poke-gold/40 transition-colors"
-                title="OBS overlay mode"
+                title="Fullscreen OBS overlay (same state, same detection)"
               >
                 Overlay
               </button>
@@ -2280,6 +2294,35 @@ export function StreamCompanionPage() {
 
         {/* Right column: analysis */}
         <div className="space-y-4">
+
+        {/* ═══ OVERLAY PREVIEW (embedded) ═══ */}
+        {showOverlayPreview && (
+          <div className="poke-panel overflow-hidden">
+            <div className="flex items-center justify-between px-3 py-1.5 border-b border-poke-border">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Overlay Preview</span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setIsOverlay(true)}
+                  className="text-[9px] px-1.5 py-0.5 rounded bg-poke-gold/15 border border-poke-gold/30 text-poke-gold hover:bg-poke-gold/25 transition-colors"
+                >
+                  Fullscreen
+                </button>
+                <button
+                  onClick={() => setShowOverlayPreview(false)}
+                  className="text-[9px] text-slate-600 hover:text-red-400 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+            <div
+              className="relative bg-slate-950/50"
+              style={{ aspectRatio: '16 / 9', minHeight: '260px' }}
+            >
+              {overlayJSX}
+            </div>
+          </div>
+        )}
 
         {/* ═══ LIVE ANALYSIS (appears with 1+ opponents) ═══ */}
         {filledOpponents.length >= 1 && (
