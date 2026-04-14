@@ -1133,8 +1133,8 @@ export function StreamCompanionPage() {
       if (existing) {
         // Already committed — stick with committed side
         targetSide = existing;
-      } else if (s.confidence >= 0.5) {
-        // High-confidence first sighting → commit permanently
+      } else if (s.confidence >= 0.4) {
+        // First decent-confidence sighting → commit permanently
         targetSide = isLeft ? 'left' : 'right';
         committed.set(s.species, targetSide);
       } else {
@@ -1226,11 +1226,11 @@ export function StreamCompanionPage() {
     const yourTop = leftWinners.slice(0, 6).map(([s]) => s);
     const oppTop = rightWinners.slice(0, 6).map(([s]) => s);
 
-    // Lock condition: 3+ species per side with 3+ weighted votes each.
-    // 3 votes = either 3 low-conf sightings or 1 strong hit repeated.
-    // Guarantees stability before committing slot order.
-    const confidentLeft = [...leftVotes.entries()].filter(([, v]) => v >= 3);
-    const confidentRight = [...rightVotes.entries()].filter(([, v]) => v >= 3);
+    // Lock condition: 3+ species per side with 2+ weighted votes each.
+    // Side-commitment + dominant-side assignment already prevent flips,
+    // so we don't need high vote counts to stabilize ordering.
+    const confidentLeft = [...leftVotes.entries()].filter(([, v]) => v >= 2);
+    const confidentRight = [...rightVotes.entries()].filter(([, v]) => v >= 2);
 
     if (!teamsLocked && confidentLeft.length >= 3 && confidentRight.length >= 3) {
       // LOCK — assign teams, move to battle phase
