@@ -424,12 +424,13 @@ export async function detectPokemonFromFrame(
   const cropped = cropFrame(canvas, 0, 0, 0.75, 0.9);
 
   // Scale down for OCR quality + speed
-  const scaled = scaleDown(cropped, 1280);
+  const scaled = scaleDown(cropped, 960);
 
   // OCR passes — sprite detection is primary for Pokemon ID but OCR
   // still contributes text matches, win/loss, and screen context.
+  // 2 OCR passes max — sprite detection is primary, OCR is supplementary.
+  // Raw pass dropped — high-contrast catches same text with better noise rejection.
   const passes: { name: string; canvas: HTMLCanvasElement }[] = [
-    { name: 'raw', canvas: scaled },
     { name: 'high-contrast', canvas: preprocessHighContrast(scaled) },
     { name: 'grayscale', canvas: preprocessGrayscale(scaled) },
   ];

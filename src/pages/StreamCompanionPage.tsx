@@ -1350,25 +1350,22 @@ export function StreamCompanionPage() {
   }, [filledMyTeam, filledOpponents, recordMatch, handleSetMyTeam, dismissedSpecies, detectionPhase, teamsLocked, captureRegion]);
 
   // Auto-scan loop: every 4 seconds when detection is active
+  // Sequential scan loop — each scan finishes, then waits 200ms, then
+  // next scan starts. No interval pileup. If a scan takes 3s, next one
+  // starts at 3.2s, not 0.6s (which would pile up 5 concurrent scans).
   useEffect(() => {
-    // Pop-out overlay windows are display-only — no detection
-    if (isOverlayWindow) return;
-    if (detecting) {
-      runScan(); // immediate first scan
-      scanIntervalRef.current = setInterval(runScan, 600);
-    } else {
-      if (scanIntervalRef.current) {
-        clearInterval(scanIntervalRef.current);
-        scanIntervalRef.current = null;
-      }
-    }
-    return () => {
-      if (scanIntervalRef.current) {
-        clearInterval(scanIntervalRef.current);
-        scanIntervalRef.current = null;
+    if (isOverlayWindow || !detecting) return;
+    let cancelled = false;
+    const loop = async () => {
+      while (!cancelled) {
+        await runScan();
+        // Short pause between scans — keeps UI responsive
+        await new Promise(r => setTimeout(r, 200));
       }
     };
-  }, [detecting, runScan]);
+    loop();
+    return () => { cancelled = true; };
+  }, [detecting, runScan, isOverlayWindow]);
 
   // Monitor screen capture liveness
   useEffect(() => {
