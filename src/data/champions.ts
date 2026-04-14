@@ -10,10 +10,12 @@ import {
   CHAMPIONS_POKEMON_BY_GEN,
   MEGA_STONE_MAP,
   GENERATION_META,
+  FORM_ALTERNATIVES,
   type GenMeta,
 } from './championsRoster';
 
 export { GENERATION_META, type GenMeta } from './championsRoster';
+export { FORM_ALTERNATIVES } from './championsRoster';
 
 const gen9 = Generations.get(9);
 
@@ -193,6 +195,34 @@ export function hasChampionsMega(species: string): boolean {
 
 export function getPokemonData(name: string) {
   return gen9.species.get(name.toLowerCase().replace(/[^a-z0-9]/g, '') as any);
+}
+
+/**
+ * Get all Champions-legal alternate forms of a species (including the base).
+ * Returns [baseForm, ...alternates] where each is a valid species name.
+ * Used for form comparison in optimization — if you pick Arcanine,
+ * this returns ['Arcanine', 'Arcanine-Hisui'] so the optimizer can
+ * compare both and suggest the better one.
+ */
+export function getAlternateForms(species: string): string[] {
+  initChampionsPokemon();
+  const forms = [species];
+
+  // Check if this species has registered alternate forms
+  const baseName = species.replace(/-(Alola|Galar|Hisui|Paldea|Paldea-Combat)$/, '');
+  const alts = FORM_ALTERNATIVES[baseName];
+  if (alts) {
+    for (const alt of alts) {
+      if (alt !== species && CHAMPIONS_POKEMON_SET.has(alt)) forms.push(alt);
+    }
+  }
+
+  // If this IS an alternate form, also include the base
+  if (baseName !== species && CHAMPIONS_POKEMON_SET.has(baseName) && !forms.includes(baseName)) {
+    forms.unshift(baseName);
+  }
+
+  return forms;
 }
 
 /**

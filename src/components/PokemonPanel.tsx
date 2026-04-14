@@ -12,6 +12,7 @@ import {
   getAvailableAbilities,
   getPokemonData,
   resolveForm,
+  getAlternateForms,
   NATURES,
   getNatureLabel,
   STATUS_CONDITIONS,
@@ -209,6 +210,64 @@ function buildOptimizedState(species: string, teammates?: PokemonState[]): Pokem
   }
 
   return optimized;
+}
+
+// ─── Alternate form comparison ──────────────────────────────────────
+// When a species has alternate forms (Arcanine vs Arcanine-Hisui),
+// compare stats and suggest the better form for the team context.
+
+interface FormComparison {
+  species: string;
+  types: string[];
+  bst: number;
+  advantage: string;
+}
+
+function getFormAlternatives(selectedSpecies: string): FormComparison[] {
+  const forms = getAlternateForms(selectedSpecies);
+  if (forms.length <= 1) return [];
+
+  const selectedData = getPokemonData(selectedSpecies);
+  if (!selectedData) return [];
+  const selectedBST = Object.values(selectedData.baseStats).reduce((a, b) => a + b, 0);
+
+  const alts: FormComparison[] = [];
+  for (const form of forms) {
+    if (form === selectedSpecies) continue;
+    const data = getPokemonData(form);
+    if (!data) continue;
+    const bst = Object.values(data.baseStats).reduce((a, b) => a + b, 0);
+    const types = [...data.types] as string[];
+
+    // Build advantage description
+    const advantages: string[] = [];
+    if (bst > selectedBST) advantages.push(`+${bst - selectedBST} BST`);
+
+    // Different typing
+    const selectedTypes = new Set(selectedData.types.map((t: any) => t as string));
+    const newTypes = types.filter(t => !selectedTypes.has(t));
+    if (newTypes.length > 0) advantages.push(`gains ${newTypes.join('/')} typing`);
+
+    // Higher offensive stat
+    const selMaxOff = Math.max(selectedData.baseStats.atk, selectedData.baseStats.spa);
+    const altMaxOff = Math.max(data.baseStats.atk, data.baseStats.spa);
+    if (altMaxOff > selMaxOff + 10) advantages.push(`+${altMaxOff - selMaxOff} offense`);
+
+    // Different ability
+    const selAbility = (selectedData.abilities?.[0] || '') as string;
+    const altAbility = (data.abilities?.[0] || '') as string;
+    if (selAbility !== altAbility) advantages.push(altAbility);
+
+    if (advantages.length > 0) {
+      alts.push({
+        species: form,
+        types,
+        bst,
+        advantage: advantages.join(' · '),
+      });
+    }
+  }
+  return alts;
 }
 
 // ─── Meta upgrade suggestion ────────────────────────────────────────
@@ -450,6 +509,41 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [], teamma
                     </div>
                   )}
                 </button>
+              );
+            })()}
+            {/* Alternate form comparison — shown when other forms exist */}
+            {state.species && (() => {
+              const formAlts = getFormAlternatives(state.species);
+              if (formAlts.length === 0) return null;
+              return (
+                <div className="rounded-lg border border-violet-500/30 bg-violet-500/5 p-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-violet-400 mb-2">
+                    Alternate forms available
+                  </div>
+                  <div className="space-y-1.5">
+                    {formAlts.map(alt => (
+                      <button
+                        key={alt.species}
+                        onClick={() => {
+                          const data = getPokemonData(alt.species);
+                          onChange({
+                            ...createDefaultPokemonState(),
+                            species: alt.species,
+                            ability: (data?.abilities?.[0] || '') as string,
+                          });
+                        }}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md bg-poke-surface border border-poke-border hover:border-violet-500/40 transition-colors text-left"
+                      >
+                        <Sprite species={alt.species} size="sm" />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold text-white">{alt.species}</div>
+                          <div className="text-[10px] text-slate-500 truncate">{alt.advantage}</div>
+                        </div>
+                        <span className="text-[10px] text-violet-400 shrink-0">Switch →</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               );
             })()}
             {/* Meta upgrade suggestion — shown for B/C tier picks */}

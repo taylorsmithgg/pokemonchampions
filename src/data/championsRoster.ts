@@ -251,8 +251,54 @@ export const CHAMPIONS_POKEMON_BY_GEN: Readonly<Record<number, readonly string[]
   9: GEN_9,
 };
 
-// Flat list, generated from the per-gen buckets. This is the single
-// list every other file in the app should use.
+// ─── Regional / alternate forms ────────────────────────────────────
+// These are regional variants of base-roster species that have
+// meaningfully different stats, types, or abilities. They exist in
+// Champions as separate selectable forms and should be scored
+// independently by the projection engines.
+//
+// Adding a form here automatically makes it available in the
+// calculator, tier list, synergy engine, and team builder.
+
+export const REGIONAL_FORMS: readonly string[] = [
+  // Alolan forms
+  'Ninetales-Alola',      // Ice/Fairy — Snow Warning, Aurora Veil
+  'Raichu-Alola',         // Electric/Psychic — Surge Surfer
+  'Exeggutor-Alola',      // Grass/Dragon — Frisk
+  'Marowak-Alola',        // Fire/Ghost — Lightning Rod
+  'Muk-Alola',            // Poison/Dark — Power of Alchemy
+  // Hisuian forms
+  'Arcanine-Hisui',       // Fire/Rock — Intimidate, Rock Head
+  'Typhlosion-Hisui',     // Fire/Ghost — Frisk
+  'Decidueye-Hisui',      // Grass/Fighting — Scrappy
+  'Zoroark-Hisui',        // Normal/Ghost — Illusion
+  'Goodra-Hisui',         // Steel/Dragon — Sap Sipper
+  'Lilligant-Hisui',      // Grass/Fighting — Chlorophyll
+  // Galarian forms
+  'Slowking-Galar',       // Poison/Psychic — Regenerator
+  // Paldean forms
+  'Tauros-Paldea-Combat', // Fighting — Intimidate
+];
+
+/** Map of base species → their available alternate forms. */
+export const FORM_ALTERNATIVES: Readonly<Record<string, readonly string[]>> = {
+  Ninetales: ['Ninetales-Alola'],
+  Raichu: ['Raichu-Alola'],
+  Exeggutor: ['Exeggutor-Alola'],
+  Marowak: ['Marowak-Alola'],
+  Muk: ['Muk-Alola'],
+  Arcanine: ['Arcanine-Hisui'],
+  Typhlosion: ['Typhlosion-Hisui'],
+  Decidueye: ['Decidueye-Hisui'],
+  Zoroark: ['Zoroark-Hisui'],
+  Goodra: ['Goodra-Hisui'],
+  Lilligant: ['Lilligant-Hisui'],
+  Slowking: ['Slowking-Galar'],
+  Tauros: ['Tauros-Paldea-Combat'],
+};
+
+// Flat list, generated from the per-gen buckets + regional forms.
+// This is the single list every other file in the app should use.
 export const CHAMPIONS_POKEMON_LIST: readonly string[] = [
   ...GEN_1,
   ...GEN_2,
@@ -263,6 +309,7 @@ export const CHAMPIONS_POKEMON_LIST: readonly string[] = [
   ...GEN_7,
   ...GEN_8,
   ...GEN_9,
+  ...REGIONAL_FORMS,
 ];
 
 // ─── Generation Display Metadata ────────────────────────────────────
