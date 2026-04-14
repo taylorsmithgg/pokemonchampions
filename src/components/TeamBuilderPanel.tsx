@@ -4,9 +4,10 @@ import { SearchSelect } from './SearchSelect';
 import { SwordIcon, ShieldIcon, OptimizeIcon } from './QuickAdd';
 import { auditTeam, type TeamAudit } from '../calc/teamAudit';
 import { buildOptimalTeam, suggestNextPick, suggestReplacementsForSlot } from '../calc/teamBuilder';
+import { resolveBuildWithSource } from '../calc/buildResolver';
 import { SINGLES_FORMAT, type BattleFormat } from '../calc/lineupAnalysis';
 import { FormatSelector } from './FormatSelector';
-import { PRESETS, getPresetsBySpecies } from '../data/presets';
+import { PRESETS } from '../data/presets';
 import { MEGA_STONE_MAP } from '../data/championsRoster';
 import { NORMAL_TIER_LIST } from '../data/tierlist';
 import { Sprite } from './Sprite';
@@ -30,7 +31,7 @@ import {
   getNatureMod,
 } from '../data/champions';
 import { useLiveData } from '../hooks/useLiveData';
-import { getLiveSet } from '../data/liveData';
+// getLiveSet removed — builds now go through resolveBuildWithSource()
 import { importShowdownSet } from '../utils/importExport';
 import type { PokemonState, NatureName } from '../types';
 import { createDefaultPokemonState } from '../types';
@@ -391,19 +392,13 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
 
   const handleAutoFill = useCallback((index: number) => {
     const species = team[index].species;
-    if (!species || !liveStats) return;
-    const liveSet = getLiveSet(liveStats, species);
-    if (!liveSet) return;
-    updateSlot(index, {
-      ...team[index],
-      nature: liveSet.nature,
-      sps: liveSet.sps,
-      ability: liveSet.ability,
-      item: liveSet.item,
-      teraType: '',
-      moves: [...liveSet.moves, '', '', '', ''].slice(0, 4),
-    });
-  }, [team, liveStats, updateSlot]);
+    if (!species) return;
+    // Use the unified build resolver — same source priority as
+    // PokemonPanel Optimize and every other build path.
+    const teammateItems = new Set(team.filter((t, i) => i !== index && t.item).map(t => t.item));
+    const resolved = resolveBuildWithSource(species, { teammateItems });
+    updateSlot(index, resolved.build);
+  }, [team, updateSlot]);
 
   const handleImportTeam = useCallback(() => {
     const blocks = importText.split(/\n\n+/).filter(Boolean);
@@ -455,44 +450,15 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
       return false;
     };
 
+    // Step 2: use the unified build resolver for each slot — same
+    // source priority as PokemonPanel Optimize, QuickAdd, and every
+    // other path. No more conflicting builds between views.
     log.push('Optimizing builds for each slot...');
     const optimized: PokemonState[] = filled.map(slot => {
       if (!slot.species) return slot;
-
-      // Try live VGC data first — most accurate real-world set
-      if (liveStats) {
-        const liveSet = getLiveSet(liveStats, slot.species);
-        if (liveSet) {
-          log.push(`${slot.species}: Applied VGC usage data (${liveSet.nature}, ${liveSet.item})`);
-          return {
-            ...slot,
-            nature: liveSet.nature,
-            sps: liveSet.sps,
-            ability: liveSet.ability,
-            item: liveSet.item,
-            teraType: '',
-            moves: [...liveSet.moves, '', '', '', ''].slice(0, 4),
-          };
-        }
-      }
-
-      // Fall back to the curated preset library
-      const presets = getPresetsBySpecies(slot.species);
-      if (presets.length > 0) {
-        const p = presets[0];
-        log.push(`${slot.species}: Applied preset "${p.label}" (${p.nature}, ${p.item})`);
-        return {
-          ...slot,
-          nature: p.nature,
-          ability: p.ability,
-          item: p.item,
-          sps: { ...p.sps },
-          moves: [...p.moves, '', '', '', ''].slice(0, 4),
-        };
-      }
-
-      log.push(`${slot.species}: No data available — kept existing build`);
-      return slot;
+      const { build, sourceName } = resolveBuildWithSource(slot.species);
+      log.push(`${slot.species}: ${sourceName}`);
+      return build;
     });
 
     // Step 3: enforce one-Mega-per-team + item dedup

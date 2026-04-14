@@ -30,15 +30,15 @@ import {
 import { analyzeTeamLineups, DOUBLES_FORMAT, SINGLES_FORMAT } from './lineupAnalysis';
 import { getPokemonData } from '../data/champions';
 import { MEGA_STONE_MAP } from '../data/championsRoster';
-import { getPresetsBySpecies } from '../data/presets';
+// getPresetsBySpecies removed — builds now go through resolveBuild()
+import { resolveBuild } from './buildResolver';
 import {
   buildMoveRoleSet, speciesHasAbility,
   HAZARD_MOVES, HAZARD_REMOVAL_MOVES, SETUP_MOVES,
   PIVOT_MOVES as PIVOT_MOVE_SET, REDIRECT_MOVES,
 } from '../data/moveIndex';
 import { createDefaultPokemonState } from '../types';
-import type { PokemonState, NatureName } from '../types';
-import type { StatsTable } from '@smogon/calc';
+import type { PokemonState } from '../types';
 import type { TeamMember, TeamComp } from '../data/teams';
 
 // ─── Types ─────────────────────────────────────────────────────────
@@ -59,7 +59,9 @@ export type GeneratedDoublesTeam = GeneratedTeam;
 
 // ─── Team-building helpers ─────────────────────────────────────────
 
-/** Build a full TeamMember for a species, honoring a taken-item set. */
+/** Build a full TeamMember for a species using the unified build
+ *  resolver. Same source priority as every other build path —
+ *  no more empty moves or conflicting nature/item choices. */
 function buildMember(
   species: string,
   usedItems: Set<string>,
@@ -68,63 +70,17 @@ function buildMember(
   const data = getPokemonData(species);
   if (!data) return null;
 
-  // Prefer a curated preset if one exists and its item is available.
-  const presets = getPresetsBySpecies(species);
-  const available = presets.find(p => !usedItems.has(p.item));
-  if (available) {
-    return {
-      species: available.species,
-      role: role ?? available.label,
-      nature: available.nature,
-      ability: available.ability,
-      item: available.item,
-      teraType: '',
-      sps: { ...available.sps },
-      moves: [...available.moves],
-    };
-  }
-
-  // No preset (or all presets' items taken) — construct from scratch.
-  const bs = data.baseStats;
-  const ability = (data.abilities?.[0] || '') as string;
-  const isPhys = bs.atk >= bs.spa;
-
-  // Choose nature based on offensive role + speed
-  let nature: NatureName;
-  if (bs.spe >= 100) nature = isPhys ? 'Jolly' : 'Timid';
-  else if (bs.hp + bs.def + bs.spd > bs.atk + bs.spa + bs.spe + 60) nature = 'Impish';
-  else nature = isPhys ? 'Adamant' : 'Modest';
-
-  // Choose SP spread
-  let sps: StatsTable;
-  if (bs.spe >= 100) {
-    // Fast sweeper
-    sps = { hp: 2, atk: isPhys ? 32 : 0, def: 0, spa: isPhys ? 0 : 32, spd: 0, spe: 32 };
-  } else if (bs.hp + bs.def + bs.spd > 240) {
-    // Bulky wall
-    sps = { hp: 32, atk: isPhys ? 32 : 0, def: 2, spa: isPhys ? 0 : 32, spd: 0, spe: 0 };
-  } else {
-    // Balanced offensive
-    sps = { hp: 32, atk: isPhys ? 32 : 0, def: 2, spa: isPhys ? 0 : 32, spd: 0, spe: 0 };
-  }
-
-  // Choose item based on role + what's still available
-  const itemPriority = [
-    'Sitrus Berry', 'Leftovers', 'Focus Sash', 'Lum Berry',
-    'Mental Herb', 'Light Clay', 'Scope Lens', 'Shell Bell',
-    'Quick Claw', 'Bright Powder',
-  ];
-  const item = itemPriority.find(i => !usedItems.has(i)) ?? '';
+  const build = resolveBuild(species, { teammateItems: usedItems });
 
   return {
-    species,
+    species: build.species || species,
     role: role ?? 'Generalist',
-    nature,
-    ability,
-    item,
+    nature: build.nature,
+    ability: build.ability,
+    item: build.item,
     teraType: '',
-    sps,
-    moves: ['', '', '', ''],
+    sps: { ...build.sps },
+    moves: [...build.moves],
   };
 }
 

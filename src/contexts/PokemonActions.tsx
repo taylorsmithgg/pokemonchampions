@@ -1,38 +1,17 @@
 import { createContext, useContext, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getPokemonData } from '../data/champions';
-import { getPresetsBySpecies } from '../data/presets';
 import { createDefaultPokemonState } from '../types';
+import { resolveBuild } from '../calc/buildResolver';
 import type { PokemonState } from '../types';
 
 /**
- * Builds a fully-populated PokemonState from a species name. If a curated
- * preset exists the preset is used; otherwise we fall back to the first
- * legal ability and an empty set.
+ * Builds a fully-populated PokemonState from a species name.
+ * Uses the unified build resolver (live data → preset → auto → default)
+ * so every entry point produces the same build.
  */
 export function buildPokemonFromSpecies(species: string): PokemonState {
   if (!species) return createDefaultPokemonState();
-  const presets = getPresetsBySpecies(species);
-  if (presets.length > 0) {
-    const preset = presets[0];
-    return {
-      ...createDefaultPokemonState(),
-      species: preset.species,
-      nature: preset.nature,
-      ability: preset.ability,
-      item: preset.item,
-      teraType: '',
-      sps: { ...preset.sps },
-      moves: [...preset.moves, '', '', '', ''].slice(0, 4),
-    };
-  }
-  const data = getPokemonData(species);
-  return {
-    ...createDefaultPokemonState(),
-    species,
-    ability: (data?.abilities?.[0] || '') as string,
-    teraType: '',
-  };
+  return resolveBuild(species);
 }
 
 interface Handlers {

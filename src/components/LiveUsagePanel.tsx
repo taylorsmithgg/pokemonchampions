@@ -20,21 +20,30 @@ function parseSpread(spreadStr: string): { nature: NatureName; evs: number[] } |
 }
 
 function evsToSps(evs: number[]): StatsTable {
+  // Proportional scaling — same formula as buildResolver.ts
+  const totalEVs = evs.reduce((a, b) => a + b, 0) || 510;
   const sps: StatsTable = {
-    hp: Math.min(32, Math.round(evs[0] / 8)),
-    atk: Math.min(32, Math.round(evs[1] / 8)),
-    def: Math.min(32, Math.round(evs[2] / 8)),
-    spa: Math.min(32, Math.round(evs[3] / 8)),
-    spd: Math.min(32, Math.round(evs[4] / 8)),
-    spe: Math.min(32, Math.round(evs[5] / 8)),
+    hp: Math.min(32, Math.round((evs[0] / totalEVs) * 66)),
+    atk: Math.min(32, Math.round((evs[1] / totalEVs) * 66)),
+    def: Math.min(32, Math.round((evs[2] / totalEVs) * 66)),
+    spa: Math.min(32, Math.round((evs[3] / totalEVs) * 66)),
+    spd: Math.min(32, Math.round((evs[4] / totalEVs) * 66)),
+    spe: Math.min(32, Math.round((evs[5] / totalEVs) * 66)),
   };
-  // Normalize to 66
+  // Normalize to exactly 66
   let total = Object.values(sps).reduce((a, b) => a + b, 0);
   while (total > 66) {
     const entries = Object.entries(sps).filter(([, v]) => v > 0).sort((a, b) => a[1] - b[1]);
     if (entries.length === 0) break;
     (sps as any)[entries[0][0]]--;
     total--;
+  }
+  while (total < 66) {
+    const entries = Object.entries(sps).sort((a, b) => b[1] - a[1]);
+    const target = entries.find(([, v]) => v < 32);
+    if (!target) break;
+    (sps as any)[target[0]]++;
+    total++;
   }
   return sps;
 }
