@@ -253,7 +253,8 @@ function Calculator() {
             state={attacker}
             onChange={setAttacker}
             side="attacker"
-            teammateItems={[defender.item]}
+            teammateItems={[defender.item, ...team.filter(t => t.species).map(t => t.item)]}
+            teammates={[defender, ...team]}
           />
 
           {/* Center: Results + Field */}
@@ -286,7 +287,8 @@ function Calculator() {
             state={defender}
             onChange={setDefender}
             side="defender"
-            teammateItems={[attacker.item]}
+            teammateItems={[attacker.item, ...team.filter(t => t.species).map(t => t.item)]}
+            teammates={[attacker, ...team]}
           />
         </div>
 

@@ -700,6 +700,29 @@ const PRESETS_RAW: PokemonPreset[] = [
     moves: ['Sucker Punch', 'Kowtow Cleave', 'Iron Head', 'Swords Dance'],
     label: 'SD Closer',
   },
+  // ─── Azumarill — community-reported hard counter ───────────────
+  {
+    name: 'Azumarill (Belly Drum)',
+    species: 'Azumarill',
+    nature: 'Adamant',
+    ability: 'Huge Power',
+    item: 'Sitrus Berry',
+    teraType: '',
+    sps: { hp: 32, atk: 32, def: 2, spa: 0, spd: 0, spe: 0 },
+    moves: ['Belly Drum', 'Aqua Jet', 'Play Rough', 'Protect'],
+    label: 'Belly Drum Sweeper',
+  },
+  {
+    name: 'Azumarill (Assault)',
+    species: 'Azumarill',
+    nature: 'Adamant',
+    ability: 'Huge Power',
+    item: 'Mystic Water',
+    teraType: '',
+    sps: { hp: 32, atk: 32, def: 2, spa: 0, spd: 0, spe: 0 },
+    moves: ['Aqua Jet', 'Play Rough', 'Knock Off', 'Superpower'],
+    label: 'Priority Wallbreaker',
+  },
 ];
 
 // Filter presets to only species in the Champions roster.

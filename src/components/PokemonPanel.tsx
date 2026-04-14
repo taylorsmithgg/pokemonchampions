@@ -44,6 +44,8 @@ interface PokemonPanelProps {
   onChange: (state: PokemonState) => void;
   side: 'attacker' | 'defender';
   teammateItems?: string[];
+  /** Full team context for team-aware optimization. */
+  teammates?: PokemonState[];
 }
 
 function PokemonSprite({ species }: { species: string }) {
@@ -84,12 +86,14 @@ function PokemonSprite({ species }: { species: string }) {
   );
 }
 
-// Build optimized state — uses the SAME archetype system shown in the UI.
-// When the archetype engine can't source moves from live Smogon stats
-// (e.g., Z-A-exclusive forms like Floette-Eternal aren't in the VGC 2026
-// dataset), fall back to the curated preset library for moves so the
-// Optimize button always produces a usable set.
-function buildOptimizedState(species: string): PokemonState {
+// Build optimized state — team-aware when teammates are provided.
+//
+// When optimizing in isolation (no teammates), uses the top archetype
+// build. When teammates are present, adjusts move selection to fill
+// the team's coverage gaps rather than running the generic "best"
+// set. Example: Dragapult on a Sun team picks Shadow Ball + Draco
+// Meteor to complement Fire coverage, not the generic Tailwind set.
+function buildOptimizedState(species: string, teammates?: PokemonState[]): PokemonState {
   const base = createDefaultPokemonState();
   base.species = species;
 
@@ -101,16 +105,16 @@ function buildOptimizedState(species: string): PokemonState {
   const archetypes = getArchetypes(species);
   const presets = getPresetsBySpecies(species);
 
+  // Build the base optimized state from archetype / preset
+  let optimized: PokemonState;
   if (archetypes.length > 0) {
     const arch = archetypes[0];
-    // If the archetype couldn't populate moves (no live data),
-    // borrow them from the first preset for this species.
     const archMoves = arch.moves.length > 0
       ? [...arch.moves, '', '', '', ''].slice(0, 4)
       : presets.length > 0
         ? [...presets[0].moves, '', '', '', ''].slice(0, 4)
         : base.moves;
-    return {
+    optimized = {
       ...base,
       nature: arch.nature,
       ability: base.ability,
@@ -118,12 +122,9 @@ function buildOptimizedState(species: string): PokemonState {
       sps: { hp: arch.sps.hp, atk: arch.sps.atk, def: arch.sps.def, spa: arch.sps.spa, spd: arch.sps.spd, spe: arch.sps.spe },
       moves: archMoves,
     };
-  }
-
-  // No archetypes at all — fall back to preset in full.
-  if (presets.length > 0) {
+  } else if (presets.length > 0) {
     const p = presets[0];
-    return {
+    optimized = {
       ...base,
       nature: p.nature,
       ability: p.ability,
@@ -131,9 +132,83 @@ function buildOptimizedState(species: string): PokemonState {
       sps: { ...p.sps },
       moves: [...p.moves, '', '', '', ''].slice(0, 4),
     };
+  } else {
+    return base;
   }
 
-  return base;
+  // ─── Team-aware adjustments ───────────────────────────────────
+  if (!teammates || teammates.filter(t => t.species).length === 0) return optimized;
+
+  const teamTypes = new Set<string>();
+  const teamMoveTypes = new Set<string>();
+  const teamItems = new Set<string>();
+
+  for (const t of teammates) {
+    if (!t.species || t.species === species) continue;
+    const td = getPokemonData(t.species);
+    if (td) for (const tp of td.types) teamTypes.add(tp as string);
+    for (const m of t.moves) {
+      if (!m) continue;
+      const mi = getMoveInfo(m);
+      if (mi && mi.category !== 'Status') teamMoveTypes.add(mi.type);
+    }
+    if (t.item) teamItems.add(t.item);
+  }
+
+  // Item dedup — if our item is already taken, swap to best available
+  if (teamItems.has(optimized.item)) {
+    const suggestions = suggestItems(optimized, teamItems);
+    if (suggestions.length > 0) {
+      optimized = { ...optimized, item: suggestions[0].item };
+    }
+  }
+
+  // Coverage adjustment — if the team is missing offensive coverage
+  // against common types, and this Pokemon has a preset with a move
+  // that covers the gap, swap one move to fill it.
+  const ALL_OFF_TYPES = ['Normal', 'Fire', 'Water', 'Electric', 'Grass', 'Ice',
+    'Fighting', 'Poison', 'Ground', 'Flying', 'Psychic', 'Bug',
+    'Rock', 'Ghost', 'Dragon', 'Dark', 'Steel', 'Fairy'];
+  const uncoveredTypes = ALL_OFF_TYPES.filter(t => !teamMoveTypes.has(t));
+
+  if (uncoveredTypes.length > 0 && presets.length > 0) {
+    // Check if any preset move covers an uncovered type
+    for (const preset of presets) {
+      for (const presetMove of preset.moves) {
+        if (!presetMove) continue;
+        const mi = getMoveInfo(presetMove);
+        if (mi && mi.category !== 'Status' && uncoveredTypes.includes(mi.type)) {
+          // Check if we already have this move
+          if (!optimized.moves.includes(presetMove)) {
+            // Replace the least impactful offensive move (lowest BP)
+            let worstIdx = -1;
+            let worstBP = Infinity;
+            for (let i = 0; i < 4; i++) {
+              const m = optimized.moves[i];
+              if (!m) { worstIdx = i; break; }
+              const info = getMoveInfo(m);
+              if (info && info.category !== 'Status' && info.bp < worstBP) {
+                // Don't replace STAB moves
+                const myTypes = data.types.map((t: any) => t as string);
+                if (!myTypes.includes(info.type)) {
+                  worstBP = info.bp;
+                  worstIdx = i;
+                }
+              }
+            }
+            if (worstIdx >= 0) {
+              const newMoves = [...optimized.moves];
+              newMoves[worstIdx] = presetMove;
+              optimized = { ...optimized, moves: newMoves };
+              break; // only swap one move per optimization
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return optimized;
 }
 
 // ─── Meta upgrade suggestion ────────────────────────────────────────
@@ -204,7 +279,7 @@ function getMetaUpgrades(selectedSpecies: string): MetaUpgrade[] {
   return upgrades.slice(0, 3);
 }
 
-export function PokemonPanel({ state, onChange, side, teammateItems = [] }: PokemonPanelProps) {
+export function PokemonPanel({ state, onChange, side, teammateItems = [], teammates = [] }: PokemonPanelProps) {
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState('');
   const { stats: liveStats } = useLiveData();
@@ -360,7 +435,7 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
               return (
                 <button
                   onClick={() => {
-                    const optimized = buildOptimizedState(state.species);
+                    const optimized = buildOptimizedState(state.species, teammates);
                     onChange(optimized);
                   }}
                   className="w-full py-3 rounded-lg bg-gradient-to-r from-poke-red to-poke-red-dark text-white hover:from-poke-red-light hover:to-poke-red transition-all shadow-lg shadow-poke-red/20 hover:shadow-poke-red/40 text-left px-4"

@@ -405,6 +405,13 @@ const NORMAL_TIER_LIST_RAW: TierEntry[] = [
     types: ['Electric', 'Ice'],
     note: 'Blizzard STAB + Volt Switch pivot. Electric/Ice coverage hits Dragon/Flying/Ground. Levitate gives Ground immunity. Strong Snow archetype partner.',
   },
+  {
+    name: 'Azumarill',
+    tier: 'A',
+    roles: ['Physical Sweeper', 'Support'],
+    types: ['Water', 'Fairy'],
+    note: 'Huge Power doubles Attack to effective 100+. Belly Drum + Aqua Jet priority is a team-ending combo. Water/Fairy STAB covers Dragon/Dark/Fighting. Hard-counters many top meta cores.',
+  },
 ];
 
 // ─── Mega Pokemon Tier List ────────────────────────────────────────
