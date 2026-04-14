@@ -24,7 +24,7 @@
 
 import { getAvailablePokemon, getPokemonData, getDefensiveMultiplier, hasChampionsMega } from '../data/champions';
 import { MEGA_STONE_MAP } from '../data/championsRoster';
-import { NORMAL_TIER_LIST } from '../data/tierlist';
+import { COMMUNITY_TIER_LIST } from '../data/tierlist';
 import {
   buildMoveRoleSet, REDIRECT_MOVES, PRIORITY_MOVES as PRIORITY_MOVE_SET,
   discoverWeatherCores,
@@ -759,7 +759,7 @@ export function generateDoublesProjection(): ProjectionReport {
   // community S/A+ tier. These are the picks WE think are underrated.
   // Derived from data — no hardcoded exclusion list.
   const staticTop = new Set(
-    NORMAL_TIER_LIST.filter(e => e.tier === 'S' || e.tier === 'A+').map(e => e.name)
+    COMMUNITY_TIER_LIST.filter(e => e.tier === 'S' || e.tier === 'A+').map(e => e.name)
   );
   const darkHorses = rankings
     .filter(r => r.tier === 'A' || r.tier === 'A+')

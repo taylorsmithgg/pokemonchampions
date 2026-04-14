@@ -13,7 +13,7 @@
 import { useMemo, useState } from 'react';
 import { generateDoublesProjection, type DoublesProjection } from '../calc/doublesMetaProjection';
 import { generateSinglesProjection, type SinglesProjection } from '../calc/singlesMetaProjection';
-import { NORMAL_TIER_LIST, MEGA_TIER_LIST, type Tier } from '../data/tierlist';
+import { COMMUNITY_TIER_LIST, COMMUNITY_MEGA_TIER_LIST, type Tier } from '../data/tierlist';
 import type { FormatId } from '../calc/lineupAnalysis';
 import { Sprite } from './Sprite';
 import { QuickAdd } from './QuickAdd';
@@ -80,7 +80,7 @@ function buildEntries(format: FormatId): ProjectedTierEntry[] {
   // both base and mega entries — if a Pokemon's base form has a
   // static tier, we use it as the consensus baseline.
   const staticLookup = new Map<string, Tier>();
-  for (const e of [...NORMAL_TIER_LIST, ...MEGA_TIER_LIST]) {
+  for (const e of [...COMMUNITY_TIER_LIST, ...COMMUNITY_MEGA_TIER_LIST]) {
     const base = e.isMega ? e.name.replace('Mega ', '').replace(/ [XY]$/, '') : e.name;
     // Keep the highest static tier we've seen for each species (a
     // species might appear as both a normal and a mega entry).
@@ -106,7 +106,7 @@ function buildEntries(format: FormatId): ProjectedTierEntry[] {
       : 'stable';
 
     // Fetch types via the tier-list entry or smogon data
-    const staticEntry = NORMAL_TIER_LIST.find(e => e.name === p.species);
+    const staticEntry = COMMUNITY_TIER_LIST.find(e => e.name === p.species);
     const types = staticEntry ? [...staticEntry.types] : [];
 
     return {
@@ -126,7 +126,7 @@ function buildEntries(format: FormatId): ProjectedTierEntry[] {
   // Add "cut" entries — species in the static list that don't
   // appear in the projection at all. These are the community's
   // top picks that our engine thinks are overrated.
-  for (const staticEntry of NORMAL_TIER_LIST) {
+  for (const staticEntry of COMMUNITY_TIER_LIST) {
     if (staticEntry.isMega) continue;
     if (projectedSet.has(staticEntry.name)) continue;
     if (!['S', 'A+', 'A'].includes(staticEntry.tier)) continue;

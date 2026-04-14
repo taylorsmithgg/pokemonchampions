@@ -16,7 +16,7 @@
 
 import { getAvailablePokemon, getPokemonData, getDefensiveMultiplier, hasChampionsMega } from '../data/champions';
 import { MEGA_STONE_MAP } from '../data/championsRoster';
-import { NORMAL_TIER_LIST } from '../data/tierlist';
+import { COMMUNITY_TIER_LIST } from '../data/tierlist';
 import {
   buildSetupIndex, buildMoveRoleSet,
   HAZARD_MOVES, HAZARD_REMOVAL_MOVES, RECOVERY_MOVES, PIVOT_MOVES as PIVOT_MOVE_SET,
@@ -711,7 +711,7 @@ export function generateSinglesProjection(): SinglesProjectionReport {
   // Dark horses: strong projection but NOT in the static community
   // S/A+ tier. Derived from data — no hardcoded exclusion list.
   const staticTop = new Set(
-    NORMAL_TIER_LIST.filter(e => e.tier === 'S' || e.tier === 'A+').map(e => e.name)
+    COMMUNITY_TIER_LIST.filter(e => e.tier === 'S' || e.tier === 'A+').map(e => e.name)
   );
   const darkHorses = rankings
     .filter(r => r.tier === 'A' || r.tier === 'A+')

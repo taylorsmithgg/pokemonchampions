@@ -2,8 +2,8 @@ import { useState, useMemo } from 'react';
 import { getSpriteUrl, getSpriteFallbackUrl } from '../utils/sprites';
 import { Link } from 'react-router-dom';
 import {
-  NORMAL_TIER_LIST,
-  MEGA_TIER_LIST,
+  COMMUNITY_TIER_LIST,
+  COMMUNITY_MEGA_TIER_LIST,
   TIER_DEFINITIONS,
   type TierEntry,
   type Tier,
@@ -375,7 +375,9 @@ export function TierListPage() {
     });
   };
 
-  const list = listType === 'mega' ? MEGA_TIER_LIST : NORMAL_TIER_LIST;
+  // Community Reference tab shows the static community list for comparison.
+  // The projected tiers (NORMAL_TIER_LIST) are the primary view.
+  const list = listType === 'mega' ? COMMUNITY_MEGA_TIER_LIST : COMMUNITY_TIER_LIST;
 
   const allRoles = useMemo(() => {
     const roles = new Set<string>();
@@ -517,10 +519,10 @@ export function TierListPage() {
             <div className="flex flex-wrap gap-2 mb-4">
               <div className="flex gap-1">
                 <button onClick={() => setListType('normal')} className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${listType === 'normal' ? 'bg-poke-red/15 border-poke-red/40 text-poke-red-light' : 'bg-poke-surface border-poke-border text-slate-400'}`}>
-                  Normal ({NORMAL_TIER_LIST.length})
+                  Normal ({COMMUNITY_TIER_LIST.length})
                 </button>
                 <button onClick={() => setListType('mega')} className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${listType === 'mega' ? 'bg-purple-500/15 border-purple-500/40 text-purple-400' : 'bg-poke-surface border-poke-border text-slate-400'}`}>
-                  Mega ({MEGA_TIER_LIST.length})
+                  Mega ({COMMUNITY_MEGA_TIER_LIST.length})
                 </button>
               </div>
               <div className="relative flex-1 min-w-[180px] max-w-xs">

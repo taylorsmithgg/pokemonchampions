@@ -709,19 +709,117 @@ function filterToChampions(entries: TierEntry[], label: string): TierEntry[] {
   return kept;
 }
 
-export const NORMAL_TIER_LIST: TierEntry[] = filterToChampions(NORMAL_TIER_LIST_RAW, 'NORMAL_TIER_LIST');
-export const MEGA_TIER_LIST: TierEntry[] = filterToChampions(MEGA_TIER_LIST_RAW, 'MEGA_TIER_LIST');
+// ─── Community reference (static Game8 / consensus data) ──────────
+// Kept as a reference for comparison. The dark horse filter in the
+// projection engines uses this to surface species WE rank higher
+// than the community does.
+export const COMMUNITY_TIER_LIST: TierEntry[] = filterToChampions(NORMAL_TIER_LIST_RAW, 'COMMUNITY_TIER_LIST');
+export const COMMUNITY_MEGA_TIER_LIST: TierEntry[] = filterToChampions(MEGA_TIER_LIST_RAW, 'COMMUNITY_MEGA_TIER_LIST');
+
+// ─── Primary tier list (projection-derived) ──────────────────────
+// The NORMAL_TIER_LIST export is now the projected tier list, not the
+// static community list. This means every surface in the app
+// (PokemonPanel tier badges, SearchSelect sorting, team audit meta
+// threats, synergy scoring bonuses) automatically uses our projection
+// analysis instead of static Game8 rankings.
+//
+// Import from projectedTierList.ts is lazy — the projection engines
+// only run when first accessed.
+import { getProjectedNormalTierList, getProjectedMegaTierList, getProjectedTier } from './projectedTierList';
+
+// Use a getter pattern so the projection runs lazily on first access.
+let _normalCache: TierEntry[] | null = null;
+let _megaCache: TierEntry[] | null = null;
+
+function getNormalTierList(): TierEntry[] {
+  if (!_normalCache) {
+    try {
+      _normalCache = getProjectedNormalTierList();
+    } catch {
+      // Fallback to community list if projection fails
+      _normalCache = COMMUNITY_TIER_LIST;
+    }
+  }
+  return _normalCache;
+}
+
+function getMegaTierList(): TierEntry[] {
+  if (!_megaCache) {
+    try {
+      _megaCache = getProjectedMegaTierList();
+    } catch {
+      _megaCache = COMMUNITY_MEGA_TIER_LIST;
+    }
+  }
+  return _megaCache;
+}
+
+// These are the primary exports consumed by the rest of the app.
+// They return projection-derived tiers, falling back to community
+// data if the projection engine fails.
+export const NORMAL_TIER_LIST: TierEntry[] = new Proxy([] as TierEntry[], {
+  get(_target, prop) {
+    const list = getNormalTierList();
+    if (prop === 'length') return list.length;
+    if (prop === Symbol.iterator) return list[Symbol.iterator].bind(list);
+    if (typeof prop === 'string' && !isNaN(Number(prop))) return list[Number(prop)];
+    if (typeof prop === 'string') {
+      const val = (list as any)[prop];
+      return typeof val === 'function' ? val.bind(list) : val;
+    }
+    return undefined;
+  },
+}) as unknown as TierEntry[];
+
+export const MEGA_TIER_LIST: TierEntry[] = new Proxy([] as TierEntry[], {
+  get(_target, prop) {
+    const list = getMegaTierList();
+    if (prop === 'length') return list.length;
+    if (prop === Symbol.iterator) return list[Symbol.iterator].bind(list);
+    if (typeof prop === 'string' && !isNaN(Number(prop))) return list[Number(prop)];
+    if (typeof prop === 'string') {
+      const val = (list as any)[prop];
+      return typeof val === 'function' ? val.bind(list) : val;
+    }
+    return undefined;
+  },
+}) as unknown as TierEntry[];
 
 // ─── Combined + helpers ────────────────────────────────────────────
 
-export const ALL_TIERS: TierEntry[] = [...NORMAL_TIER_LIST, ...MEGA_TIER_LIST];
+export const ALL_TIERS: TierEntry[] = new Proxy([] as TierEntry[], {
+  get(_target, prop) {
+    const list = [...getNormalTierList(), ...getMegaTierList()];
+    if (prop === 'length') return list.length;
+    if (prop === Symbol.iterator) return list[Symbol.iterator].bind(list);
+    if (typeof prop === 'string' && !isNaN(Number(prop))) return list[Number(prop)];
+    if (typeof prop === 'string') {
+      const val = (list as any)[prop];
+      return typeof val === 'function' ? val.bind(list) : val;
+    }
+    return undefined;
+  },
+}) as unknown as TierEntry[];
 
 export function getTierForPokemon(name: string): TierEntry | undefined {
-  return ALL_TIERS.find(e => e.name === name);
+  // Try projected tier first
+  try {
+    const projected = getProjectedTier(name);
+    if (projected) return projected;
+  } catch { /* fallback */ }
+  // Fallback to community
+  return COMMUNITY_TIER_LIST.find(e => e.name === name)
+    || COMMUNITY_MEGA_TIER_LIST.find(e => e.name === name);
+}
+
+/** Get community consensus tier for comparison. */
+export function getCommunityTier(name: string): TierEntry | undefined {
+  return COMMUNITY_TIER_LIST.find(e => e.name === name)
+    || COMMUNITY_MEGA_TIER_LIST.find(e => e.name === name);
 }
 
 export function getPokemonByTier(tier: Tier, megasOnly?: boolean): TierEntry[] {
-  const list = megasOnly ? MEGA_TIER_LIST : NORMAL_TIER_LIST;
+  const list = megasOnly ? getMegaTierList() : getNormalTierList();
   return list.filter(e => e.tier === tier);
 }
 
