@@ -879,6 +879,7 @@ export function StreamCompanionPage() {
     setTeamsLocked(false);
     setDetectionPhase('preview');
     lastFrameHashRef.current = null;
+    setCaptureRegion(null);
     saveHistory([]);
   }, []);
 

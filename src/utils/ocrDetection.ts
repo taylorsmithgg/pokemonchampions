@@ -814,49 +814,64 @@ function tokenize(text: string): string[] {
 
 /**
  * Auto-detect game window inside a stream overlay.
- * Scans brightness grid — game area is darker than branding/webcam/chat.
- * Returns pct-based crop or null if full-frame or can't determine.
+ * Uses COLOR VARIANCE per cell — game content (sprites, effects, UI chrome)
+ * has HIGH variance. Static app UI, webcam borders, chat = lower variance.
+ * Finds the largest high-variance rectangle.
  */
 export function autoDetectGameWindow(canvas: HTMLCanvasElement): { x: number; y: number; w: number; h: number } | null {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
   const fw = canvas.width, fh = canvas.height;
 
-  const cols = 20, rows = 12;
+  const cols = 24, rows = 14;
   const cellW = Math.floor(fw / cols), cellH = Math.floor(fh / rows);
-  const grid: number[][] = [];
 
+  // Compute color variance per cell
+  const varGrid: number[][] = [];
   for (let r = 0; r < rows; r++) {
-    grid[r] = [];
+    varGrid[r] = [];
     for (let c = 0; c < cols; c++) {
       const data = ctx.getImageData(c * cellW, r * cellH, cellW, cellH).data;
-      let sum = 0, count = 0;
-      for (let i = 0; i < data.length; i += 32) {
-        sum += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      let sum = 0, sumSq = 0, count = 0;
+      for (let i = 0; i < data.length; i += 24) {
+        const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        sum += lum;
+        sumSq += lum * lum;
         count++;
       }
-      grid[r][c] = count > 0 ? sum / count : 128;
+      const mean = sum / (count || 1);
+      varGrid[r][c] = (sumSq / (count || 1)) - mean * mean;
     }
   }
 
-  const allVals = grid.flat().sort((a, b) => a - b);
-  const median = allVals[Math.floor(allVals.length / 2)];
-  const darkThresh = Math.min(median, 120);
+  // Threshold: cells with variance > median are "active" (game content)
+  const allVars = varGrid.flat().sort((a, b) => a - b);
+  const varMedian = allVars[Math.floor(allVars.length / 2)];
+  const activeThresh = Math.max(varMedian * 1.2, 200); // game cells are notably noisier
 
-  // Find dark rectangle bounds
-  let left = 0, right = cols - 1, top = 0, bottom = rows - 1;
-  for (let c = 0; c < cols; c++) {
-    if (grid.reduce((s, row) => s + row[c], 0) / rows <= darkThresh) { left = c; break; }
-  }
-  for (let c = cols - 1; c >= 0; c--) {
-    if (grid.reduce((s, row) => s + row[c], 0) / rows <= darkThresh) { right = c; break; }
-  }
+  // Find bounding box of active cells
+  let left = cols, right = 0, top = rows, bottom = 0;
+  let activeCount = 0;
   for (let r = 0; r < rows; r++) {
-    if (grid[r].reduce((s, v) => s + v, 0) / cols <= darkThresh) { top = r; break; }
+    for (let c = 0; c < cols; c++) {
+      if (varGrid[r][c] >= activeThresh) {
+        if (c < left) left = c;
+        if (c > right) right = c;
+        if (r < top) top = r;
+        if (r > bottom) bottom = r;
+        activeCount++;
+      }
+    }
   }
-  for (let r = rows - 1; r >= 0; r--) {
-    if (grid[r].reduce((s, v) => s + v, 0) / cols <= darkThresh) { bottom = r; break; }
-  }
+
+  // Need enough active cells to form a rectangle
+  if (activeCount < 6) return null;
+
+  // Add 1-cell padding
+  left = Math.max(0, left - 1);
+  top = Math.max(0, top - 1);
+  right = Math.min(cols - 1, right + 1);
+  bottom = Math.min(rows - 1, bottom + 1);
 
   const x = left / cols;
   const y = top / rows;
@@ -864,7 +879,7 @@ export function autoDetectGameWindow(canvas: HTMLCanvasElement): { x: number; y:
   const h = (bottom - top + 1) / rows;
 
   // Skip if too small or basically full-frame
-  if (w < 0.25 || h < 0.25 || (w > 0.92 && h > 0.92)) return null;
+  if (w < 0.2 || h < 0.2 || (w > 0.92 && h > 0.92)) return null;
   return { x, y, w, h };
 }
 
