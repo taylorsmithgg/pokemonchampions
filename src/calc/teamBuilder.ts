@@ -8,6 +8,7 @@ import { Move } from '@smogon/calc';
 import { getAvailablePokemon, getPokemonData, getTypeEffectiveness} from '../data/champions';
 import { PRESETS } from '../data/presets';
 import { NORMAL_TIER_LIST } from '../data/tierlist';
+import { getRecommendations } from '../data/synergies';
 import type { PokemonState } from '../types';
 import { createDefaultPokemonState } from '../types';
 import { analyzeTeamLineups, DEFAULT_FORMAT, type BattleFormat } from './lineupAnalysis';
@@ -185,7 +186,34 @@ function scoreCandidateForTeam(
     score += 2;
   }
 
-  // ─── 8. Lineup flexibility — bring-N-pick-M impact ────────────
+  // ─── 8. Synergy combo detection ──────────────────────────────
+  // Cross-reference the synergy engine's combo tech to surface
+  // specific interactions: "Shed Tail → free Nasty Plot for Froslass",
+  // "EQ heals Orthworm via Earth Eater", etc. These are the
+  // insights that content creators find manually — we should
+  // discover them programmatically and show them as primary reasons.
+  for (const member of teamMembers) {
+    if (!member.species) continue;
+    const recs = getRecommendations(member.species);
+    const match = recs.find(r => r.species === candidateName);
+    if (match) {
+      // Find the highest-strength combo reason (strength ≥ 3)
+      const combos = match.reasons.filter(r => r.strength >= 3);
+      for (const combo of combos) {
+        score += combo.strength * 3;
+        reasons.unshift(`${combo.label}: ${combo.description}`);
+      }
+      // Even weaker synergies contribute
+      const minor = match.reasons.filter(r => r.strength < 3 && r.strength >= 2);
+      if (minor.length > 0 && combos.length === 0) {
+        score += minor[0].strength * 2;
+        reasons.push(`${minor[0].label} with ${member.species}`);
+      }
+      break; // only count the strongest teammate synergy
+    }
+  }
+
+  // ─── 9. Lineup flexibility — bring-N-pick-M impact ────────────
   // Score how much this candidate improves the team's pool of
   // viable pick-M sub-selections for the selected format. For
   // Doubles (pick 4) this means 4-mon subsets, for Singles it

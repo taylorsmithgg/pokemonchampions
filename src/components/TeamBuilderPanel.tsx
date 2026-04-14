@@ -12,6 +12,7 @@ import { NORMAL_TIER_LIST } from '../data/tierlist';
 import { Sprite } from './Sprite';
 import { GenBadge } from './GenBadge';
 import { getSpriteUrl } from '../utils/sprites';
+import { getRecommendations, type SynergyReason } from '../data/synergies';
 import {
   getAvailablePokemon,
   getAvailableMoves,
@@ -624,6 +625,53 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
             />
           ))}
         </div>
+
+        {/* Team combo insights — surface specific interactions the synergy engine detects */}
+        {(() => {
+          const filled = team.filter(p => p.species);
+          if (filled.length < 2) return null;
+
+          const combos: Array<{ a: string; b: string; reason: SynergyReason }> = [];
+          const seen = new Set<string>();
+          for (const member of filled) {
+            const recs = getRecommendations(member.species);
+            for (const rec of recs) {
+              if (!filled.some(p => p.species === rec.species)) continue;
+              const key = [member.species, rec.species].sort().join('+');
+              if (seen.has(key)) continue;
+              seen.add(key);
+              // Only surface strength ≥ 3 combos (the real discoveries)
+              const strongReasons = rec.reasons.filter(r => r.strength >= 3);
+              for (const reason of strongReasons) {
+                combos.push({ a: member.species, b: rec.species, reason });
+              }
+            }
+          }
+
+          if (combos.length === 0) return null;
+
+          return (
+            <div className="p-4 border-t border-poke-border">
+              <h3 className="text-sm font-bold text-white mb-1">Team Synergies Detected</h3>
+              <p className="text-[10px] text-slate-500 mb-3">Combo interactions between your current team members:</p>
+              <div className="space-y-2">
+                {combos.slice(0, 6).map((combo, i) => (
+                  <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Sprite species={combo.a} size="sm" />
+                      <span className="text-[10px] text-emerald-400">+</span>
+                      <Sprite species={combo.b} size="sm" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-bold text-emerald-300">{combo.reason.label}</div>
+                      <div className="text-[10px] text-slate-400 leading-snug">{combo.reason.description}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Suggested next picks */}
         {nextPicks.length > 0 && (
