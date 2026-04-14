@@ -1087,14 +1087,69 @@ export function StreamCompanionPage() {
       actx.fillText(`LOG ${blm.pattern}`, 10, y);
     }
 
+    // ── Draw all scan region boundaries ──
+    const fw = frame.width, fh = frame.height;
+    actx.setLineDash([4, 4]);
+
+    // Battle HP panels (where panel OCR reads names)
+    actx.strokeStyle = '#a855f7'; actx.lineWidth = 2;
+    actx.strokeRect(fw * 0.00, fh * 0.82, fw * 0.25, fh * 0.18); // BL panel
+    actx.strokeRect(fw * 0.68, fh * 0.00, fw * 0.32, fh * 0.18); // TR panel
+
+    // Selection screen left column (YOUR team OCR)
+    actx.strokeStyle = '#06b6d4'; actx.lineWidth = 1;
+    actx.strokeRect(fw * 0.00, fh * 0.07, fw * 0.23, fh * 0.88); // left col
+
+    // Selection screen right column sprite slots (OPP icons)
+    actx.strokeStyle = '#f43f5e';
+    for (let i = 0; i < 6; i++) {
+      const sy = fh * (0.08 + i * 0.135);
+      actx.strokeRect(fw * 0.78, sy, fw * 0.18, fh * 0.12);
+    }
+
+    // YOUR team icon sprite slots (left column)
+    actx.strokeStyle = '#06b6d4';
+    for (let i = 0; i < 6; i++) {
+      const sy = fh * (0.08 + i * 0.145);
+      actx.strokeRect(fw * 0.01, sy, fw * 0.07, fh * 0.11);
+    }
+
+    // Battle HP panel icon sprites
+    actx.strokeStyle = '#a855f7';
+    actx.strokeRect(0, fh * 0.85, fw * 0.08, fh * 0.10);             // BL icon
+    actx.strokeRect(fw * 0.88, 0, fw * 0.10, fh * 0.10);             // TR icon
+
+    actx.setLineDash([]);
+
+    // Auto-detected game window (if applicable)
+    if (!captureRegion) {
+      const autoWin = autoDetectGameWindow(rawFrame);
+      if (autoWin) {
+        // Draw on raw frame coordinates scaled to cropped frame
+        actx.strokeStyle = '#fbbf24';
+        actx.lineWidth = 2;
+        actx.setLineDash([8, 4]);
+        // autoWin is pct of rawFrame, but we're drawing on cropped frame
+        // Just show a label instead
+        actx.fillStyle = 'rgba(0,0,0,0.7)';
+        actx.fillRect(4, fh - 18, 220, 16);
+        actx.fillStyle = '#fbbf24';
+        actx.font = 'bold 10px system-ui';
+        actx.fillText(`Auto-window: ${Math.round(autoWin.x*100)},${Math.round(autoWin.y*100)} ${Math.round(autoWin.w*100)}×${Math.round(autoWin.h*100)}%`, 6, fh - 6);
+        actx.setLineDash([]);
+      }
+    }
+
     // Legend
     actx.fillStyle = 'rgba(0,0,0,0.7)';
-    actx.fillRect(frame.width - 210, 5, 205, 64);
+    actx.fillRect(fw - 230, 5, 225, 90);
     actx.font = 'bold 10px system-ui';
-    actx.fillStyle = '#38bdf8'; actx.fillText('■ Your team (bottom)', frame.width - 200, 18);
-    actx.fillStyle = '#f97316'; actx.fillText('■ Opponent (top)', frame.width - 200, 32);
-    actx.fillStyle = '#eab308'; actx.fillText('■ Ambiguous', frame.width - 200, 46);
-    actx.fillStyle = '#22c55e'; actx.fillText('■ OCR text', frame.width - 200, 60);
+    actx.fillStyle = '#38bdf8'; actx.fillText('■ Your team (bottom)', fw - 220, 18);
+    actx.fillStyle = '#f97316'; actx.fillText('■ Opponent (top)', fw - 220, 32);
+    actx.fillStyle = '#a855f7'; actx.fillText('┈ Battle HP panels', fw - 220, 46);
+    actx.fillStyle = '#06b6d4'; actx.fillText('┈ Selection YOUR slots', fw - 220, 60);
+    actx.fillStyle = '#f43f5e'; actx.fillText('┈ Selection OPP slots', fw - 220, 74);
+    actx.fillStyle = '#fbbf24'; actx.fillText('┈ Auto game window', fw - 220, 88);
 
     setLastFrameUrl(annotated.toDataURL('image/jpeg', 0.6));
 
