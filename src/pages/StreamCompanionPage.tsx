@@ -2,6 +2,8 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Sprite } from '../components/Sprite';
 import { SearchSelect } from '../components/SearchSelect';
+import { QuickTeamInput } from '../components/QuickTeamInput';
+import { SessionTracker } from '../components/SessionTracker';
 import { getAvailablePokemon, getPokemonData, getTypeEffectiveness } from '../data/champions';
 import { getTierForPokemon, TIER_DEFINITIONS } from '../data/tierlist';
 import { useTeam } from '../contexts/TeamContext';
@@ -430,14 +432,6 @@ export function StreamCompanionPage() {
     });
   }, []);
 
-  const setOpponentSlot = useCallback((index: number, species: string) => {
-    setOpponentTeam(prev => {
-      const next = [...prev];
-      next[index] = species;
-      return next;
-    });
-  }, []);
-
   const toggleBring = useCallback((species: string) => {
     setSelectedBring(prev => {
       const next = new Set(prev);
@@ -714,7 +708,15 @@ export function StreamCompanionPage() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-4">
+        {/* Session tracker */}
+        <SessionTracker
+          myTeam={filledMyTeam}
+          opponentTeam={filledOpponents}
+          onStateChange={() => {}}
+          onRecordResult={(result) => recordMatch(result)}
+        />
+
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-4 mt-4">
           {/* Left column: Stream + Teams */}
           <div className="space-y-4">
             {/* Twitch connection */}
@@ -801,32 +803,20 @@ export function StreamCompanionPage() {
               )}
             </div>
 
-            {/* Opponent Team */}
+            {/* Opponent Team — quick text input for speed */}
             <div className="poke-panel p-3">
               <div className="flex items-center justify-between mb-2">
                 <div className="text-xs font-bold text-poke-red uppercase tracking-wider">Opponent's Team</div>
-                {filledOpponents.length > 0 && (
-                  <button
-                    onClick={() => setOpponentTeam(['', '', '', '', '', ''])}
-                    className="text-[10px] text-slate-500 hover:text-poke-red transition-colors"
-                  >
-                    Clear
-                  </button>
-                )}
+                <div className="text-[10px] text-slate-600">Type names, Tab to accept</div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {opponentTeam.map((species, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    {species && <Sprite species={species} size="sm" />}
-                    <SearchSelect
-                      options={allPokemon}
-                      value={species}
-                      onChange={v => setOpponentSlot(i, v)}
-                      placeholder={`Opp ${i + 1}`}
-                    />
-                  </div>
-                ))}
-              </div>
+              <QuickTeamInput
+                value={filledOpponents}
+                onChange={(species) => {
+                  const padded = [...species, ...Array(Math.max(0, 6 - species.length)).fill('')];
+                  setOpponentTeam(padded.slice(0, 6));
+                }}
+                maxSlots={6}
+              />
             </div>
           </div>
 
