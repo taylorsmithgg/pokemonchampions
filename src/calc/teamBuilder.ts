@@ -194,7 +194,7 @@ function scoreCandidateForTeam(
   // discover them programmatically and show them as primary reasons.
   for (const member of teamMembers) {
     if (!member.species) continue;
-    const recs = getRecommendations(member.species);
+    const recs = getRecommendations(member.species, undefined, format.id);
     const match = recs.find(r => r.species === candidateName);
     if (match) {
       // Find the highest-strength combo reason (strength ≥ 3)

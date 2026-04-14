@@ -665,7 +665,7 @@ function getAnalysis(name: string): AnalyzedPokemon | null {
   return analysis;
 }
 
-export function getRecommendations(selectedSpecies: string, otherSpecies?: string): SynergyRecommendation[] {
+export function getRecommendations(selectedSpecies: string, otherSpecies?: string, formatId?: string): SynergyRecommendation[] {
   const selected = getAnalysis(selectedSpecies);
   if (!selected) return [];
 
@@ -684,7 +684,9 @@ export function getRecommendations(selectedSpecies: string, otherSpecies?: strin
       ...scoreWeatherTerrainSynergy(selected, candidate),
       ...scoreSpeedSynergy(selected, candidate),
       ...scoreSupportSynergy(selected, candidate),
-      ...scoreDoublesCombos(selected, candidate),
+      // Doubles-specific combos (Shed Tail → partner, EQ + ally healing,
+      // Follow Me redirect, etc.) only apply in Doubles format.
+      ...(formatId !== 'singles' ? scoreDoublesCombos(selected, candidate) : []),
     ];
 
     if (reasons.length === 0) continue;

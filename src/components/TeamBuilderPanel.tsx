@@ -809,7 +809,7 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
           const combos: Array<{ a: string; b: string; reason: SynergyReason }> = [];
           const seen = new Set<string>();
           for (const member of filled) {
-            const recs = getRecommendations(member.species);
+            const recs = getRecommendations(member.species, undefined, format.id);
             for (const rec of recs) {
               if (!filled.some(p => p.species === rec.species)) continue;
               const key = [member.species, rec.species].sort().join('+');
