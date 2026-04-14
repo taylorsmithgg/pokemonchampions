@@ -4,7 +4,7 @@ import { SearchSelect } from './SearchSelect';
 import { SwordIcon, ShieldIcon, OptimizeIcon } from './QuickAdd';
 import { auditTeam, type TeamAudit } from '../calc/teamAudit';
 import { buildOptimalTeam, suggestNextPick, suggestReplacementsForSlot } from '../calc/teamBuilder';
-import { DEFAULT_FORMAT, type BattleFormat } from '../calc/lineupAnalysis';
+import { SINGLES_FORMAT, type BattleFormat } from '../calc/lineupAnalysis';
 import { FormatSelector } from './FormatSelector';
 import { PRESETS, getPresetsBySpecies } from '../data/presets';
 import { MEGA_STONE_MAP } from '../data/championsRoster';
@@ -374,7 +374,7 @@ function TeamSlot({
 export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose, fullScreen = false }: TeamBuilderPanelProps) {
   const [importText, setImportText] = useState('');
   const [showImport, setShowImport] = useState(false);
-  const [format, setFormat] = useState<BattleFormat>(DEFAULT_FORMAT);
+  const [format, setFormat] = useState<BattleFormat>(SINGLES_FORMAT);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [optimizeLog, setOptimizeLog] = useState<string[]>([]);
   const { stats: liveStats } = useLiveData();

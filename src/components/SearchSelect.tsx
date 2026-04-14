@@ -16,6 +16,7 @@ interface SearchSelectProps {
 export function SearchSelect({ options, value, onChange, placeholder = 'Select...', label, className = '', renderOption, sortFn }: SearchSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -97,9 +98,13 @@ export function SearchSelect({ options, value, onChange, placeholder = 'Select..
             placeholder={placeholder}
             onKeyDown={e => {
               if (e.key === 'Enter' && filtered.length > 0) {
-                onChange(filtered[0]);
                 setIsOpen(false);
                 setSearch('');
+                setIsLoading(true);
+                requestAnimationFrame(() => {
+                  onChange(filtered[0]);
+                  setIsLoading(false);
+                });
               }
               if (e.key === 'Escape') {
                 setIsOpen(false);
@@ -107,6 +112,11 @@ export function SearchSelect({ options, value, onChange, placeholder = 'Select..
               }
             }}
           />
+        ) : isLoading ? (
+          <span className="text-sm text-slate-400 flex items-center gap-2">
+            <span className="w-3.5 h-3.5 rounded-full border-2 border-poke-border border-t-poke-red animate-spin" style={{ animationDuration: '0.6s' }} />
+            Loading...
+          </span>
         ) : (
           <span className={`text-sm truncate ${value ? 'text-white' : 'text-slate-500'}`}>
             {value || placeholder}
@@ -147,9 +157,16 @@ export function SearchSelect({ options, value, onChange, placeholder = 'Select..
               onMouseEnter={e => { if (option !== value) e.currentTarget.style.backgroundColor = '#2a2b45'; }}
               onMouseLeave={e => { if (option !== value) e.currentTarget.style.backgroundColor = '#1a1b30'; }}
               onClick={() => {
-                onChange(option);
+                // Close dropdown and show loading FIRST, then defer
+                // the heavy onChange to the next frame so the UI
+                // doesn't freeze while archetypes/synergies compute.
                 setIsOpen(false);
                 setSearch('');
+                setIsLoading(true);
+                requestAnimationFrame(() => {
+                  onChange(option);
+                  setIsLoading(false);
+                });
               }}
             >
               {renderOption ? renderOption(option) : option}
