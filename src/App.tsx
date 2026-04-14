@@ -77,10 +77,18 @@ function Calculator() {
       sendToDefender: (species: string) => setDefender({ ...buildPokemonFromSpecies(species), nature: 'Bold' }),
       addToTeam: (species: string) => {
         setTeam(prev => {
+          // Duplicate check: if species is already on the team, don't add
+          if (prev.some(p => p.species === species)) return prev;
           const emptyIdx = prev.findIndex(p => !p.species);
-          if (emptyIdx === -1) return prev;
+          if (emptyIdx !== -1) {
+            // Fill the first empty slot
+            const next = [...prev];
+            next[emptyIdx] = buildPokemonFromSpecies(species);
+            return next;
+          }
+          // Team is full — replace the last slot
           const next = [...prev];
-          next[emptyIdx] = buildPokemonFromSpecies(species);
+          next[next.length - 1] = buildPokemonFromSpecies(species);
           return next;
         });
         setShowTeamBuilder(true);

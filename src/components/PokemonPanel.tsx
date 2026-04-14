@@ -28,7 +28,8 @@ import { useLiveData } from '../hooks/useLiveData';
 import { suggestItems } from '../calc/itemOptimizer';
 import { getArchetypes } from '../calc/archetypes';
 import type { PokemonState, NatureName } from '../types';
-import { createDefaultPokemonState } from '../types';
+import { createDefaultPokemonState, CHAMPIONS_LEVEL } from '../types';
+import { usePokemonActions } from '../contexts/PokemonActions';
 
 function getMoveInfo(moveName: string): { type: string; category: string; bp: number } | null {
   if (!moveName) return null;
@@ -88,10 +89,9 @@ function PokemonSprite({ species }: { species: string }) {
 // (e.g., Z-A-exclusive forms like Floette-Eternal aren't in the VGC 2026
 // dataset), fall back to the curated preset library for moves so the
 // Optimize button always produces a usable set.
-function buildOptimizedState(species: string, level: number): PokemonState {
+function buildOptimizedState(species: string): PokemonState {
   const base = createDefaultPokemonState();
   base.species = species;
-  base.level = level;
 
   const data = getPokemonData(species);
   if (!data) return base;
@@ -208,6 +208,7 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState('');
   const { stats: liveStats } = useLiveData();
+  const { addToTeam } = usePokemonActions();
   const panelRef = useRef<HTMLDivElement>(null);
 
   const pokemon = getAvailablePokemon();
@@ -250,6 +251,15 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
             {side === 'attacker' ? 'Attacker' : 'Defender'}
           </h2>
           <div className="flex items-center gap-1.5">
+            {state.species && (
+              <button
+                onClick={() => addToTeam(state.species)}
+                className="text-xs px-2 py-1 bg-poke-red/15 text-poke-red-light border border-poke-red/30 rounded hover:bg-poke-red/25 transition-colors font-semibold"
+                title="Add this Pokemon to your team"
+              >
+                + Team
+              </button>
+            )}
             <button onClick={() => setShowImport(!showImport)} className="text-xs px-2 py-1 bg-poke-surface text-slate-400 rounded hover:text-white transition-colors">Import</button>
             {state.species && <button onClick={() => { navigator.clipboard.writeText(exportShowdownSet(state)); }} className="text-xs px-2 py-1 bg-poke-surface text-slate-400 rounded hover:text-white transition-colors">Export</button>}
           </div>
@@ -350,7 +360,7 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
               return (
                 <button
                   onClick={() => {
-                    const optimized = buildOptimizedState(state.species, state.level);
+                    const optimized = buildOptimizedState(state.species);
                     onChange(optimized);
                   }}
                   className="w-full py-3 rounded-lg bg-gradient-to-r from-poke-red to-poke-red-dark text-white hover:from-poke-red-light hover:to-poke-red transition-all shadow-lg shadow-poke-red/20 hover:shadow-poke-red/40 text-left px-4"
@@ -428,19 +438,8 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
           </div>
         </div>
 
-        {/* Level + Nature row */}
-        <div className="grid grid-cols-[70px_1fr] gap-2">
-          <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1">Level</label>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={state.level}
-              onChange={e => set({ level: Math.max(1, Math.min(100, parseInt(e.target.value) || 50)) })}
-              className="w-full bg-poke-surface border border-poke-border rounded-lg px-2 py-1.5 text-sm text-white text-center"
-              style={{ minHeight: '28px' }}
-            />
-          </div>
+        {/* Nature (Level is fixed in Champions — pinned to CHAMPIONS_LEVEL) */}
+        <div>
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1">Nature</label>
             <select
@@ -585,7 +584,7 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
             sps={state.sps}
             baseStats={baseStats}
             nature={state.nature}
-            level={state.level}
+            level={CHAMPIONS_LEVEL}
             moves={state.moves}
             ability={state.ability}
             item={state.item}
@@ -595,7 +594,7 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
               onChange({
                 ...createDefaultPokemonState(),
                 species: state.species,
-                level: state.level,
+                level: CHAMPIONS_LEVEL,
                 ability: state.ability,
                 item: state.item,
                 status: state.status,
@@ -610,7 +609,7 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
               onChange({
                 ...createDefaultPokemonState(),
                 species: state.species,
-                level: state.level,
+                level: CHAMPIONS_LEVEL,
                 ability: state.ability,
                 status: state.status,
                 currentHp: state.currentHp,
@@ -755,7 +754,7 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [] }: Poke
               onChange({
                 ...createDefaultPokemonState(),
                 species: state.species,
-                level: state.level,
+                level: CHAMPIONS_LEVEL,
                 nature: loadedSet.nature,
                 sps: { hp: loadedSet.sps.hp, atk: loadedSet.sps.atk, def: loadedSet.sps.def, spa: loadedSet.sps.spa, spd: loadedSet.sps.spd, spe: loadedSet.sps.spe },
                 ability: loadedSet.ability || state.ability,

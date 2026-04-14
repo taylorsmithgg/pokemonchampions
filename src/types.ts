@@ -1,5 +1,11 @@
 import type { StatsTable } from '@smogon/calc';
 
+// ─── Champions Level ───────────────────────────────────────────────
+// Champions uses a fixed level for all competitive play. Pinned to
+// an env variable so it can be changed for future seasons without
+// touching calculation code. All stat calcs reference this constant.
+export const CHAMPIONS_LEVEL = Number(import.meta.env.VITE_CHAMPIONS_LEVEL ?? 50);
+
 // Re-define types that @smogon/calc uses internally but doesn't export directly
 export type NatureName = 'Adamant' | 'Bashful' | 'Bold' | 'Brave' | 'Calm' | 'Careful' | 'Docile' | 'Gentle' | 'Hardy' | 'Hasty' | 'Impish' | 'Jolly' | 'Lax' | 'Lonely' | 'Mild' | 'Modest' | 'Naive' | 'Naughty' | 'Quiet' | 'Quirky' | 'Rash' | 'Relaxed' | 'Sassy' | 'Serious' | 'Timid';
 export type StatusName = 'slp' | 'psn' | 'brn' | 'frz' | 'par' | 'tox';
@@ -54,7 +60,7 @@ export interface FieldState {
 export function createDefaultPokemonState(): PokemonState {
   return {
     species: '',
-    level: 50,
+    level: CHAMPIONS_LEVEL,
     nature: 'Adamant',
     ability: '',
     item: '',
