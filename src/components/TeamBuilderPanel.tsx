@@ -57,12 +57,12 @@ function MiniStatBar({ stat, base, sp, nature, level }: { stat: StatID; base: nu
   const pct = Math.min(100, (calcVal / maxPossible) * 100);
 
   return (
-    <div className="flex items-center gap-1">
-      <span className="text-[8px] text-slate-500 w-5">{STAT_LABELS[stat]}</span>
-      <div className="flex-1 h-1 bg-poke-surface rounded-full overflow-hidden">
+    <div className="flex items-center gap-1.5">
+      <span className="text-[10px] text-slate-500 w-6">{STAT_LABELS[stat]}</span>
+      <div className="flex-1 h-1.5 bg-poke-surface rounded-full overflow-hidden">
         <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: STAT_COLORS[stat] }} />
       </div>
-      <span className="text-[8px] text-slate-400 w-6 text-right font-mono">{calcVal}</span>
+      <span className="text-[10px] text-slate-400 w-7 text-right font-mono">{calcVal}</span>
     </div>
   );
 }
@@ -207,26 +207,28 @@ function TeamSlot({
           )}
         </div>
 
-        {/* Mini summary when collapsed */}
+        {/* Summary when collapsed — full readable text, no truncation */}
         {pokemon.species && !expanded && data && (
-          <div className="space-y-0.5 mt-1">
-            <div className="flex items-center gap-1 text-[9px] text-slate-500">
+          <div className="space-y-1.5 mt-2">
+            <div className="flex items-center gap-2 text-xs text-slate-400 flex-wrap">
               <GenBadge species={pokemon.species} />
-              <span>{pokemon.nature}</span>
-              <span>|</span>
+              <span className="text-white font-medium">{pokemon.nature}</span>
+              <span className="text-slate-600">·</span>
               <span>{pokemon.ability || '—'}</span>
-              <span>|</span>
-              <span>{pokemon.item || '—'}</span>
-              <span>|</span>
-              <span className={`${totalSP === MAX_TOTAL_SP ? 'text-emerald-400' : 'text-amber-400'}`}>{totalSP}/{MAX_TOTAL_SP} SP</span>
+              <span className="text-slate-600">·</span>
+              <span className="text-poke-gold">{pokemon.item || '—'}</span>
+              <span className={`ml-auto text-xs font-mono ${totalSP === MAX_TOTAL_SP ? 'text-emerald-400' : 'text-amber-400'}`}>{totalSP}/{MAX_TOTAL_SP} SP</span>
             </div>
-            <div className="flex gap-1 flex-wrap">
+            <div className="flex gap-1.5 flex-wrap">
               {pokemon.moves.filter(Boolean).map((m: string) => (
-                <span key={m} className="text-[8px] px-1 py-0 bg-poke-surface text-slate-400 rounded">{m}</span>
+                <span key={m} className="text-[11px] px-1.5 py-0.5 bg-poke-surface text-slate-300 rounded border border-poke-border/50">{m}</span>
               ))}
+              {pokemon.moves.filter(Boolean).length === 0 && (
+                <span className="text-[11px] text-slate-600 italic">No moves set</span>
+              )}
             </div>
-            {/* Mini stat bars */}
-            <div className="grid grid-cols-2 gap-x-3 gap-y-0 mt-1">
+            {/* Stat bars — full width, readable labels */}
+            <div className="grid grid-cols-3 gap-x-4 gap-y-0.5 mt-1.5">
               {STAT_IDS.map(s => (
                 <MiniStatBar key={s} stat={s} base={data.baseStats[s]} sp={pokemon.sps[s]} nature={pokemon.nature} level={pokemon.level} />
               ))}
@@ -272,7 +274,7 @@ function TeamSlot({
               <div className="grid grid-cols-6 gap-2">
                 {STAT_IDS.map(stat => (
                   <div key={stat} className="text-center">
-                    <label className="block text-[8px] text-slate-600">{STAT_LABELS[stat]}</label>
+                    <label className="block text-[10px] text-slate-500 mb-0.5">{STAT_LABELS[stat]}</label>
                     <input
                       type="text" inputMode="numeric" value={pokemon.sps[stat]}
                       onChange={e => {
@@ -826,7 +828,7 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
           return (
             <div className="p-4 border-t border-poke-border">
               <h3 className="text-sm font-bold text-white mb-1">Team Synergies Detected</h3>
-              <p className="text-[10px] text-slate-500 mb-3">Combo interactions between your current team members:</p>
+              <p className="text-xs text-slate-500 mb-3">Combo interactions between your current team members:</p>
               <div className="space-y-2">
                 {combos.slice(0, 6).map((combo, i) => (
                   <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
@@ -836,8 +838,8 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
                       <Sprite species={combo.b} size="sm" />
                     </div>
                     <div className="min-w-0">
-                      <div className="text-[10px] font-bold text-emerald-300">{combo.reason.label}</div>
-                      <div className="text-[10px] text-slate-400 leading-snug">{combo.reason.description}</div>
+                      <div className="text-xs font-bold text-emerald-300">{combo.reason.label}</div>
+                      <div className="text-xs text-slate-400 leading-snug">{combo.reason.description}</div>
                     </div>
                   </div>
                 ))}
@@ -937,22 +939,22 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
               <div key={issue.id} className="p-2 rounded-lg border border-red-500/30 bg-red-500/5">
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <span className="text-red-400 text-xs font-bold">✗</span>
-                  <span className="text-[9px] px-1 bg-poke-surface text-slate-500 rounded">{issue.category}</span>
+                  <span className="text-[10px] px-1.5 bg-poke-surface text-slate-500 rounded">{issue.category}</span>
                   <span className="text-[10px] font-semibold text-red-400">{issue.title}</span>
                 </div>
-                <p className="text-[9px] text-slate-400 ml-4">{issue.detail}</p>
-                {issue.suggestion && <p className="text-[9px] text-slate-500 ml-4 italic mt-0.5">{issue.suggestion}</p>}
+                <p className="text-xs text-slate-400 ml-4">{issue.detail}</p>
+                {issue.suggestion && <p className="text-xs text-slate-500 ml-4 italic mt-0.5">{issue.suggestion}</p>}
               </div>
             ))}
             {warnings.map((issue) => (
               <div key={issue.id} className="p-2 rounded-lg border border-amber-500/30 bg-amber-500/5">
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <span className="text-amber-400 text-xs font-bold">⚠</span>
-                  <span className="text-[9px] px-1 bg-poke-surface text-slate-500 rounded">{issue.category}</span>
+                  <span className="text-[10px] px-1.5 bg-poke-surface text-slate-500 rounded">{issue.category}</span>
                   <span className="text-[10px] font-semibold text-amber-400">{issue.title}</span>
                 </div>
-                <p className="text-[9px] text-slate-400 ml-4">{issue.detail}</p>
-                {issue.suggestion && <p className="text-[9px] text-slate-500 ml-4 italic mt-0.5">{issue.suggestion}</p>}
+                <p className="text-xs text-slate-400 ml-4">{issue.detail}</p>
+                {issue.suggestion && <p className="text-xs text-slate-500 ml-4 italic mt-0.5">{issue.suggestion}</p>}
               </div>
             ))}
             {goods.map((issue) => (
@@ -1041,7 +1043,7 @@ function LineupFlexibilitySection({
                 <span className="text-[10px] text-poke-gold font-mono shrink-0 pt-0.5">{lineup.total}</span>
               </div>
               {lineup.commentary.length > 0 && (
-                <p className="text-[9px] text-slate-500 leading-snug ml-5">{lineup.commentary[0]}</p>
+                <p className="text-xs text-slate-500 leading-snug ml-5">{lineup.commentary[0]}</p>
               )}
             </div>
           );
