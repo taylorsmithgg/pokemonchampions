@@ -2336,329 +2336,211 @@ export function StreamCompanionPage() {
           {videoSource && <VideoEmbed source={videoSource} />}
         </div>
 
-        {/* ═══ DEBUG SECTIONS — collapsible details ═══ */}
-        <div className="poke-panel overflow-hidden">
-
-          {/* ═══ DEBUG PANEL — comprehensive, all sections toggleable ═══ */}
-          {(detecting || lastOcrResult) && (
-            <div className="border-t border-poke-border">
-              {/* Header bar — always visible when detection has run */}
-              <div className="flex items-center justify-between px-3 py-2">
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  {detecting && <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />}
-                  {lastOcrResult && (
-                    <>
-                      {lastOcrResult.screenContext === 'menu' && (
-                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-slate-500/20 text-slate-400 border border-slate-500/20 shrink-0">MENU</span>
-                      )}
-                      {lastOcrResult.screenContext === 'battle' && (
-                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 shrink-0">BATTLE</span>
-                      )}
-                      {lastOcrResult.screenContext === 'unknown' && (
-                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-poke-surface text-slate-500 border border-poke-border shrink-0">SCANNING</span>
-                      )}
-                      {lastOcrResult.matchResult && (
-                        <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
-                          lastOcrResult.matchResult === 'win' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/20 text-red-400 border border-red-500/20'
-                        }`}>
-                          {lastOcrResult.matchResult === 'win' ? 'WIN' : 'LOSS'} DETECTED
-                        </span>
-                      )}
-                      <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
-                        detectionPhase === 'battle' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20' :
-                        detectionPhase === 'preview' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/20' :
-                        'bg-slate-500/20 text-slate-400 border border-slate-500/20'
-                      }`}>
-                        {teamsLocked ? 'LOCKED' : detectionPhase.toUpperCase()}
-                      </span>
-                      <span className="text-[10px] text-slate-600 truncate">
-                        {lastOcrResult.matched.length}T · {lastOcrResult.spriteMatched?.length ?? 0}I · L:{leftVotesRef.current.size} R:{rightVotesRef.current.size} · #{scanCount} · {lastOcrResult.durationMs}ms
-                      </span>
-                    </>
-                  )}
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {detecting && (
-                    <button onClick={runScan} className="text-[9px] px-1.5 py-0.5 rounded bg-violet-500/15 border border-violet-500/30 text-violet-400 font-bold hover:bg-violet-500/25 transition-colors">
-                      Scan
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setShowDebug(!showDebug)}
-                    className="text-[9px] px-1.5 py-0.5 rounded bg-poke-surface border border-poke-border text-slate-500 hover:text-white transition-colors font-bold"
-                  >
-                    {showDebug ? 'Hide' : 'Debug'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Expandable debug sections */}
-              {showDebug && lastOcrResult && (
-                <div className="px-3 pb-3 space-y-1">
-
-                  {/* Section: Screen Context */}
-                  <DebugSection title="Screen Context" defaultOpen>
-                    <div className={`text-[10px] ${
-                      lastOcrResult.screenContext === 'menu' ? 'text-slate-400' :
-                      lastOcrResult.screenContext === 'battle' ? 'text-emerald-400' : 'text-slate-500'
-                    }`}>
-                      {lastOcrResult.screenContext === 'menu' && '⏸ '}
-                      {lastOcrResult.screenContext === 'battle' && '⚔ '}
-                      {lastOcrResult.screenContextDebug || 'No context signal'}
-                    </div>
-                    {lastOcrResult.sideDetection?.hasOpposingLabel && (
-                      <div className="text-[10px] mt-1 text-violet-400">
-                        Side: {lastOcrResult.sideDetection.debug}
-                      </div>
-                    )}
-                    {lastOcrResult.matchResultDebug && (
-                      <div className={`text-[10px] mt-1 font-bold ${
-                        lastOcrResult.matchResult === 'win' ? 'text-emerald-400' : 'text-red-400'
-                      }`}>
-                        Result: {lastOcrResult.matchResultDebug}
-                      </div>
-                    )}
-                  </DebugSection>
-
-                  {/* Section: Vote Accumulator — shows what's building toward lock */}
-                  {!teamsLocked && (leftVotesRef.current.size > 0 || rightVotesRef.current.size > 0) && (
-                    <DebugSection title={`Vote Accumulator — L:${leftVotesRef.current.size} R:${rightVotesRef.current.size} (needs 3+ each to lock)`} defaultOpen>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <div className="text-[9px] text-sky-400 uppercase tracking-wider font-bold mb-1">Left (Yours)</div>
-                          <div className="space-y-0.5">
-                            {[...leftVotesRef.current.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([s, v]) => (
-                              <div key={s} className="flex items-center gap-1 text-[10px]">
-                                <Sprite species={s} size="sm" />
-                                <span className="text-white flex-1 truncate">{s}</span>
-                                <span className="text-sky-400 font-mono">×{v}</span>
-                              </div>
-                            ))}
-                            {leftVotesRef.current.size === 0 && <span className="text-[10px] text-slate-600">None yet</span>}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-[9px] text-red-400 uppercase tracking-wider font-bold mb-1">Right (Opponent)</div>
-                          <div className="space-y-0.5">
-                            {[...rightVotesRef.current.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([s, v]) => (
-                              <div key={s} className="flex items-center gap-1 text-[10px]">
-                                <Sprite species={s} size="sm" />
-                                <span className="text-white flex-1 truncate">{s}</span>
-                                <span className="text-red-400 font-mono">×{v}</span>
-                              </div>
-                            ))}
-                            {rightVotesRef.current.size === 0 && <span className="text-[10px] text-slate-600">None yet</span>}
-                          </div>
-                        </div>
-                      </div>
-                    </DebugSection>
-                  )}
-
-                  {/* Section: Battle Log Matches — highest confidence */}
-                  {(lastOcrResult.battleLogMatches?.length ?? 0) > 0 && (
-                    <DebugSection title={`Battle Log — ${lastOcrResult.battleLogMatches!.length} found`} defaultOpen>
-                      <div className="space-y-1">
-                        {lastOcrResult.battleLogMatches!.map((blm, i) => (
-                          <div key={i} className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded border text-[10px] ${
-                            blm.isOpponent ? 'bg-red-500/10 border-red-500/20' : 'bg-sky-500/10 border-sky-500/20'
-                          }`}>
-                            <Sprite species={blm.species} size="sm" />
-                            <span className="text-white font-medium">{blm.species}</span>
-                            <span className={`text-[8px] font-bold px-1 rounded ${blm.isOpponent ? 'bg-red-500/20 text-red-400' : 'bg-sky-500/20 text-sky-400'}`}>
-                              {blm.isOpponent ? 'OPPONENT' : 'YOURS'}
-                            </span>
-                            <span className="text-slate-600">"{blm.pattern}"</span>
-                          </div>
-                        ))}
-                      </div>
-                    </DebugSection>
-                  )}
-
-                  {/* Section: OCR Text Matches */}
-                  <DebugSection title={`Text Detection — ${lastOcrResult.matched.length} matches`} defaultOpen={lastOcrResult.matched.length > 0}>
-                    {lastOcrResult.matched.length > 0 ? (
-                      <div className="flex gap-1.5 flex-wrap">
-                        {lastOcrResult.matched.map(m => {
-                          const isMyTeam = filledMyTeam.includes(m.species);
-                          const isTracked = filledOpponents.includes(m.species);
-                          return (
-                            <div key={`ocr-${m.species}`} className={`flex items-center gap-1 px-1.5 py-0.5 rounded border ${
-                              isMyTeam ? 'bg-sky-500/10 border-sky-500/20' : isTracked ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-poke-gold/10 border-poke-gold/20'
-                            }`}>
-                              <Sprite species={m.species} size="sm" />
-                              <span className="text-[10px] text-white font-medium">{m.species}</span>
-                              <span className={`text-[8px] font-bold px-1 rounded ${
-                                isMyTeam ? 'bg-sky-500/20 text-sky-400' : isTracked ? 'bg-emerald-500/20 text-emerald-400' : 'bg-poke-gold/20 text-poke-gold'
-                              }`}>{isMyTeam ? 'YOURS' : isTracked ? 'TRACKED' : 'NEW'}</span>
-                              <span className="text-[9px] text-slate-600">"{m.token}" {Math.round(m.confidence * 100)}%{m.side !== 'unknown' ? ` [${m.side}]` : ''}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="text-[10px] text-slate-600">No text matches this frame</div>
-                    )}
-                  </DebugSection>
-
-                  {/* Section: Sprite Icon Matches */}
-                  <DebugSection title={`Sprite Detection — ${lastOcrResult.spriteMatched?.length ?? 0} matches`} defaultOpen={(lastOcrResult.spriteMatched?.length ?? 0) > 0}>
-                    {(lastOcrResult.spriteMatched?.length ?? 0) > 0 ? (
-                      <div className="flex gap-1.5 flex-wrap">
-                        {lastOcrResult.spriteMatched!.map(s => {
-                          const isMyTeam = filledMyTeam.includes(s.species);
-                          const fromOcr = lastOcrResult.matched.some(m => m.species === s.species);
-                          return (
-                            <div key={`spr-${s.species}`} className={`flex items-center gap-1 px-1.5 py-0.5 rounded border ${
-                              isMyTeam ? 'bg-sky-500/10 border-sky-500/20' : fromOcr ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-violet-500/10 border-violet-500/20'
-                            }`}>
-                              <Sprite species={s.species} size="sm" />
-                              <span className="text-[10px] text-white font-medium">{s.species}</span>
-                              <span className={`text-[8px] font-bold px-1 rounded ${
-                                isMyTeam ? 'bg-sky-500/20 text-sky-400' : fromOcr ? 'bg-emerald-500/20 text-emerald-400' : 'bg-violet-500/20 text-violet-400'
-                              }`}>{isMyTeam ? 'YOURS' : fromOcr ? 'OCR+ICON' : 'ICON'}</span>
-                              <span className="text-[9px] text-slate-600">{Math.round(s.confidence * 100)}% @ ({Math.round(s.x)},{Math.round(s.y)})</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="text-[10px] text-slate-600">No sprite matches this frame</div>
-                    )}
-                  </DebugSection>
-
-                  {/* Section: Accumulated Opponents */}
-                  <DebugSection title={`Opponent Accumulator — ${filledOpponents.length}/6`} defaultOpen={filledOpponents.length > 0}>
-                    {filledOpponents.length > 0 ? (
-                      <div className="flex gap-1.5 flex-wrap">
-                        {filledOpponents.map(s => (
-                          <div key={s} className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/20">
-                            <Sprite species={s} size="sm" />
-                            <span className="text-[10px] text-white">{s}</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-[10px] text-slate-600">No opponents accumulated yet</div>
-                    )}
-                  </DebugSection>
-
-                  {/* Section: Near Misses */}
-                  <DebugSection title={`Near Misses — ${lastOcrResult.rejected?.length ?? 0}`} defaultOpen={false}>
-                    {(lastOcrResult.rejected?.length ?? 0) > 0 ? (
-                      <div className="flex gap-1 flex-wrap">
-                        {lastOcrResult.rejected!.map((r, i) => (
-                          <span key={i} className="text-[9px] px-1.5 py-0.5 rounded bg-poke-surface border border-poke-border/30 text-slate-500">
-                            "{r.token}" <span className="text-slate-700">— {r.reason}</span>
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-[10px] text-slate-600">No near misses</div>
-                    )}
-                  </DebugSection>
-
-                  {/* Section: Raw OCR */}
-                  <DebugSection title={`Raw OCR — ${lastOcrResult.tokens.length} tokens · pass: ${lastOcrResult.bestPass}`} defaultOpen={false}>
-                    <pre className="p-2 rounded bg-poke-surface/50 border border-poke-border/30 text-slate-500 text-[9px] max-h-32 overflow-auto whitespace-pre-wrap break-all font-mono">
-                      {lastOcrResult.rawText || '(empty)'}
-                    </pre>
-                  </DebugSection>
-
-                  {/* Cooldown indicator */}
-                  {detecting && Date.now() < cooldownUntilRef.current && (
-                    <div className="text-[10px] text-amber-400 flex items-center gap-1.5 pt-1">
-                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                      Post-game cooldown — ignoring scans until next match starts
-                    </div>
-                  )}
-                </div>
+        {/* ═══ COMPACT STATUS BAR — inline under frame capture ═══ */}
+        {(detecting || lastOcrResult) && (
+          <div className="flex items-center gap-2 px-3 py-1.5 text-[10px]">
+            {detecting && <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />}
+            {lastOcrResult && (
+              <>
+                <span className={`font-bold shrink-0 ${
+                  lastOcrResult.screenContext === 'menu' ? 'text-slate-400' :
+                  lastOcrResult.screenContext === 'battle' ? 'text-emerald-400' : 'text-slate-500'
+                }`}>
+                  {lastOcrResult.screenContext === 'menu' ? 'MENU' : lastOcrResult.screenContext === 'battle' ? 'BATTLE' : 'SCANNING'}
+                </span>
+                {lastOcrResult.matchResult && (
+                  <>
+                    <span className="text-slate-700">|</span>
+                    <span className={`font-bold shrink-0 ${lastOcrResult.matchResult === 'win' ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {lastOcrResult.matchResult === 'win' ? 'WIN' : 'LOSS'}
+                    </span>
+                  </>
+                )}
+                <span className="text-slate-700">|</span>
+                <span className={`font-bold shrink-0 ${
+                  detectionPhase === 'battle' ? 'text-emerald-400' :
+                  detectionPhase === 'preview' ? 'text-amber-400' : 'text-slate-400'
+                }`}>
+                  {teamsLocked ? 'LOCKED' : detectionPhase.toUpperCase()}
+                </span>
+                <span className="text-slate-700">|</span>
+                <span className="text-slate-600 truncate">
+                  {lastOcrResult.matched.length}T {lastOcrResult.spriteMatched?.length ?? 0}I | L:{leftVotesRef.current.size} R:{rightVotesRef.current.size} | #{scanCount} | {lastOcrResult.durationMs}ms
+                </span>
+              </>
+            )}
+            <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+              {detecting && (
+                <button onClick={runScan} className="text-[9px] px-1.5 py-0.5 rounded bg-violet-500/15 border border-violet-500/30 text-violet-400 font-bold hover:bg-violet-500/25 transition-colors">
+                  Scan
+                </button>
               )}
-            </div>
-          )}
-        </div>
-
-        {/* ═══ STATUS DASHBOARD — always visible ═══ */}
-        <div className="poke-panel p-4">
-          <div className="grid grid-cols-3 gap-3 mb-3">
-            {/* Your Team status */}
-            <div className={`rounded-lg p-2.5 border ${filledMyTeam.length >= 2 ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-amber-500/20 bg-amber-500/5'}`}>
-              <div className="flex items-center gap-1.5 mb-1">
-                <div className={`w-2 h-2 rounded-full ${filledMyTeam.length >= 2 ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`} />
-                <span className="text-[9px] text-slate-500 uppercase tracking-wider font-bold">Your Team</span>
-              </div>
-              {filledMyTeam.length > 0 ? (
-                <div className="flex items-center gap-1 flex-wrap">
-                  {filledMyTeam.map(s => <Sprite key={s} species={s} size="sm" />)}
-                  <span className="text-[10px] text-slate-400 ml-auto">{filledMyTeam.length}/6</span>
-                </div>
-              ) : (
-                <div className="text-[10px] text-amber-400/70">
-                  {detecting
-                    ? `Auto-detecting (${leftVotesRef.current.size} left / ${rightVotesRef.current.size} right votes)`
-                    : 'Not set — enter above or enable Auto-Detect'}
-                </div>
-              )}
-            </div>
-
-            {/* Opponent status */}
-            <div className={`rounded-lg p-2.5 border ${filledOpponents.length > 0 ? 'border-red-500/20 bg-red-500/5' : 'border-poke-border bg-poke-surface/30'}`}>
-              <div className="flex items-center gap-1.5 mb-1">
-                <div className={`w-2 h-2 rounded-full ${filledOpponents.length > 0 ? 'bg-red-400' : 'bg-slate-600'}`} />
-                <span className="text-[9px] text-slate-500 uppercase tracking-wider font-bold">Opponent</span>
-              </div>
-              {filledOpponents.length > 0 ? (
-                <div className="flex items-center gap-1 flex-wrap">
-                  {filledOpponents.map(s => <Sprite key={s} species={s} size="sm" />)}
-                  <span className="text-[10px] text-slate-400 ml-auto">{filledOpponents.length}/6</span>
-                </div>
-              ) : (
-                <div className="text-[10px] text-slate-500">Waiting — enter below</div>
-              )}
-            </div>
-
-            {/* Analysis status */}
-            <div className={`rounded-lg p-2.5 border ${
-              bringList.length > 0 ? 'border-emerald-500/20 bg-emerald-500/5' :
-              filledOpponents.length > 0 && filledMyTeam.length < 2 ? 'border-amber-500/20 bg-amber-500/5' :
-              'border-poke-border bg-poke-surface/30'
-            }`}>
-              <div className="flex items-center gap-1.5 mb-1">
-                <div className={`w-2 h-2 rounded-full ${bringList.length > 0 ? 'bg-emerald-400' : filledOpponents.length > 0 ? 'bg-amber-400' : 'bg-slate-600'}`} />
-                <span className="text-[9px] text-slate-500 uppercase tracking-wider font-bold">Analysis</span>
-              </div>
-              {bringList.length > 0 ? (
-                <div className="text-[10px] text-emerald-400">
-                  Ready — {archetypes[0]?.name || 'Unknown'} detected
-                </div>
-              ) : filledOpponents.length > 0 && filledMyTeam.length < 2 ? (
-                <div className="text-[10px] text-amber-400/70">Need your team (2+ Pokemon)</div>
-              ) : filledOpponents.length > 0 ? (
-                <div className="text-[10px] text-emerald-400/70">Computing...</div>
-              ) : (
-                <div className="text-[10px] text-slate-500">Enter both teams</div>
-              )}
+              <button
+                onClick={() => setShowDebug(!showDebug)}
+                className="text-[9px] px-1.5 py-0.5 rounded bg-poke-surface border border-poke-border text-slate-500 hover:text-white transition-colors font-bold"
+              >
+                {showDebug ? 'Hide' : 'Debug'}
+              </button>
             </div>
           </div>
+        )}
 
-          {/* Quick summary when analysis is ready */}
-          {archetypes.length > 0 && (
-            <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-poke-surface/50 border border-poke-border/50">
-              <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold shrink-0">Matchup</span>
-              <span className="text-xs font-bold text-poke-gold">{archetypes[0].name}</span>
-              {archetypes[0].counterTips?.[0] && (
-                <span className="text-[10px] text-slate-400 truncate flex-1">{archetypes[0].counterTips[0]}</span>
-              )}
-              {bringList.length > 0 && (
-                <div className="flex items-center gap-1 shrink-0 ml-auto">
-                  <span className="text-[9px] text-slate-600">Bring:</span>
-                  {orderedBringList.slice(0, 4).map(b => (
-                    <Sprite key={b.species} species={b.species} size="sm" />
+        {/* ═══ DEBUG SECTIONS — collapsible details ═══ */}
+        {showDebug && lastOcrResult && (detecting || lastOcrResult) && (
+          <div className="px-3 pb-3 space-y-1">
+
+            {/* Section: Vote Accumulator — shows what's building toward lock */}
+            {!teamsLocked && (leftVotesRef.current.size > 0 || rightVotesRef.current.size > 0) && (
+              <DebugSection title={`Vote Accumulator — L:${leftVotesRef.current.size} R:${rightVotesRef.current.size} (needs 3+ each to lock)`} defaultOpen>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-[9px] text-sky-400 uppercase tracking-wider font-bold mb-1">Left (Yours)</div>
+                    <div className="space-y-0.5">
+                      {[...leftVotesRef.current.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([s, v]) => (
+                        <div key={s} className="flex items-center gap-1 text-[10px]">
+                          <Sprite species={s} size="sm" />
+                          <span className="text-white flex-1 truncate">{s}</span>
+                          <span className="text-sky-400 font-mono">x{v}</span>
+                        </div>
+                      ))}
+                      {leftVotesRef.current.size === 0 && <span className="text-[10px] text-slate-600">None yet</span>}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-red-400 uppercase tracking-wider font-bold mb-1">Right (Opponent)</div>
+                    <div className="space-y-0.5">
+                      {[...rightVotesRef.current.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([s, v]) => (
+                        <div key={s} className="flex items-center gap-1 text-[10px]">
+                          <Sprite species={s} size="sm" />
+                          <span className="text-white flex-1 truncate">{s}</span>
+                          <span className="text-red-400 font-mono">x{v}</span>
+                        </div>
+                      ))}
+                      {rightVotesRef.current.size === 0 && <span className="text-[10px] text-slate-600">None yet</span>}
+                    </div>
+                  </div>
+                </div>
+              </DebugSection>
+            )}
+
+            {/* Section: Battle Log Matches — highest confidence */}
+            {(lastOcrResult.battleLogMatches?.length ?? 0) > 0 && (
+              <DebugSection title={`Battle Log — ${lastOcrResult.battleLogMatches!.length} found`} defaultOpen>
+                <div className="space-y-1">
+                  {lastOcrResult.battleLogMatches!.map((blm, i) => (
+                    <div key={i} className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded border text-[10px] ${
+                      blm.isOpponent ? 'bg-red-500/10 border-red-500/20' : 'bg-sky-500/10 border-sky-500/20'
+                    }`}>
+                      <Sprite species={blm.species} size="sm" />
+                      <span className="text-white font-medium">{blm.species}</span>
+                      <span className={`text-[8px] font-bold px-1 rounded ${blm.isOpponent ? 'bg-red-500/20 text-red-400' : 'bg-sky-500/20 text-sky-400'}`}>
+                        {blm.isOpponent ? 'OPPONENT' : 'YOURS'}
+                      </span>
+                      <span className="text-slate-600">"{blm.pattern}"</span>
+                    </div>
                   ))}
                 </div>
+              </DebugSection>
+            )}
+
+            {/* Section: Detections — merged text + sprite matches */}
+            <DebugSection title={`Detections — ${lastOcrResult.matched.length}T ${lastOcrResult.spriteMatched?.length ?? 0}I`} defaultOpen={lastOcrResult.matched.length > 0 || (lastOcrResult.spriteMatched?.length ?? 0) > 0}>
+              {/* Text matches */}
+              {lastOcrResult.matched.length > 0 && (
+                <div className="flex gap-1.5 flex-wrap mb-1.5">
+                  {lastOcrResult.matched.map(m => {
+                    const isMyTeam = filledMyTeam.includes(m.species);
+                    const isTracked = filledOpponents.includes(m.species);
+                    return (
+                      <div key={`ocr-${m.species}`} className={`flex items-center gap-1 px-1.5 py-0.5 rounded border ${
+                        isMyTeam ? 'bg-sky-500/10 border-sky-500/20' : isTracked ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-poke-gold/10 border-poke-gold/20'
+                      }`}>
+                        <Sprite species={m.species} size="sm" />
+                        <span className="text-[10px] text-white font-medium">{m.species}</span>
+                        <span className={`text-[8px] font-bold px-1 rounded ${
+                          isMyTeam ? 'bg-sky-500/20 text-sky-400' : isTracked ? 'bg-emerald-500/20 text-emerald-400' : 'bg-poke-gold/20 text-poke-gold'
+                        }`}>{isMyTeam ? 'YOURS' : isTracked ? 'TRACKED' : 'NEW'}</span>
+                        <span className="text-[9px] text-slate-600">"{m.token}" {Math.round(m.confidence * 100)}%{m.side !== 'unknown' ? ` [${m.side}]` : ''}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
-            </div>
-          )}
-        </div>
+              {/* Sprite matches */}
+              {(lastOcrResult.spriteMatched?.length ?? 0) > 0 && (
+                <div className="flex gap-1.5 flex-wrap">
+                  {lastOcrResult.spriteMatched!.map(s => {
+                    const isMyTeam = filledMyTeam.includes(s.species);
+                    const fromOcr = lastOcrResult.matched.some(m => m.species === s.species);
+                    return (
+                      <div key={`spr-${s.species}`} className={`flex items-center gap-1 px-1.5 py-0.5 rounded border ${
+                        isMyTeam ? 'bg-sky-500/10 border-sky-500/20' : fromOcr ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-violet-500/10 border-violet-500/20'
+                      }`}>
+                        <Sprite species={s.species} size="sm" />
+                        <span className="text-[10px] text-white font-medium">{s.species}</span>
+                        <span className={`text-[8px] font-bold px-1 rounded ${
+                          isMyTeam ? 'bg-sky-500/20 text-sky-400' : fromOcr ? 'bg-emerald-500/20 text-emerald-400' : 'bg-violet-500/20 text-violet-400'
+                        }`}>{isMyTeam ? 'YOURS' : fromOcr ? 'OCR+ICON' : 'ICON'}</span>
+                        <span className="text-[9px] text-slate-600">{Math.round(s.confidence * 100)}% @ ({Math.round(s.x)},{Math.round(s.y)})</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {lastOcrResult.matched.length === 0 && (lastOcrResult.spriteMatched?.length ?? 0) === 0 && (
+                <div className="text-[10px] text-slate-600">No detections this frame</div>
+              )}
+            </DebugSection>
+
+            {/* Section: Accumulated Opponents */}
+            <DebugSection title={`Opponent Accumulator — ${filledOpponents.length}/6`} defaultOpen={filledOpponents.length > 0}>
+              {filledOpponents.length > 0 ? (
+                <div className="flex gap-1.5 flex-wrap">
+                  {filledOpponents.map(s => (
+                    <div key={s} className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/20">
+                      <Sprite species={s} size="sm" />
+                      <span className="text-[10px] text-white">{s}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-[10px] text-slate-600">No opponents accumulated yet</div>
+              )}
+            </DebugSection>
+
+            {/* Section: Raw Data — merged near misses + raw OCR */}
+            <DebugSection title={`Raw Data — ${lastOcrResult.rejected?.length ?? 0} near misses · ${lastOcrResult.tokens.length} tokens · pass: ${lastOcrResult.bestPass}`} defaultOpen={false}>
+              {/* Near misses */}
+              {(lastOcrResult.rejected?.length ?? 0) > 0 && (
+                <div className="mb-2">
+                  <div className="text-[9px] text-slate-500 uppercase tracking-wider font-bold mb-1">Near Misses</div>
+                  <div className="flex gap-1 flex-wrap">
+                    {lastOcrResult.rejected!.map((r, i) => (
+                      <span key={i} className="text-[9px] px-1.5 py-0.5 rounded bg-poke-surface border border-poke-border/30 text-slate-500">
+                        "{r.token}" <span className="text-slate-700">-- {r.reason}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {/* Raw OCR text */}
+              <div>
+                <div className="text-[9px] text-slate-500 uppercase tracking-wider font-bold mb-1">Raw OCR</div>
+                <pre className="p-2 rounded bg-poke-surface/50 border border-poke-border/30 text-slate-500 text-[9px] max-h-32 overflow-auto whitespace-pre-wrap break-all font-mono">
+                  {lastOcrResult.rawText || '(empty)'}
+                </pre>
+              </div>
+            </DebugSection>
+
+            {/* Cooldown indicator */}
+            {detecting && Date.now() < cooldownUntilRef.current && (
+              <div className="text-[10px] text-amber-400 flex items-center gap-1.5 pt-1">
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                Post-game cooldown — ignoring scans until next match starts
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ═══ OPPONENT TEAM INPUT ═══ */}
         <div className="poke-panel p-4">
