@@ -667,15 +667,48 @@ export async function detectPokemonFromFrame(
 
   const matched = [...allMatched.values()].sort((a, b) => b.confidence - a.confidence);
 
-  // Run sprite/icon matching on the cropped frame (excludes chat area)
+  // ── TARGETED sprite matching at known UI positions ──
+  // Much more accurate than full-frame grid scan.
   const spriteMatched: SpriteMatch[] = [];
+  const cw = cropped.width, ch = cropped.height;
   try {
     const ctx = cropped.getContext('2d');
     if (ctx) {
-      const imageData = ctx.getImageData(0, 0, cropped.width, cropped.height);
-      const spriteScan = await spritesScanFrame(imageData, cropped.width, cropped.height, 12);
-      for (const det of spriteScan.detections) {
-        if (det.confidence >= 0.2) {
+      // Helper: extract a region and match against sprite profiles
+      const matchRegion = async (rx: number, ry: number, rw: number, rh: number, _side?: 'left' | 'right') => {
+        const regionData = ctx.getImageData(Math.round(rx), Math.round(ry), Math.round(rw), Math.round(rh));
+        const regionScan = await spritesScanFrame(regionData, Math.round(rw), Math.round(rh), 2);
+        for (const det of regionScan.detections) {
+          if (det.confidence >= 0.15) {
+            spriteMatched.push({
+              species: det.species,
+              confidence: det.confidence,
+              // Map coordinates back to cropped frame space
+              x: rx + det.x,
+              y: ry + det.y,
+            });
+          }
+        }
+      };
+
+      // Selection screen: 6 opponent slots in right column (x 78-96%, evenly spaced)
+      for (let i = 0; i < 6; i++) {
+        const slotY = ch * (0.08 + i * 0.135);
+        const slotH = ch * 0.12;
+        await matchRegion(cw * 0.78, slotY, cw * 0.18, slotH, 'right');
+      }
+
+      // Battle screen: small icon sprites in HP bar panels
+      // BL icon: x 0-8%, y 85-95%
+      await matchRegion(0, ch * 0.85, cw * 0.08, ch * 0.10, 'left');
+      // TR icon: x 88-98%, y 0-10%
+      await matchRegion(cw * 0.88, 0, cw * 0.10, ch * 0.10, 'right');
+
+      // Also do a lighter full-frame scan as fallback (fewer sizes, wider step)
+      const imageData = ctx.getImageData(0, 0, cw, ch);
+      const fullScan = await spritesScanFrame(imageData, cw, ch, 8);
+      for (const det of fullScan.detections) {
+        if (det.confidence >= 0.25 && !spriteMatched.some(s => s.species === det.species)) {
           spriteMatched.push({
             species: det.species,
             confidence: det.confidence,
