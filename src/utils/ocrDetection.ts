@@ -314,6 +314,8 @@ const BATTLE_KEYWORDS = new Set([
   'fainted', 'faint',
   'supereffective', 'critical',
   'tailwind', 'trickroom',
+  // Selection screen
+  'select', 'ranked', 'single', 'double', 'send',
 ]);
 
 /**
@@ -447,14 +449,47 @@ export async function detectPokemonFromFrame(
     } catch { /* panel OCR failed, continue with full-frame */ }
   };
 
-  // Panel positions from Pokemon Champions battle UI.
-  // Generous crops — better to include extra bg than miss the name.
-  // YOUR panel: entire bottom-left corner strip
-  // OPP panel: entire top-right corner strip
+  // ── BATTLE SCREEN panels (HP bars at corners)
   await Promise.all([
-    ocrPanel(w * 0.00, h * 0.82, w * 0.25, h * 1.00, 'left'),   // your full panel
-    ocrPanel(w * 0.68, h * 0.00, w * 1.00, h * 0.18, 'right'),  // opp full panel
+    ocrPanel(w * 0.00, h * 0.82, w * 0.25, h * 1.00, 'left'),
+    ocrPanel(w * 0.68, h * 0.00, w * 1.00, h * 0.18, 'right'),
   ]);
+
+  // ── SELECTION SCREEN: left column has YOUR team names as white text
+  // on colored panels. Run OCR on the full left column with a HIGH
+  // threshold (200) to isolate only bright white name text.
+  const ocrSelectionColumn = async () => {
+    const colW = Math.round(w * 0.23), colH = Math.round(h * 0.88);
+    const colY = Math.round(h * 0.07);
+    if (colW < 30 || colH < 30) return;
+    const crop = document.createElement('canvas');
+    crop.width = colW; crop.height = colH;
+    crop.getContext('2d')!.drawImage(canvas, 0, colY, colW, colH, 0, 0, colW, colH);
+    // High threshold — only bright white/yellow name text survives
+    const pc = document.createElement('canvas');
+    pc.width = colW; pc.height = colH;
+    const pctx = pc.getContext('2d')!;
+    pctx.drawImage(crop, 0, 0);
+    const id = pctx.getImageData(0, 0, colW, colH);
+    const d = id.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const brightness = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      // Keep bright text (white/yellow names on colored panels)
+      d[i] = d[i + 1] = d[i + 2] = brightness > 150 ? 0 : 255;
+    }
+    pctx.putImageData(id, 0, 0);
+    try {
+      const { data } = await _worker!.recognize(pc);
+      const tokens = tokenize(data.text);
+      for (const token of tokens) {
+        const result = matchToken(token);
+        if (result && result.confidence >= 0.6) {
+          panelMatches.push({ ...result, token, side: 'left', method: 'token' });
+        }
+      }
+    } catch { /* selection OCR failed */ }
+  };
+  await ocrSelectionColumn();
 
   // Crop out the right 25% of the frame — this is where Twitch chat
   // typically sits. Chat text generates massive OCR noise (usernames,
