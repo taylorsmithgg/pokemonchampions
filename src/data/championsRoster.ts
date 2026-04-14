@@ -71,6 +71,7 @@ const GEN_2: readonly string[] = [
 ];
 
 const GEN_3: readonly string[] = [
+  'Sceptile',
   'Pelipper',
   'Gardevoir',
   'Sableye',
@@ -394,6 +395,20 @@ export const MEGA_STONE_MAP: Readonly<Record<string, readonly string[]>> = {
   Froslass:          ['Froslassite'],     // Z-A
   Emboar:            ['Emboarite'],       // Z-A
   'Floette-Eternal': ['Floettite'],       // Z-A — Mega of AZ's form
+  // ─── Z-A NEW Megas (were missing — this gap broke Mega Delphox, etc.) ──
+  Delphox:           ['Delphoxite'],      // Z-A — Fire/Psychic, Spicy Spray
+  Greninja:          ['Greninjaite'],     // Z-A — Water/Dark, Protean
+  Chesnaught:        ['Chesnaughtite'],   // Z-A — Grass/Fighting
+  Excadrill:         ['Excadrillinite'],  // Z-A — Ground/Steel, Piercing Drill
+  Hawlucha:          ['Hawluchite'],      // Z-A — Fighting/Flying
+  Crabominable:      ['Crabominite'],     // Z-A — Fighting/Ice
+  Golurk:            ['Golurkite'],       // Z-A — Ground/Ghost
+  Drampa:            ['Drampite'],        // Z-A — Normal/Dragon
+  Chandelure:        ['Chandelurite'],    // Z-A — Ghost/Fire
+  Scovillain:        ['Scovillainite'],   // Z-A — Grass/Fire
+  Glimmora:          ['Glimmorite'],      // Z-A — Rock/Poison
+  Meowstic:          ['Meowsticite'],     // Z-A — Psychic
+  Sceptile:          ['Sceptilite'],      // Existing Mega — Grass/Dragon
 };
 
 export const CHAMPIONS_MEGA_LIST: readonly string[] = Object.keys(MEGA_STONE_MAP);
