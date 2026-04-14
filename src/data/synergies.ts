@@ -13,6 +13,9 @@ import {
   SETUP_MOVES, SUB_PASS_MOVES, PIVOT_MOVES, PRIORITY_MOVES,
   SACRIFICE_SCALE_MOVES, SACRIFICE_SCALE_ABILITIES,
 } from './moveIndex';
+import {
+  WEATHER_SETTERS, WEATHER_ABUSERS, TYPE_IMMUNE_ABILITIES, TYPE_ABSORB_ABILITIES,
+} from './abilityClassification';
 
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -45,54 +48,33 @@ interface AbilityCategory {
   statDrop?: boolean;       // drops opponent stats on switch-in
 }
 
-// Classify abilities dynamically by name pattern matching
+// Classify abilities using centralized data from abilityClassification.ts.
+// No more duplicated ability string checks — add an ability to the
+// centralized file and every consumer picks it up.
 function classifyAbility(name: string): AbilityCategory {
   const cat: AbilityCategory = {};
   const lower = name.toLowerCase();
 
-  // Weather setters
-  if (['drought', 'desolate land'].includes(lower)) cat.weather = 'Sun';
-  if (['drizzle', 'primordial sea'].includes(lower)) cat.weather = 'Rain';
-  if (['sand stream'].includes(lower)) cat.weather = 'Sand';
-  if (['snow warning'].includes(lower)) cat.weather = 'Snow';
+  // Weather (from centralized maps)
+  if (lower in WEATHER_SETTERS) cat.weather = WEATHER_SETTERS[lower];
+  if (lower in WEATHER_ABUSERS) cat.weatherAbuse = WEATHER_ABUSERS[lower];
 
-  // Weather abusers
-  if (['chlorophyll', 'solar power', 'flower gift', 'harvest', 'leaf guard', 'mega sol'].includes(lower)) cat.weatherAbuse = 'Sun';
-  if (['swift swim', 'rain dish', 'dry skin', 'hydration'].includes(lower)) cat.weatherAbuse = 'Rain';
-  if (['sand rush', 'sand force', 'sand veil'].includes(lower)) cat.weatherAbuse = 'Sand';
-  if (['slush rush', 'ice body', 'snow cloak', 'ice face'].includes(lower)) cat.weatherAbuse = 'Snow';
-
-  // Terrain setters
+  // Terrain (small enough to keep inline — rarely changes)
   if (lower === 'electric surge') cat.terrain = 'Electric';
   if (lower === 'grassy surge') cat.terrain = 'Grassy';
   if (lower === 'misty surge') cat.terrain = 'Misty';
   if (lower === 'psychic surge') cat.terrain = 'Psychic';
-
-  // Terrain abusers
   if (lower === 'surge surfer') cat.terrainAbuse = 'Electric';
   if (lower === 'grass pelt') cat.terrainAbuse = 'Grassy';
 
   // Intimidate
-  if (lower === 'intimidate') cat.intimidate = true;
+  if (lower === 'intimidate') { cat.intimidate = true; cat.statDrop = true; }
 
-  // Stat-dropping
-  if (['intimidate'].includes(lower)) cat.statDrop = true;
+  // Type immunities (from centralized map)
+  if (lower in TYPE_IMMUNE_ABILITIES) cat.immunityType = TYPE_IMMUNE_ABILITIES[lower];
 
-  // Type immunities from abilities
-  if (['flash fire', 'well-baked body'].includes(lower)) cat.immunityType = 'Fire';
-  if (['water absorb', 'storm drain', 'dry skin'].includes(lower)) cat.immunityType = 'Water';
-  if (['lightning rod', 'volt absorb', 'motor drive'].includes(lower)) cat.immunityType = 'Electric';
-  if (['levitate'].includes(lower)) cat.immunityType = 'Ground';
-  if (['earth eater'].includes(lower)) cat.immunityType = 'Ground';
-  if (['sap sipper'].includes(lower)) cat.immunityType = 'Grass';
-
-  // Healing from absorbed type — Earth Eater and Water Absorb
-  // heal 25% when hit by the absorbed type. This makes them
-  // positive-synergy partners with spread-move users of that type
-  // (e.g., Earthquake next to Earth Eater heals instead of hurting).
-  if (['earth eater', 'water absorb', 'storm drain', 'flash fire', 'lightning rod', 'volt absorb'].includes(lower)) {
-    cat.healFromType = cat.immunityType;
-  }
+  // Healing from absorbed type (from centralized map)
+  if (lower in TYPE_ABSORB_ABILITIES) cat.healFromType = TYPE_ABSORB_ABILITIES[lower];
 
   return cat;
 }

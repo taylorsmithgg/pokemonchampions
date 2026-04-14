@@ -9,9 +9,56 @@ import { PRESETS } from '../data/presets';
 import { NORMAL_TIER_LIST } from '../data/tierlist';
 import { getCachedUsageStats, getLiveTeammates } from '../data/liveData';
 import { analyzeTeamLineups, DEFAULT_FORMAT, type TeamFlexibilityReport, type BattleFormat } from './lineupAnalysis';
-import { buildMoveRoleSet } from '../data/moveIndex';
+import { buildMoveRoleSet, buildAbilitySet, PRIORITY_MOVES, PIVOT_MOVES as PIVOT_MOVE_SET, REDIRECT_MOVES } from '../data/moveIndex';
 import type { PokemonState } from '../types';
 
+// ─── Dynamic suggestion helpers ────────────────────────────────────
+// Instead of hardcoded species lists, derive suggestions from the
+// moveIndex + ability index + tier list. Species are ranked by tier
+// so the best meta-relevant picks surface first.
+
+/** Get top N Champions species from a move-based role set, ranked by tier. */
+function suggestByMoveRole(moveSet: Set<string>, n: number = 3): string[] {
+  const candidates = [...buildMoveRoleSet(moveSet)].filter(isChampionsPokemon);
+  // Sort by tier (S first) using the tier list ranking
+  const tierOrder: Record<string, number> = { S: 0, 'A+': 1, A: 2, B: 3, C: 4 };
+  candidates.sort((a, b) => {
+    const ta = NORMAL_TIER_LIST.find(e => e.name === a);
+    const tb = NORMAL_TIER_LIST.find(e => e.name === b);
+    return (tierOrder[ta?.tier ?? 'C'] ?? 5) - (tierOrder[tb?.tier ?? 'C'] ?? 5);
+  });
+  return candidates.slice(0, n);
+}
+
+/** Get top N Champions species with a given ability, ranked by tier. */
+function suggestByAbility(abilityLower: string, n: number = 3): string[] {
+  const candidates = [...buildAbilitySet(abilityLower)].filter(isChampionsPokemon);
+  const tierOrder: Record<string, number> = { S: 0, 'A+': 1, A: 2, B: 3, C: 4 };
+  candidates.sort((a, b) => {
+    const ta = NORMAL_TIER_LIST.find(e => e.name === a);
+    const tb = NORMAL_TIER_LIST.find(e => e.name === b);
+    return (tierOrder[ta?.tier ?? 'C'] ?? 5) - (tierOrder[tb?.tier ?? 'C'] ?? 5);
+  });
+  return candidates.slice(0, n);
+}
+
+/** Get top N physical or special attackers ranked by tier. */
+function suggestAttackers(physical: boolean, n: number = 4): string[] {
+  const candidates = getAvailablePokemon().filter(s => {
+    const d = getPokemonData(s);
+    if (!d) return false;
+    const bst = d.baseStats.atk + d.baseStats.spa;
+    if (bst < 170) return false; // skip low-offense species
+    return physical ? d.baseStats.atk > d.baseStats.spa : d.baseStats.spa > d.baseStats.atk;
+  });
+  const tierOrder: Record<string, number> = { S: 0, 'A+': 1, A: 2, B: 3, C: 4 };
+  candidates.sort((a, b) => {
+    const ta = NORMAL_TIER_LIST.find(e => e.name === a);
+    const tb = NORMAL_TIER_LIST.find(e => e.name === b);
+    return (tierOrder[ta?.tier ?? 'C'] ?? 5) - (tierOrder[tb?.tier ?? 'C'] ?? 5);
+  });
+  return candidates.slice(0, n);
+}
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -291,8 +338,8 @@ export function auditTeam(team: PokemonState[], format: BattleFormat = DEFAULT_F
         category: 'Speed Control',
         title: 'No speed control (Fake Out, Tailwind, or Trick Room)',
         detail: 'Your team has no way to control the pace of battle and no Pokemon that naturally learn these moves.',
-        suggestion: 'Add Whimsicott (Tailwind), Incineroar (Fake Out), or Mimikyu (Trick Room)',
-        suggestedPokemon: ['Whimsicott', 'Incineroar', 'Mimikyu'],
+        suggestion: 'Add a Tailwind setter, Fake Out user, or Trick Room setter',
+        suggestedPokemon: [...suggestByMoveRole(new Set(['Tailwind']), 1), ...suggestByMoveRole(new Set(['Fake Out']), 1), ...suggestByMoveRole(new Set(['Trick Room']), 1)],
       });
     }
   } else if (!roles.hasFakeOut) {
@@ -311,8 +358,8 @@ export function auditTeam(team: PokemonState[], format: BattleFormat = DEFAULT_F
         category: 'Speed Control',
         title: 'No Fake Out user',
         detail: 'Fake Out guarantees a free turn for your partner by flinching one opponent. In Champions, Fake Out cannot be used on the turn a Pokemon switches in.',
-        suggestion: 'Consider Incineroar, Meowscarada, or Sneasler for Fake Out',
-        suggestedPokemon: ['Incineroar', 'Meowscarada', 'Sneasler'].filter(isChampionsPokemon),
+        suggestion: `Consider ${suggestByMoveRole(new Set(['Fake Out']), 3).join(', ')} for Fake Out`,
+        suggestedPokemon: suggestByMoveRole(new Set(['Fake Out']), 3),
       });
     }
   }
@@ -324,8 +371,8 @@ export function auditTeam(team: PokemonState[], format: BattleFormat = DEFAULT_F
       category: 'Support',
       title: 'No Intimidate user',
       detail: 'Intimidate is the most impactful ability in Doubles — it drops both opponents\' Attack on switch-in, effectively reducing physical damage by ~33%.',
-      suggestion: 'Add Incineroar (Intimidate + Fake Out + Parting Shot) or Arcanine',
-      suggestedPokemon: ['Incineroar', 'Arcanine', 'Gyarados'],
+      suggestion: `Add an Intimidate user: ${suggestByAbility('intimidate', 3).join(', ')}`,
+      suggestedPokemon: suggestByAbility('intimidate', 3),
     });
   }
 
@@ -336,8 +383,8 @@ export function auditTeam(team: PokemonState[], format: BattleFormat = DEFAULT_F
       category: 'Support',
       title: 'No redirection support',
       detail: 'Follow Me / Ally Switch redirects single-target attacks to protect your sweeper. Useful for enabling setup or protecting fragile attackers. Note: Amoonguss (the mainline VGC redirector) is not in Champions.',
-      suggestion: 'Consider Clefable or Togekiss (Follow Me) as the primary redirector slot',
-      suggestedPokemon: ['Clefable', 'Togekiss'],
+      suggestion: `Consider ${suggestByMoveRole(REDIRECT_MOVES, 3).join(', ')} for redirection`,
+      suggestedPokemon: suggestByMoveRole(REDIRECT_MOVES, 3),
     });
   }
 
@@ -348,8 +395,8 @@ export function auditTeam(team: PokemonState[], format: BattleFormat = DEFAULT_F
       category: 'Offense',
       title: 'No priority moves',
       detail: 'Priority attacks (Extreme Speed, Bullet Punch, Sucker Punch, Aqua Jet) bypass Speed and pick off weakened targets. Without them, faster opponents can sweep you at low HP.',
-      suggestion: 'Consider Scizor (Bullet Punch), Dragonite (Extreme Speed), or Weavile (Ice Shard)',
-      suggestedPokemon: ['Scizor', 'Dragonite', 'Weavile'],
+      suggestion: `Consider ${suggestByMoveRole(PRIORITY_MOVES, 3).join(', ')} for priority`,
+      suggestedPokemon: suggestByMoveRole(PRIORITY_MOVES, 3),
     });
   }
 
@@ -360,8 +407,8 @@ export function auditTeam(team: PokemonState[], format: BattleFormat = DEFAULT_F
       category: 'Momentum',
       title: 'No pivot moves (U-Turn / Volt Switch / Parting Shot)',
       detail: 'Pivot moves let you switch while dealing damage or debuffing, maintaining momentum and bringing in teammates safely.',
-      suggestion: 'Incineroar (Parting Shot), Rotom-Wash (Volt Switch), or Scizor (U-turn)',
-      suggestedPokemon: ['Incineroar', 'Rotom-Wash', 'Scizor'].filter(isChampionsPokemon),
+      suggestion: `Consider ${suggestByMoveRole(PIVOT_MOVE_SET, 3).join(', ')} for pivot moves`,
+      suggestedPokemon: suggestByMoveRole(PIVOT_MOVE_SET, 3),
     });
   }
 
@@ -396,8 +443,8 @@ export function auditTeam(team: PokemonState[], format: BattleFormat = DEFAULT_F
       category: 'Speed Control',
       title: 'Mid-speed team without Tailwind',
       detail: `Most of your team sits in the 70-100 base Speed range. Without Tailwind, faster threats (Dragapult, Greninja, Meowscarada) will consistently outspeed you.`,
-      suggestion: 'Add Whimsicott (Prankster Tailwind)',
-      suggestedPokemon: ['Whimsicott'],
+      suggestion: `Add a Tailwind setter: ${suggestByMoveRole(new Set(['Tailwind']), 2).join(', ')}`,
+      suggestedPokemon: suggestByMoveRole(new Set(['Tailwind']), 2),
     });
   }
 
@@ -408,8 +455,8 @@ export function auditTeam(team: PokemonState[], format: BattleFormat = DEFAULT_F
       category: 'Speed Control',
       title: 'Slow Pokemon without Trick Room access',
       detail: `You have ${teamSpeeds.filter(s => s <= 50).length} slow Pokemon that would benefit from Trick Room, but no setter.`,
-      suggestion: 'Add Mimikyu (Disguise guarantees TR setup) or another TR setter',
-      suggestedPokemon: ['Mimikyu'],
+      suggestion: `Add a Trick Room setter: ${suggestByMoveRole(new Set(['Trick Room']), 2).join(', ')}`,
+      suggestedPokemon: suggestByMoveRole(new Set(['Trick Room']), 2),
     });
   }
 
@@ -425,8 +472,8 @@ export function auditTeam(team: PokemonState[], format: BattleFormat = DEFAULT_F
       category: 'Offense',
       title: 'Entirely physical offense',
       detail: 'Every attacker on your team is physical. A single Intimidate drop or Will-O-Wisp cripples your entire damage output. Physical walls like Corviknight wall your whole team.',
-      suggestion: 'Add a special attacker: Dragapult, Volcarona, Primarina, or Hydreigon',
-      suggestedPokemon: ['Dragapult', 'Volcarona', 'Primarina', 'Hydreigon'].filter(isChampionsPokemon),
+      suggestion: `Add a special attacker: ${suggestAttackers(false).join(', ')}`,
+      suggestedPokemon: suggestAttackers(false),
     });
   }
   if (members.length >= 3 && specAttackers > 0 && physAttackers === 0) {
@@ -436,8 +483,8 @@ export function auditTeam(team: PokemonState[], format: BattleFormat = DEFAULT_F
       category: 'Offense',
       title: 'Entirely special offense',
       detail: 'Every attacker is special. Assault Vest users and special walls like Snorlax or Umbreon wall your entire team.',
-      suggestion: 'Add a physical attacker: Garchomp, Scizor, Dragonite, or Weavile',
-      suggestedPokemon: ['Garchomp', 'Scizor', 'Dragonite', 'Weavile'].filter(isChampionsPokemon),
+      suggestion: `Add a physical attacker: ${suggestAttackers(true).join(', ')}`,
+      suggestedPokemon: suggestAttackers(true),
     });
   }
 

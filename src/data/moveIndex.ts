@@ -12,6 +12,7 @@
 import { getAvailablePokemon, getPokemonData } from './champions';
 import { PRESETS } from './presets';
 import { getCachedUsageStats } from './liveData';
+import { WEATHER_SETTERS as WEATHER_SETTER_MAP, WEATHER_ABUSERS as WEATHER_ABUSER_MAP } from './abilityClassification';
 
 // ─── Move categories for classification ────────────────────────────
 
@@ -242,26 +243,10 @@ export function buildAbilitySet(abilityLower: string): Set<string> {
 // abusers, and archetype anchors from ability data instead of
 // hardcoded species lists.
 
-const WEATHER_SETTER_ABILITIES: Record<string, string> = {
-  drought: 'Sun',
-  drizzle: 'Rain',
-  'sand stream': 'Sand',
-  'snow warning': 'Snow',
-  'mega sol': 'Sun',
-};
-
-const WEATHER_ABUSER_ABILITIES: Record<string, string> = {
-  chlorophyll: 'Sun',
-  'solar power': 'Sun',
-  'swift swim': 'Rain',
-  'rain dish': 'Rain',
-  'sand rush': 'Sand',
-  'sand force': 'Sand',
-  'sand veil': 'Sand',
-  'slush rush': 'Snow',
-  'ice body': 'Snow',
-  'snow cloak': 'Snow',
-};
+// Weather ability maps imported from abilityClassification.ts —
+// single source of truth, no duplication.
+const WEATHER_SETTER_ABILITIES = WEATHER_SETTER_MAP;
+const WEATHER_ABUSER_ABILITIES = WEATHER_ABUSER_MAP;
 
 export interface WeatherCore {
   weather: string;

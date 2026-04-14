@@ -14,11 +14,11 @@
 // as the Doubles engine so the team comp generator can consume
 // either format.
 
-import { getAvailablePokemon, getPokemonData, getDefensiveMultiplier, hasChampionsMega } from '../data/champions';
+import { getAvailablePokemon, getPokemonData, getDefensiveMultiplier, hasChampionsMega, isChampionsPokemon } from '../data/champions';
 import { MEGA_STONE_MAP } from '../data/championsRoster';
 import { COMMUNITY_TIER_LIST } from '../data/tierlist';
 import {
-  buildSetupIndex, buildMoveRoleSet,
+  buildSetupIndex, buildMoveRoleSet, buildAbilitySet, speciesRunsMove,
   HAZARD_MOVES, HAZARD_REMOVAL_MOVES, RECOVERY_MOVES, PIVOT_MOVES as PIVOT_MOVE_SET,
   PHAZING_MOVES, STATUS_MOVES,
   discoverWeatherCores,
@@ -113,26 +113,18 @@ const SINGLES_MEGA_ABILITIES: Record<string, { ability: string; impact: number; 
 // Singles cares less about Amoonguss (no Rage Powder in Singles)
 // and more about Gholdengo (Good as Gold + Nasty Plot is a Singles
 // staple) and Kingdra (rain abuser).
-const SINGLES_VACANT_ROLES: { role: string; missing: string; fillers: string[]; bonus: number }[] = [
-  {
-    role: 'Steel win condition',
-    missing: 'Gholdengo',
-    fillers: ['Kingambit', 'Archaludon', 'Aegislash-Shield'],
-    bonus: 6,
-  },
-  {
-    role: 'Swift Swim rain sweeper',
-    missing: 'Kingdra',
-    fillers: ['Primarina', 'Greninja'],
-    bonus: 4,
-  },
-  {
-    role: 'Grass priority',
-    missing: 'Rillaboom',
-    fillers: ['Meowscarada'],
-    bonus: 4,
-  },
+// Vacant role fillers — derive dynamically from moveIndex / ability
+// scans instead of hardcoded species lists.
+const SINGLES_VACANT_ROLES: { role: string; missing: string; abilitySignature?: string; typeSignature?: string; bonus: number }[] = [
+  { role: 'Steel win condition', missing: 'Gholdengo', abilitySignature: 'good as gold', bonus: 6 },
+  { role: 'Swift Swim rain sweeper', missing: 'Kingdra', abilitySignature: 'swift swim', bonus: 4 },
+  { role: 'Grass priority', missing: 'Rillaboom', abilitySignature: 'grassy surge', bonus: 4 },
 ];
+
+function getSinglesVacantFillers(vr: typeof SINGLES_VACANT_ROLES[0]): string[] {
+  if (vr.abilitySignature) return [...buildAbilitySet(vr.abilitySignature)].filter(isChampionsPokemon);
+  return [];
+}
 
 // ─── Move Category Detection ───────────────────────────────────────
 // Singles cares about different move categories than Doubles. These
@@ -246,7 +238,9 @@ function scoreSweeperValue(species: string): { score: number; reasons: string[] 
   }
 
   // Priority access rewards offensive Pokemon
-  if (['Talonflame', 'Weavile', 'Scizor', 'Sneasler', 'Mamoswine', 'Lycanroc', 'Arcanine', 'Kingambit', 'Dragonite'].includes(species)) {
+  // Priority access detection — derived from moveIndex, not hardcoded species.
+  const _prioritySet = new Set(['Extreme Speed', 'Aqua Jet', 'Jet Punch', 'Ice Shard', 'Bullet Punch', 'Mach Punch', 'Quick Attack', 'Shadow Sneak', 'Sucker Punch', 'First Impression', 'Accelerock', 'Grassy Glide']);
+  if (speciesRunsMove(species, _prioritySet)) {
     score += 3;
   }
 
@@ -383,9 +377,10 @@ function scoreSinglesChampionsAdjust(species: string): { score: number; reasons:
     factors.push(`New Mega ability: ${megaBuff.ability}`);
   }
 
-  // Vacant role fillers
+  // Vacant role fillers — derived dynamically
   for (const vr of SINGLES_VACANT_ROLES) {
-    if (vr.fillers.includes(species)) {
+    const fillers = getSinglesVacantFillers(vr);
+    if (fillers.includes(species)) {
       score += vr.bonus;
       reasons.push(`Fills ${vr.missing}'s vacated ${vr.role} role`);
       factors.push(`Vacant role: ${vr.role} (${vr.missing} absent)`);
@@ -689,24 +684,37 @@ export function generateSinglesProjection(): SinglesProjectionReport {
 
   const cores = detectSinglesCores(rankings);
 
-  // Insights
+  // Insights — dynamically generated, no hardcoded species references
   const insights: string[] = [];
-  const drag = rankings.find(r => r.species === 'Dragonite');
-  if (drag && drag.score >= 55) {
-    insights.push(`Mega Dragonite with Dragonize + Extreme Speed is the format's answer to Choice Scarf revenge killers — priority Dragon STAB bypasses the speed tier entirely.`);
+
+  // Top Mega in Singles
+  const topMega = rankings.filter(r => r.hasMega).sort((a, b) => b.score - a.score)[0];
+  if (topMega && topMega.score >= 55) {
+    insights.push(`Mega ${topMega.species} leads the Singles meta at ${topMega.tier} tier — the format's top Mega Evolution in 1v1.`);
   }
-  const excadrill = rankings.find(r => r.species === 'Excadrill');
-  const tyranitar = rankings.find(r => r.species === 'Tyranitar');
-  if (excadrill && tyranitar && excadrill.score >= 45 && tyranitar.score >= 45) {
-    insights.push(`Tyranitar + Excadrill Sand core remains S-tier in Singles despite no new ability support — the speed tier + stat combination wasn't touched by any Champions rule change.`);
+
+  // Top weather core
+  const wCores = discoverWeatherCores();
+  for (const wc of wCores) {
+    const setter = wc.setters.map(s => rankings.find(r => r.species === s)).filter(Boolean).sort((a, b) => b!.score - a!.score)[0];
+    const abuser = wc.abusers.map(s => rankings.find(r => r.species === s)).filter(Boolean).sort((a, b) => b!.score - a!.score)[0];
+    if (setter && abuser && setter.score >= 45 && abuser.score >= 45) {
+      insights.push(`${setter.species} + ${abuser.species} form a ${wc.weather} core — both score ${setter.tier} / ${abuser.tier} tier. The speed tier + stat combination is untouched by Champions rule changes.`);
+      break; // only show the strongest weather core
+    }
   }
-  const gliscor = rankings.find(r => r.species === 'Gliscor');
-  if (gliscor && gliscor.score >= 45) {
-    insights.push(`Gliscor is positioned to be a top-tier Singles pivot: Poison Heal + Toxic + Defog handles both hazard stacking and wallbreakers.`);
+
+  // Top pivot
+  const pivotUsers = rankings.filter(r => getKnownPivotUsers().has(r.species)).sort((a, b) => b.score - a.score);
+  if (pivotUsers.length > 0 && pivotUsers[0].score >= 45) {
+    insights.push(`${pivotUsers[0].species} leads Singles pivoting at ${pivotUsers[0].tier} tier — momentum via pivot moves is the backbone of Singles Balance.`);
   }
-  insights.push(`The Fake Out nerf has zero impact on Singles — Incineroar drops tiers here but Tyranitar, Garchomp, and Dragonite remain untouched by any Champions rule change.`);
-  insights.push(`Status condition nerfs (paralysis 1/8, sleep 2-3 turns) directly benefit setup sweepers — expect Dragon Dance and Quiver Dance teams to be stronger than in mainline Singles.`);
-  insights.push(`Without Gholdengo, the "Good as Gold nuke" archetype is dead. Kingambit and Archaludon inherit the Steel win-condition slot via Supreme Overlord and Stamina + Electro Shot respectively.`);
+
+  // Status nerf insight
+  insights.push(`Status condition nerfs (paralysis 1/8, sleep 2-3 turns) directly benefit setup sweepers — Dragon Dance and Quiver Dance teams are stronger in Champions than in mainline Singles.`);
+
+  // Structural insight
+  insights.push(`Singles in Champions rewards hazard stacking + pivot chains. The Fake Out nerf has zero Singles impact — speed control comes from Choice Scarf and priority, not Tailwind.`);
 
   // Dark horses: strong projection but NOT in the static community
   // S/A+ tier. Derived from data — no hardcoded exclusion list.

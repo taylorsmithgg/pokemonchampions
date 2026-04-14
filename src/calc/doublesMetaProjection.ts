@@ -22,11 +22,11 @@
 // The output is a projected tier list + role classification + core
 // predictions. This is the analysis nobody else is doing yet.
 
-import { getAvailablePokemon, getPokemonData, getDefensiveMultiplier, hasChampionsMega } from '../data/champions';
+import { getAvailablePokemon, getPokemonData, getDefensiveMultiplier, hasChampionsMega, isChampionsPokemon } from '../data/champions';
 import { MEGA_STONE_MAP } from '../data/championsRoster';
 import { COMMUNITY_TIER_LIST } from '../data/tierlist';
 import {
-  buildMoveRoleSet, REDIRECT_MOVES, PRIORITY_MOVES as PRIORITY_MOVE_SET,
+  buildMoveRoleSet, buildAbilitySet, REDIRECT_MOVES, PRIORITY_MOVES as PRIORITY_MOVE_SET,
   discoverWeatherCores,
   speciesRunsMove,
 } from '../data/moveIndex';
@@ -133,32 +133,24 @@ const MECHANIC_NERFS: Record<string, { impact: number; reason: string }> = {
 // Roles VGC typically fills that are vacant in Champions because
 // the mainline specialist is absent. The species listed here get a
 // bonus for filling the vacuum.
-const VACANT_ROLES: { role: string; missing: string; fillers: string[]; bonus: number }[] = [
-  {
-    role: 'Redirector',
-    missing: 'Amoonguss',
-    fillers: ['Clefable', 'Togekiss', 'Hatterene'],
-    bonus: 6,
-  },
-  {
-    role: 'Grassy Terrain priority',
-    missing: 'Rillaboom',
-    fillers: ['Meowscarada', 'Sylveon'],
-    bonus: 4,
-  },
-  {
-    role: 'Steel wall',
-    missing: 'Gholdengo',
-    fillers: ['Archaludon', 'Corviknight', 'Aegislash-Shield', 'Kingambit'],
-    bonus: 5,
-  },
-  {
-    role: 'Swift Swim rain abuser',
-    missing: 'Kingdra',
-    fillers: ['Greninja', 'Primarina'],
-    bonus: 3,
-  },
+// ─── Vacant role detection ─────────────────────────────────────────
+// Instead of hardcoding which VGC Pokemon are missing and who fills
+// their role, we define the ROLE (what move/ability signature it
+// requires) and let moveIndex derive the fillers dynamically. The
+// "missing" species is informational only — the filler list auto-
+// updates when the roster or presets change.
+const VACANT_ROLES: { role: string; missing: string; moveSignature?: Set<string>; abilitySignature?: string; bonus: number }[] = [
+  { role: 'Redirector', missing: 'Amoonguss', moveSignature: REDIRECT_MOVES, bonus: 6 },
+  { role: 'Grassy Terrain priority', missing: 'Rillaboom', abilitySignature: 'grassy surge', bonus: 4 },
+  { role: 'Steel wall (Good as Gold)', missing: 'Gholdengo', abilitySignature: 'good as gold', bonus: 5 },
+  { role: 'Swift Swim rain abuser', missing: 'Kingdra', abilitySignature: 'swift swim', bonus: 3 },
 ];
+
+function getVacantRoleFillers(vr: typeof VACANT_ROLES[0]): string[] {
+  if (vr.moveSignature) return [...buildMoveRoleSet(vr.moveSignature)].filter(isChampionsPokemon);
+  if (vr.abilitySignature) return [...buildAbilitySet(vr.abilitySignature)].filter(isChampionsPokemon);
+  return [];
+}
 
 // ─── Move Detection ────────────────────────────────────────────────
 // We don't have per-species learnsets wired up reliably, so we lean
@@ -217,10 +209,10 @@ const SPREAD_ATTACK_PROFILES: { match: (types: string[], name: string) => boolea
   { match: (t) => t.includes('Flying'), reason: 'Gust / Air Cutter / Hurricane spread' },
 ];
 
-const KNOWN_PIVOT_MOVES: Set<string> = new Set([
-  'Incineroar', 'Corviknight', 'Whimsicott', 'Scizor', 'Gengar',
-  'Dragapult', 'Hydreigon', 'Greninja', 'Rotom',
-]);
+// Pivot detection derived from moveIndex — no hardcoded species.
+const PIVOT_MOVE_NAMES = new Set(['U-turn', 'Volt Switch', 'Flip Turn', 'Parting Shot', 'Teleport', 'Chilly Reception']);
+let _dblPivots: Set<string> | null = null;
+const KNOWN_PIVOT_MOVES = { has: (s: string) => { if (!_dblPivots) _dblPivots = buildMoveRoleSet(PIVOT_MOVE_NAMES); return _dblPivots.has(s); } };
 
 // ─── Core Scoring ──────────────────────────────────────────────────
 
@@ -443,9 +435,10 @@ function scoreChampionsAdjustments(species: string): { score: number; reasons: s
     factors.push(nerf.reason);
   }
 
-  // Vacant role fillers
+  // Vacant role fillers — derived dynamically from moveIndex
   for (const vr of VACANT_ROLES) {
-    if (vr.fillers.includes(species)) {
+    const fillers = getVacantRoleFillers(vr);
+    if (fillers.includes(species)) {
       score += vr.bonus;
       reasons.push(`Fills ${vr.missing}'s vacated ${vr.role} role`);
       factors.push(`Vacant role: ${vr.role} (${vr.missing} absent)`);
@@ -732,28 +725,50 @@ export function generateDoublesProjection(): ProjectionReport {
   // ─── Archetype cores ───────────────────────────────────────────
   const cores = detectCores(rankings);
 
-  // ─── Insights: analysis that isn't in any other source ────────
+  // ─── Insights: dynamically generated from projection data ────
+  // No hardcoded species references. Each insight derives from the
+  // ranking data directly — if a species falls off, the insight
+  // vanishes; if a new species rises, new insights generate.
   const insights: string[] = [];
-  const megaMeganium = rankings.find(r => r.species === 'Meganium');
-  if (megaMeganium && megaMeganium.score >= 55) {
-    insights.push(`Mega Meganium's Mega Sol is a unique permanent-sun enabler — no weather setter required. Pairs with Chlorophyll abusers for a cleaner sun archetype than Mega Charizard Y, which wastes a turn to Mega Evolve before Drought activates.`);
+
+  // Top weather core insight — find the highest-scoring weather setter
+  const weatherCoresForInsight = discoverWeatherCores();
+  for (const wc of weatherCoresForInsight) {
+    const topSetter = wc.setters.map(s => rankings.find(r => r.species === s)).filter(Boolean).sort((a, b) => b!.score - a!.score)[0];
+    if (topSetter && topSetter.score >= 55) {
+      const topAbuser = wc.abusers.map(s => rankings.find(r => r.species === s)).filter(Boolean).sort((a, b) => b!.score - a!.score)[0];
+      insights.push(`${topSetter.species} anchors the ${wc.weather} archetype at ${topSetter.tier} tier${topAbuser ? `. Top ${wc.weather} abuser: ${topAbuser.species}.` : '.'}`);
+    }
   }
-  if (rankings.find(r => r.species === 'Whimsicott' && r.score >= 50)) {
-    insights.push(`Whimsicott rises significantly as the primary Prankster Tailwind setter. With Amoonguss absent, it also absorbs some redirection responsibility alongside Clefable.`);
+
+  // Top Intimidate user insight
+  const intimSet = buildAbilitySet('intimidate');
+  const intimidateUsers = rankings.filter(r => intimSet.has(r.species));
+  if (intimidateUsers.length > 0 && intimidateUsers[0].score >= 50) {
+    insights.push(`${intimidateUsers[0].species} leads the Intimidate bracket at ${intimidateUsers[0].tier} tier — Intimidate remains the most impactful ability in Doubles. The Fake Out switch-in nerf hurts fast Fake Out users more than pivot-style Intimidators.`);
   }
-  if (rankings.find(r => r.species === 'Incineroar' && r.score >= 55)) {
-    insights.push(`Incineroar remains S-tier despite the Fake Out switch-in nerf — Intimidate + Parting Shot are still the best support package. The nerf hurts it less than it hurts faster Fake Out users.`);
+
+  // Top Prankster Tailwind insight
+  const pranksterSet = buildAbilitySet('prankster');
+  const pranksterTW = rankings.filter(r => pranksterSet.has(r.species));
+  if (pranksterTW.length > 0 && pranksterTW[0].score >= 45) {
+    insights.push(`${pranksterTW[0].species} is the premier Prankster speed controller at ${pranksterTW[0].tier} tier.`);
   }
-  const clefable = rankings.find(r => r.species === 'Clefable');
-  if (clefable && clefable.score >= 45) {
-    insights.push(`Clefable fills the redirection vacuum left by Amoonguss via Follow Me. Expect significantly higher usage than mainline VGC.`);
+
+  // Redirector vacuum insight
+  const redirectors = [...buildMoveRoleSet(REDIRECT_MOVES)].map(s => rankings.find(r => r.species === s)).filter(Boolean) as DoublesProjection[];
+  if (redirectors.length > 0) {
+    insights.push(`Redirection in Champions is led by ${redirectors.slice(0, 2).map(r => r.species).join(' and ')} — filling the vacuum left by absent mainline redirectors.`);
   }
-  const dragonite = rankings.find(r => r.species === 'Dragonite');
-  if (dragonite && dragonite.score >= 60) {
-    insights.push(`Mega Dragonite with Dragonize turns Extreme Speed into a priority STAB Dragon move — bypasses every form of speed control. One of the only priority wincons in the format.`);
+
+  // Mega Wincon insight — highest scoring Mega
+  const topMega = rankings.filter(r => r.hasMega).sort((a, b) => b.score - a.score)[0];
+  if (topMega && topMega.score >= 60) {
+    insights.push(`Mega ${topMega.species} is the format's top Mega Evolution at ${topMega.tier} tier. Build your team around enabling this wincon.`);
   }
-  insights.push(`Roster absences (Amoonguss, Rillaboom, Gholdengo, Kingdra) create role vacuums that reshape the meta. Clefable, Meowscarada, Archaludon, and Primarina are the most direct beneficiaries.`);
-  insights.push(`The Fake Out nerf (unusable on switch-in) matters more for offensive Fake Out users like Mega Lopunny than for Incineroar, which uses Fake Out as turn-2 support anyway.`);
+
+  // General structural insight
+  insights.push(`Champions' restricted item pool and Fake Out nerf reward creative ability + move synergies over raw stat stacking. The edge is in combo tech, not tier copying.`);
 
   // ─── Dark horses: strong projection score but NOT in the static
   // community S/A+ tier. These are the picks WE think are underrated.
