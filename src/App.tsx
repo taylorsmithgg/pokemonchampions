@@ -364,15 +364,19 @@ function Calculator() {
       <TeamsPanel
         onLoadMember={handleTeamMemberLoad}
         onLoadFullTeam={(comp) => {
-          const newTeam = comp.members.map(m => ({
-            ...createDefaultPokemonState(),
-            species: m.species,
-            nature: m.nature,
-            ability: m.ability,
-            item: m.item,
-            sps: { hp: m.sps.hp, atk: m.sps.atk, def: m.sps.def, spa: m.sps.spa, spd: m.sps.spd, spe: m.sps.spe },
-            moves: [...m.moves, '', '', '', ''].slice(0, 4),
-          }));
+          // Enforce no duplicate species when loading a comp
+          const seen = new Set<string>();
+          const newTeam = comp.members
+            .filter(m => { if (seen.has(m.species)) return false; seen.add(m.species); return true; })
+            .map(m => ({
+              ...createDefaultPokemonState(),
+              species: m.species,
+              nature: m.nature,
+              ability: m.ability,
+              item: m.item,
+              sps: { hp: m.sps.hp, atk: m.sps.atk, def: m.sps.def, spa: m.sps.spa, spd: m.sps.spd, spe: m.sps.spe },
+              moves: [...m.moves, '', '', '', ''].slice(0, 4),
+            }));
           // Pad to 6 if team has fewer members
           while (newTeam.length < 6) newTeam.push(createDefaultPokemonState());
           setTeam(newTeam);

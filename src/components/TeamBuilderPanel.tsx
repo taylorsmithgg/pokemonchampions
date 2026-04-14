@@ -88,10 +88,11 @@ function TeamSlot({
   onAutoFill: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  // Sort Pokemon by how well they fit the current team composition
+  // Sort Pokemon by how well they fit the current team composition.
+  // Filter out species already on the team to enforce no duplicates.
   const allPokemon = useMemo(() => {
-    const all = getAvailablePokemon();
-    // Get scores from team builder for contextual ordering
+    const teamSpecies = new Set(team.filter(t => t.species && t.species !== pokemon.species).map(t => t.species));
+    const all = getAvailablePokemon().filter(s => !teamSpecies.has(s));
     const picks = suggestNextPick(team, 50, format);
     const scoreMap = new Map(picks.map(p => [p.species, p.score]));
 
@@ -134,6 +135,8 @@ function TeamSlot({
   };
 
   const handleSpeciesChange = (species: string) => {
+    // Enforce no duplicate species on the team
+    if (species && team.some(t => t.species === species && t.species !== pokemon.species)) return;
     const d = species ? getPokemonData(species) : null;
     onChange({
       ...createDefaultPokemonState(),
@@ -411,11 +414,13 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
   const handleImportTeam = useCallback(() => {
     const blocks = importText.split(/\n\n+/).filter(Boolean);
     const newTeam = [...team];
+    const usedSpecies = new Set<string>();
     let slot = 0;
     for (const block of blocks) {
       if (slot >= 6) break;
       const parsed = importShowdownSet(block);
-      if (parsed) {
+      if (parsed && parsed.species && !usedSpecies.has(parsed.species)) {
+        usedSpecies.add(parsed.species);
         newTeam[slot] = parsed;
         slot++;
       }
@@ -562,21 +567,10 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
               format={format}
               onChange={(state) => updateSlot(i, state)}
               onReplace={(species) => {
-                const data = getPokemonData(species);
-                const preset = PRESETS.find((p: any) => p.species === species);
-                updateSlot(i, preset ? {
-                  ...createDefaultPokemonState(),
-                  species: preset.species,
-                  nature: preset.nature,
-                  ability: preset.ability,
-                  item: preset.item,
-                  sps: { ...preset.sps },
-                  moves: [...preset.moves, '', '', '', ''].slice(0, 4),
-                } : {
-                  ...createDefaultPokemonState(),
-                  species,
-                  ability: (data?.abilities?.[0] || '') as string,
-                });
+                // No duplicates allowed
+                if (team.some((t, j) => j !== i && t.species === species)) return;
+                const { build } = resolveBuildWithSource(species);
+                updateSlot(i, build);
               }}
               onAutoFill={() => handleAutoFill(i)}
               onLoadToCalc={side => onLoadToCalc(slot, side)}
@@ -768,21 +762,9 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
               onLoadToCalc={side => onLoadToCalc(pokemon, side)}
               onAutoFill={() => handleAutoFill(i)}
               onReplace={(species) => {
-                const preset = PRESETS.find((p: any) => p.species === species);
-                const data = getPokemonData(species);
-                updateSlot(i, preset ? {
-                  ...createDefaultPokemonState(),
-                  species: preset.species,
-                  nature: preset.nature,
-                  ability: preset.ability,
-                  item: preset.item,
-                  sps: { ...preset.sps },
-                  moves: [...preset.moves, '', '', '', ''].slice(0, 4),
-                } : {
-                  ...createDefaultPokemonState(),
-                  species,
-                  ability: (data?.abilities?.[0] || '') as string,
-                });
+                if (team.some((t, j) => j !== i && t.species === species)) return;
+                const { build } = resolveBuildWithSource(species);
+                updateSlot(i, build);
               }}
             />
           ))}
@@ -846,25 +828,13 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
                   <button
                     key={pick.species}
                     onClick={() => {
-                      // Find first empty slot and fill it
+                      // No duplicates + use unified build resolver
+                      if (team.some(t => t.species === pick.species)) return;
                       const emptyIdx = team.findIndex(p => !p.species);
                       if (emptyIdx === -1) return;
-                      const preset = PRESETS.find((p: any) => p.species === pick.species);
-                      const data = getPokemonData(pick.species);
+                      const { build } = resolveBuildWithSource(pick.species);
                       const newTeam = [...team];
-                      newTeam[emptyIdx] = preset ? {
-                        ...createDefaultPokemonState(),
-                        species: preset.species,
-                        nature: preset.nature,
-                        ability: preset.ability,
-                        item: preset.item,
-                        sps: { ...preset.sps },
-                        moves: [...preset.moves, '', '', '', ''].slice(0, 4),
-                      } : {
-                        ...createDefaultPokemonState(),
-                        species: pick.species,
-                        ability: (data?.abilities?.[0] || '') as string,
-                      };
+                      newTeam[emptyIdx] = build;
                       onChange(newTeam);
                     }}
                     className="flex items-center gap-3 p-3 rounded-lg border border-poke-border text-left transition-colors hover:border-poke-red/30"
