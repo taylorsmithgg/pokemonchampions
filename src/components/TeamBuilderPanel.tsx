@@ -13,6 +13,7 @@ import { Sprite } from './Sprite';
 import { GenBadge } from './GenBadge';
 import { getSpriteUrl } from '../utils/sprites';
 import { getRecommendations, type SynergyReason } from '../data/synergies';
+import { PokeballSpinner, PokeballMini } from './PokeballSpinner';
 import {
   getAvailablePokemon,
   getAvailableMoves,
@@ -372,6 +373,8 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
   const [importText, setImportText] = useState('');
   const [showImport, setShowImport] = useState(false);
   const [format, setFormat] = useState<BattleFormat>(DEFAULT_FORMAT);
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [optimizeLog, setOptimizeLog] = useState<string[]>([]);
   const { stats: liveStats } = useLiveData();
 
   const audit = useMemo<TeamAudit>(() => auditTeam(team, format), [team, format]);
@@ -422,13 +425,20 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
   }, [team, onChange, format]);
 
   // Optimize EVERY slot in one pass — fills empty slots with best
-  // picks AND re-applies optimal sets to existing filled slots. The
-  // single-slot Optimize button (the gold sparkle icon) only touches
-  // one member; this button is for "I just loaded a team, now make
-  // every slot competitive."
+  // picks AND re-applies optimal sets to existing filled slots.
+  // Now with loading feedback and audit logging.
   const handleOptimizeAll = useCallback(() => {
+    setIsOptimizing(true);
+    const log: string[] = [];
+
     // Step 1: fill empty slots with best picks for the current team
+    log.push('Analyzing team gaps...');
+    const emptyCount = team.filter(p => !p.species).length;
     const filled = buildOptimalTeam(team, 6, format);
+    if (emptyCount > 0) {
+      const newSpecies = filled.filter(p => p.species && !team.some(t => t.species === p.species)).map(p => p.species);
+      log.push(`Filled ${newSpecies.length} empty slot${newSpecies.length !== 1 ? 's' : ''}: ${newSpecies.join(', ')}`);
+    }
 
     // Step 2: re-apply the optimal set (live data → preset fallback)
     // to each filled slot, mirroring handleAutoFill's single-slot
@@ -441,6 +451,7 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
       return false;
     };
 
+    log.push('Optimizing builds for each slot...');
     const optimized: PokemonState[] = filled.map(slot => {
       if (!slot.species) return slot;
 
@@ -448,6 +459,7 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
       if (liveStats) {
         const liveSet = getLiveSet(liveStats, slot.species);
         if (liveSet) {
+          log.push(`${slot.species}: Applied VGC usage data (${liveSet.nature}, ${liveSet.item})`);
           return {
             ...slot,
             nature: liveSet.nature,
@@ -464,6 +476,7 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
       const presets = getPresetsBySpecies(slot.species);
       if (presets.length > 0) {
         const p = presets[0];
+        log.push(`${slot.species}: Applied preset "${p.label}" (${p.nature}, ${p.item})`);
         return {
           ...slot,
           nature: p.nature,
@@ -474,33 +487,48 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
         };
       }
 
-      // No preset either — leave the slot as-is
+      log.push(`${slot.species}: No data available — kept existing build`);
       return slot;
     });
 
-    // Step 3: enforce one-Mega-per-team. Both live data and presets
-    // can hand out Mega Stones independently, so we might end up
-    // with multiple Mega holders after the mass re-optimize. Keep
-    // the first one (highest-priority slot wins) and strip the rest.
+    // Step 3: enforce one-Mega-per-team + item dedup
+    log.push('Resolving item conflicts...');
     const usedItems = new Set<string>();
     let hasMega = false;
     for (let i = 0; i < optimized.length; i++) {
       const slot = optimized[i];
       if (!slot.species) continue;
+
+      // Mega enforcement
       if (isMegaStone(slot.item)) {
         if (hasMega) {
-          // Downgrade to a safe utility item
           const fallback = ['Sitrus Berry', 'Leftovers', 'Focus Sash', 'Lum Berry', 'Mental Herb', 'Shell Bell', 'Scope Lens']
             .find(x => !usedItems.has(x)) ?? '';
+          log.push(`${slot.species}: Duplicate Mega Stone removed → ${fallback || 'no item'}`);
           optimized[i] = { ...slot, item: fallback };
         } else {
           hasMega = true;
+          log.push(`${slot.species}: Mega slot claimed (${slot.item})`);
         }
+      }
+
+      // Item dedup
+      if (optimized[i].item && usedItems.has(optimized[i].item)) {
+        const oldItem = optimized[i].item;
+        const fallback = ['Sitrus Berry', 'Leftovers', 'Focus Sash', 'Lum Berry', 'Mental Herb', 'Shell Bell']
+          .find(x => !usedItems.has(x)) ?? '';
+        log.push(`${slot.species}: ${oldItem} conflict → swapped to ${fallback || 'none'}`);
+        optimized[i] = { ...optimized[i], item: fallback };
       }
       if (optimized[i].item) usedItems.add(optimized[i].item);
     }
 
+    log.push(`Optimization complete — ${optimized.filter(p => p.species).length}/6 slots filled.`);
+    setOptimizeLog(log);
     onChange(optimized);
+
+    // Delay clearing loading state so the user sees the spinner
+    setTimeout(() => setIsOptimizing(false), 600);
   }, [team, format, liveStats, onChange]);
 
   // Get suggestions for next pick
@@ -556,11 +584,16 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
               </button>
               <button
                 onClick={handleOptimizeAll}
-                className="text-sm px-4 py-1.5 bg-poke-gold/15 border border-poke-gold/40 text-poke-gold rounded-lg font-bold hover:bg-poke-gold/25 transition-colors flex items-center gap-1.5"
+                disabled={isOptimizing}
+                className={`text-sm px-4 py-1.5 border rounded-lg font-bold transition-colors flex items-center gap-1.5 ${
+                  isOptimizing
+                    ? 'bg-poke-gold/25 border-poke-gold/50 text-poke-gold cursor-wait'
+                    : 'bg-poke-gold/15 border-poke-gold/40 text-poke-gold hover:bg-poke-gold/25'
+                }`}
                 title="Re-optimize every slot — fills empty ones and refreshes filled ones with the best available set"
               >
-                <OptimizeIcon className="w-4 h-4" />
-                Optimize All
+                {isOptimizing ? <PokeballMini /> : <OptimizeIcon className="w-4 h-4" />}
+                {isOptimizing ? 'Optimizing...' : 'Optimize All'}
               </button>
               <button onClick={() => setShowImport(!showImport)} className="text-xs px-3 py-1.5 bg-poke-surface border border-poke-border text-slate-400 rounded-lg hover:text-white transition-colors">
                 Import
@@ -574,6 +607,36 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
               </div>
             </div>
           </div>
+
+          {/* Optimization loading overlay */}
+          {isOptimizing && (
+            <div className="px-4 py-6 flex flex-col items-center gap-3 border-t border-poke-border">
+              <PokeballSpinner size={48} label="Analyzing team composition..." />
+            </div>
+          )}
+
+          {/* Optimization audit log */}
+          {optimizeLog.length > 0 && !isOptimizing && (
+            <div className="mx-4 mb-3 rounded-lg border border-poke-border bg-poke-surface overflow-hidden">
+              <button
+                onClick={() => setOptimizeLog([])}
+                className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white transition-colors"
+              >
+                <span>Optimization Log ({optimizeLog.length} steps)</span>
+                <span className="text-slate-600">Dismiss</span>
+              </button>
+              <div className="px-3 pb-2 space-y-0.5 max-h-[150px] overflow-y-auto">
+                {optimizeLog.map((entry, i) => (
+                  <div key={i} className="text-[10px] leading-snug flex items-start gap-1.5">
+                    <span className={`shrink-0 ${i === optimizeLog.length - 1 ? 'text-emerald-400' : 'text-slate-600'}`}>
+                      {i === optimizeLog.length - 1 ? '✓' : '·'}
+                    </span>
+                    <span className={i === optimizeLog.length - 1 ? 'text-emerald-300' : 'text-slate-400'}>{entry}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Import area */}
           {showImport && (

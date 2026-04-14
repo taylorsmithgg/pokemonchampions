@@ -434,11 +434,14 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [], teamma
               const topArch = archs[0];
               return (
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    const btn = e.currentTarget;
+                    btn.classList.add('scale-95', 'brightness-125');
                     const optimized = buildOptimizedState(state.species, teammates);
                     onChange(optimized);
+                    setTimeout(() => btn.classList.remove('scale-95', 'brightness-125'), 300);
                   }}
-                  className="w-full py-3 rounded-lg bg-gradient-to-r from-poke-red to-poke-red-dark text-white hover:from-poke-red-light hover:to-poke-red transition-all shadow-lg shadow-poke-red/20 hover:shadow-poke-red/40 text-left px-4"
+                  className="w-full py-3 rounded-lg bg-gradient-to-r from-poke-red to-poke-red-dark text-white hover:from-poke-red-light hover:to-poke-red transition-all shadow-lg shadow-poke-red/20 hover:shadow-poke-red/40 text-left px-4 duration-200"
                 >
                   <div className="text-sm font-bold">Optimize → {topArch?.name || 'Best Build'}</div>
                   {topArch && (
