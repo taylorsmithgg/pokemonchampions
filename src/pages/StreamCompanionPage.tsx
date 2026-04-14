@@ -7,7 +7,7 @@ import { getPokemonData, getTypeEffectiveness } from '../data/champions';
 import { getTierForPokemon, TIER_DEFINITIONS } from '../data/tierlist';
 import { useTeam } from '../contexts/TeamContext';
 import { inferOpenerStrategy, orderBringList } from '../calc/openerStrategy';
-import type { OpenerStrategy } from '../calc/openerStrategy';
+
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -367,6 +367,18 @@ export function StreamCompanionPage() {
     () => bringList.length >= 2 ? suggestLead(bringList, filledOpponents) : null,
     [bringList, filledOpponents],
   );
+  const openerStrategy = useMemo(
+    () => filledMyTeam.length >= 2 && filledOpponents.length >= 1
+      ? inferOpenerStrategy(contextTeam.filter(t => t.species), filledOpponents)
+      : null,
+    [contextTeam, filledMyTeam.length, filledOpponents],
+  );
+  const orderedBringList = useMemo(
+    () => bringList.length >= 2
+      ? orderBringList(bringList, contextTeam.filter(t => t.species), filledOpponents)
+      : bringList.map(b => ({ ...b, role: 'Lead' })),
+    [bringList, contextTeam, filledOpponents],
+  );
 
   // Scoreboard
   const wins = useMemo(() => history.filter(h => h.result === 'win').length, [history]);
@@ -539,15 +551,16 @@ export function StreamCompanionPage() {
           <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
             <div className="text-[9px] text-white/30 uppercase tracking-widest font-bold mb-2">BRING LIST</div>
             <div className="space-y-1.5">
-              {bringList.slice(0, 4).map((rec, i) => (
+              {orderedBringList.slice(0, 4).map((rec, i) => (
                 <div key={rec.species} className={`flex items-center gap-2 px-2 py-1 rounded ${
-                  i < 3 ? 'bg-white/[0.03]' : 'opacity-50'
+                  i < 2 ? 'bg-white/[0.03]' : 'opacity-50'
                 }`}>
                   <span className={`text-[10px] font-black w-4 ${
-                    i === 0 ? 'text-poke-gold' : i < 3 ? 'text-white/40' : 'text-white/20'
+                    i === 0 ? 'text-poke-gold' : i < 2 ? 'text-white/40' : 'text-white/20'
                   }`}>{i + 1}</span>
                   <Sprite species={rec.species} size="sm" />
                   <span className="text-xs text-white/80 font-medium flex-1">{rec.species}</span>
+                  <span className="text-[8px] text-white/25 font-bold">{rec.role}</span>
                   <span className={`text-[10px] font-mono ${rec.score >= 3 ? 'text-emerald-400/60' : rec.score >= 0 ? 'text-white/20' : 'text-red-400/60'}`}>
                     {rec.score >= 0 ? '+' : ''}{rec.score}
                   </span>
@@ -557,8 +570,25 @@ export function StreamCompanionPage() {
           </div>
         )}
 
-        {/* Lead */}
-        {leadSuggestion && (
+        {/* Opener Strategy (compact overlay version) */}
+        {openerStrategy && (
+          <div className="px-4 py-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+            <div className="text-[9px] text-white/30 uppercase tracking-widest font-bold mb-1.5">LEAD — {openerStrategy.archetype}</div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <Sprite species={openerStrategy.lead[0]} size="md" />
+              <span className="text-white/15 text-xs">+</span>
+              <Sprite species={openerStrategy.lead[1]} size="md" />
+            </div>
+            <div className="text-[9px] text-sky-400/60 uppercase tracking-widest font-bold mb-1">T1</div>
+            <div className="text-[10px] text-white/60 mb-0.5">{openerStrategy.lead[0]}: {openerStrategy.turn1.mon1Action}</div>
+            <div className="text-[10px] text-white/60 mb-1">{openerStrategy.lead[1]}: {openerStrategy.turn1.mon2Action}</div>
+            <div className="text-[9px] text-white/25 uppercase tracking-widest font-bold mb-0.5">T2</div>
+            <div className="text-[10px] text-white/40">{openerStrategy.turn2.action}</div>
+          </div>
+        )}
+
+        {/* Legacy Lead fallback */}
+        {!openerStrategy && leadSuggestion && (
           <div className="px-4 py-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
             <div className="text-[9px] text-white/30 uppercase tracking-widest font-bold mb-1.5">LEAD</div>
             <div className="flex items-center gap-2">
@@ -883,19 +913,28 @@ export function StreamCompanionPage() {
               <div className="poke-panel p-4">
                 <div className="text-[10px] text-poke-gold uppercase tracking-wider font-bold mb-3">Recommended Bring</div>
                 <div className="space-y-1.5 mb-4">
-                  {bringList.slice(0, 4).map((rec, i) => {
+                  {orderedBringList.slice(0, 4).map((rec, i) => {
                     const tier = getTierForPokemon(rec.species);
                     const tierDef = tier ? TIER_DEFINITIONS.find(d => d.tier === tier.tier) : null;
                     const medal = i === 0 ? 'text-poke-gold' : i === 1 ? 'text-slate-300' : i === 2 ? 'text-amber-700' : 'text-slate-600';
+                    const roleColors: Record<string, string> = {
+                      Lead: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
+                      Pivot: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+                      Closer: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
+                      Flex: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
+                    };
                     return (
                       <div key={rec.species} className={`flex items-center gap-2 p-2 rounded-lg border ${
-                        i < 3 ? 'border-poke-gold/20 bg-poke-gold/5' : 'border-poke-border bg-poke-surface/30'
+                        i < 2 ? 'border-poke-gold/20 bg-poke-gold/5' : 'border-poke-border bg-poke-surface/30'
                       }`}>
                         <span className={`text-sm font-black w-5 text-center ${medal}`}>{i + 1}</span>
                         <Sprite species={rec.species} size="sm" />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
                             <span className="text-xs font-bold text-white">{rec.species}</span>
+                            <span className={`text-[8px] font-bold px-1 py-0.5 rounded border ${roleColors[rec.role] ?? roleColors.Flex}`}>
+                              {rec.role}
+                            </span>
                             {tierDef && (
                               <span className={`text-[8px] font-black px-1 rounded ${tierDef.bgColor} ${tierDef.color} border ${tierDef.borderColor}`}>
                                 {tier!.tier}
@@ -916,8 +955,60 @@ export function StreamCompanionPage() {
                   })}
                 </div>
 
-                {/* Lead suggestion inline */}
-                {leadSuggestion && (
+                {/* Opener Strategy — turn-by-turn actions */}
+                {openerStrategy && (
+                  <div className="pt-3 border-t border-poke-border mb-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="text-[10px] text-sky-400 uppercase tracking-wider font-bold">Opening Play</div>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400/70 border border-sky-500/20 font-bold">
+                        {openerStrategy.archetype}
+                      </span>
+                    </div>
+
+                    {/* Lead pair */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-poke-surface border border-sky-500/20">
+                        <Sprite species={openerStrategy.lead[0]} size="md" />
+                        <span className="text-slate-600 font-bold">+</span>
+                        <Sprite species={openerStrategy.lead[1]} size="md" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-white">{openerStrategy.lead[0]} + {openerStrategy.lead[1]}</div>
+                        <div className="text-[11px] text-slate-500">{openerStrategy.reasoning}</div>
+                      </div>
+                    </div>
+
+                    {/* Turn 1 actions */}
+                    <div className="rounded-lg border border-sky-500/15 bg-sky-500/5 p-3 mb-2">
+                      <div className="text-[9px] text-sky-400/60 uppercase tracking-widest font-bold mb-2">Turn 1</div>
+                      <div className="space-y-1.5">
+                        <div className="flex items-start gap-2">
+                          <Sprite species={openerStrategy.lead[0]} size="sm" />
+                          <span className="text-[11px] text-white/90 leading-snug">{openerStrategy.turn1.mon1Action}</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Sprite species={openerStrategy.lead[1]} size="sm" />
+                          <span className="text-[11px] text-white/90 leading-snug">{openerStrategy.turn1.mon2Action}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Turn 2 follow-up */}
+                    <div className="rounded-lg border border-poke-border bg-poke-surface/30 p-3 mb-2">
+                      <div className="text-[9px] text-slate-500 uppercase tracking-widest font-bold mb-1">Turn 2</div>
+                      <div className="text-[11px] text-slate-400 leading-snug">{openerStrategy.turn2.action}</div>
+                    </div>
+
+                    {/* Counter-play note */}
+                    <div className="text-[10px] text-emerald-400/70 mt-2 flex items-start gap-1.5">
+                      <span className="shrink-0 mt-0.5">-</span>
+                      <span>{openerStrategy.counterPlay}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Legacy lead suggestion as fallback when no opener strategy */}
+                {!openerStrategy && leadSuggestion && (
                   <div className="pt-3 border-t border-poke-border">
                     <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-2">Suggested Lead</div>
                     <div className="flex items-center gap-3">

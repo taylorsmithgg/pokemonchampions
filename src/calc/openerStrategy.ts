@@ -45,20 +45,14 @@ const FAKE_OUT = new Set(['Fake Out']);
 const TAILWIND = new Set(['Tailwind']);
 const TRICK_ROOM = new Set(['Trick Room']);
 const PROTECT = new Set(['Protect', 'Detect', 'Baneful Bunker', 'Silk Trap', 'Spiky Shield', 'King\'s Shield', 'Obstruct']);
-const WIDE_GUARD = new Set(['Wide Guard']);
 const TAUNT = new Set(['Taunt']);
-const IMPRISON = new Set(['Imprison']);
 const WILL_O_WISP = new Set(['Will-O-Wisp']);
-const THUNDER_WAVE = new Set(['Thunder Wave']);
 const HELPING_HAND = new Set(['Helping Hand']);
-const FOLLOW_ME = new Set(['Follow Me', 'Rage Powder']);
 const SPREAD_ATTACKS = new Set([
   'Heat Wave', 'Dazzling Gleam', 'Muddy Water', 'Rock Slide',
   'Earthquake', 'Discharge', 'Blizzard', 'Snarl', 'Icy Wind',
   'Electroweb', 'Lava Plume', 'Surf', 'Brutal Swing',
 ]);
-const ICY_WIND_MOVES = new Set(['Icy Wind', 'Electroweb', 'Snarl']);
-const SLEEP_MOVES = new Set(['Spore', 'Sleep Powder', 'Yawn', 'Hypnosis', 'Lovely Kiss', 'Sing']);
 
 // ─── Species-level capability checks ─────────────────────────────────
 
@@ -139,12 +133,10 @@ function getBestSpreadMove(species: string): string | null {
   return null;
 }
 
-function getBestSingleTargetMove(species: string, oppTypes?: Set<string>): string {
+function getBestSingleTargetMove(species: string, _oppTypes?: Set<string>): string {
   const moves = getSpeciesMoves(species);
-  // Just pick a strong STAB or coverage move name for display
   const data = getPokemonData(species);
   if (!data) return 'attack';
-  const stab = data.types as string[];
   for (const m of moves) {
     if (SETUP_MOVES.has(m) || PROTECT.has(m) || FAKE_OUT.has(m) || TAILWIND.has(m) || TRICK_ROOM.has(m)) continue;
     if (REDIRECT_MOVES.has(m) || PIVOT_MOVES.has(m) || HELPING_HAND.has(m)) continue;
@@ -153,13 +145,12 @@ function getBestSingleTargetMove(species: string, oppTypes?: Set<string>): strin
   return 'attack';
 }
 
-function getPriorityMove(species: string): string | null {
-  const moves = getSpeciesMoves(species);
-  for (const m of moves) {
-    if (PRIORITY_MOVES.has(m) && m !== 'Fake Out') return m;
-  }
-  return null;
-}
+// getPriorityMove available for future strategy expansion
+// function getPriorityMove(species: string): string | null {
+//   const moves = getSpeciesMoves(species);
+//   for (const m of moves) { if (PRIORITY_MOVES.has(m) && m !== 'Fake Out') return m; }
+//   return null;
+// }
 
 // ─── Archetype Detection ─────────────────────────────────────────────
 
@@ -258,8 +249,9 @@ function findBestLead(
   const intimidators = mySpecies.filter(hasIntimidate);
   const redirectors = mySpecies.filter(canRedirect);
   const spreaders = mySpecies.filter(canSpreadAttack);
-  const taunters = mySpecies.filter(canTaunt);
-  const weatherSetters = mySpecies.filter(s => getWeatherAbility(s)?.role === 'setter');
+  // Reserved for archetype-specific branches
+  void mySpecies.filter(canTaunt);
+  void mySpecies.filter(s => getWeatherAbility(s)?.role === 'setter');
 
   // Determine opponent's likely lead threats
   const oppFakeOut = oppSpecies.filter(canFakeOut);
