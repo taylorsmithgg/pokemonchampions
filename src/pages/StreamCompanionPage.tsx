@@ -350,6 +350,35 @@ export function StreamCompanionPage() {
     }
   }, [contextTeam]);
 
+  // Screenshot paste support
+  const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            const url = URL.createObjectURL(file);
+            setScreenshotUrl(url);
+          }
+        }
+      }
+    };
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file?.type.startsWith('image/')) {
+      setScreenshotUrl(URL.createObjectURL(file));
+    }
+  }, []);
+
   const filledMyTeam = myTeam.filter(Boolean);
   const filledOpponents = opponentTeam.filter(Boolean);
 
@@ -447,96 +476,145 @@ export function StreamCompanionPage() {
 
   // ─── Overlay mode (compact for OBS browser source) ─────────────
   if (isOverlay) {
+    const totalGames = scoreboard.wins + scoreboard.losses;
+    const currentStreak = (() => {
+      let streak = 0;
+      const lastResult = history[0]?.result;
+      if (!lastResult) return { count: 0, type: null as string | null };
+      for (const h of history) {
+        if (h.result === lastResult) streak++;
+        else break;
+      }
+      return { count: streak, type: lastResult };
+    })();
+
     return (
-      <div className="bg-transparent text-white p-3 min-h-screen" style={{ background: 'rgba(15, 17, 23, 0.85)' }}>
-        {/* Scoreboard */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <span className="text-emerald-400 font-black text-2xl">{scoreboard.wins}W</span>
-            <span className="text-slate-600 font-black text-2xl">-</span>
-            <span className="text-red-400 font-black text-2xl">{scoreboard.losses}L</span>
+      <div className="text-white min-h-screen" style={{ background: 'linear-gradient(135deg, rgba(10,10,20,0.92) 0%, rgba(15,12,30,0.88) 100%)' }}>
+        {/* Top bar — scoreboard + branding */}
+        <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full border-2 border-white/60 relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-[45%] bg-poke-red" />
+              <div className="absolute bottom-0 left-0 right-0 h-[45%] bg-white/80" />
+            </div>
+            <span className="text-xs font-bold tracking-wide text-white/80">CHAMPIONS</span>
           </div>
-          <span className={`text-lg font-bold ${winRate >= 50 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {winRate}%
-          </span>
-          <button
-            onClick={() => setIsOverlay(false)}
-            className="text-[10px] text-slate-600 hover:text-white"
-          >
-            Exit Overlay
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-emerald-400 font-black text-xl tracking-tight">{scoreboard.wins}</span>
+              <span className="text-white/20 font-black">:</span>
+              <span className="text-red-400 font-black text-xl tracking-tight">{scoreboard.losses}</span>
+            </div>
+            {totalGames > 0 && (
+              <span className={`text-sm font-bold px-2 py-0.5 rounded ${
+                winRate >= 60 ? 'bg-emerald-500/20 text-emerald-400' :
+                winRate >= 50 ? 'bg-amber-500/20 text-amber-300' :
+                'bg-red-500/20 text-red-400'
+              }`}>{winRate}%</span>
+            )}
+            {currentStreak.count >= 2 && (
+              <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
+                currentStreak.type === 'win' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'
+              }`}>{currentStreak.count}{currentStreak.type === 'win' ? 'W' : 'L'} streak</span>
+            )}
+          </div>
+          <button onClick={() => setIsOverlay(false)} className="text-white/20 hover:text-white/60 text-xs">✕</button>
         </div>
 
+        {/* Streak dots */}
+        {history.length > 0 && (
+          <div className="px-4 py-1.5 flex items-center gap-0.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+            {history.slice(0, 20).map(h => (
+              <div key={h.id} className={`w-2 h-2 rounded-full transition-all ${
+                h.result === 'win' ? 'bg-emerald-400 shadow-sm shadow-emerald-500/50' :
+                h.result === 'loss' ? 'bg-red-400 shadow-sm shadow-red-500/50' : 'bg-white/10'
+              }`} />
+            ))}
+            {totalGames > 0 && <span className="text-[9px] text-white/20 ml-auto">{totalGames} games</span>}
+          </div>
+        )}
+
         {/* Opponent Team */}
-        {filledOpponents.length > 0 && (
-          <div className="mb-3">
-            <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Opponent</div>
-            <div className="flex gap-1 flex-wrap">
+        {filledOpponents.length > 0 ? (
+          <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+            <div className="text-[9px] text-white/30 uppercase tracking-widest font-bold mb-2">OPPONENT</div>
+            <div className="flex gap-2">
               {filledOpponents.map(opp => (
-                <div key={opp} className="flex items-center gap-1 px-1.5 py-0.5 bg-poke-surface/60 rounded border border-poke-border/50">
-                  <Sprite species={opp} size="sm" />
-                  <span className="text-[11px]">{opp}</span>
+                <div key={opp} className="flex flex-col items-center gap-0.5">
+                  <Sprite species={opp} size="md" />
+                  <span className="text-[9px] text-white/50">{opp}</span>
                 </div>
               ))}
             </div>
           </div>
+        ) : (
+          <div className="px-4 py-4 text-center">
+            <div className="text-white/15 text-xs">Waiting for opponent team...</div>
+            <div className="text-white/10 text-[10px] mt-1">Paste screenshot or enter manually</div>
+          </div>
         )}
 
-        {/* Archetype */}
+        {/* Analysis — only shows when we have data */}
         {archetypes.length > 0 && (
-          <div className="mb-3">
-            <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Archetype</div>
-            <span className="text-sm font-bold text-poke-gold">{archetypes[0].name}</span>
-            <span className="text-[10px] text-slate-500 ml-2">{Math.round(archetypes[0].confidence * 100)}%</span>
+          <div className="px-4 py-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-white/30 uppercase tracking-widest font-bold">TYPE</span>
+              <span className="text-sm font-bold text-poke-gold">{archetypes[0].name}</span>
+              {archetypes[0].counterTips?.[0] && <span className="text-[10px] text-white/30 ml-auto">{archetypes[0].counterTips[0]}</span>}
+            </div>
           </div>
         )}
 
-        {/* Bring + Lead */}
+        {/* Bring List */}
         {bringList.length > 0 && (
-          <div className="mb-3">
-            <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Bring</div>
-            <div className="flex gap-1 flex-wrap">
+          <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+            <div className="text-[9px] text-white/30 uppercase tracking-widest font-bold mb-2">BRING LIST</div>
+            <div className="space-y-1.5">
               {bringList.slice(0, 4).map((rec, i) => (
-                <div key={rec.species} className={`flex items-center gap-1 px-1.5 py-0.5 rounded border ${
-                  i < 3 ? 'border-poke-gold/40 bg-poke-gold/10' : 'border-poke-border/50 bg-poke-surface/60'
+                <div key={rec.species} className={`flex items-center gap-2 px-2 py-1 rounded ${
+                  i < 3 ? 'bg-white/[0.03]' : 'opacity-50'
                 }`}>
+                  <span className={`text-[10px] font-black w-4 ${
+                    i === 0 ? 'text-poke-gold' : i < 3 ? 'text-white/40' : 'text-white/20'
+                  }`}>{i + 1}</span>
                   <Sprite species={rec.species} size="sm" />
-                  <span className="text-[11px]">{rec.species}</span>
+                  <span className="text-xs text-white/80 font-medium flex-1">{rec.species}</span>
+                  <span className={`text-[10px] font-mono ${rec.score >= 3 ? 'text-emerald-400/60' : rec.score >= 0 ? 'text-white/20' : 'text-red-400/60'}`}>
+                    {rec.score >= 0 ? '+' : ''}{rec.score}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
         )}
 
+        {/* Lead */}
         {leadSuggestion && (
-          <div>
-            <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Lead</div>
+          <div className="px-4 py-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+            <div className="text-[9px] text-white/30 uppercase tracking-widest font-bold mb-1.5">LEAD</div>
             <div className="flex items-center gap-2">
-              <Sprite species={leadSuggestion.lead1} size="sm" />
-              <span className="text-slate-600">+</span>
-              <Sprite species={leadSuggestion.lead2} size="sm" />
-              <span className="text-[11px] text-slate-400">{leadSuggestion.lead1} + {leadSuggestion.lead2}</span>
+              <Sprite species={leadSuggestion.lead1} size="md" />
+              <span className="text-white/15 text-xs">+</span>
+              <Sprite species={leadSuggestion.lead2} size="md" />
             </div>
           </div>
         )}
 
-        {/* Quick W/L buttons */}
-        {filledOpponents.length >= 3 && (
-          <div className="flex gap-2 mt-3">
-            <button
-              onClick={() => recordMatch('win')}
-              className="flex-1 py-1.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-bold hover:bg-emerald-500/30 transition-colors"
-            >
-              WIN
-            </button>
-            <button
-              onClick={() => recordMatch('loss')}
-              className="flex-1 py-1.5 rounded bg-red-500/20 border border-red-500/40 text-red-400 text-xs font-bold hover:bg-red-500/30 transition-colors"
-            >
-              LOSS
-            </button>
-          </div>
-        )}
+        {/* Quick W/L — always visible at bottom */}
+        <div className="px-4 py-3 flex gap-2">
+          <button
+            onClick={() => recordMatch('win')}
+            className="flex-1 py-2 rounded-lg font-black text-sm tracking-wider transition-all bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/25 hover:border-emerald-500/40 active:scale-95"
+          >
+            WIN
+          </button>
+          <button
+            onClick={() => recordMatch('loss')}
+            className="flex-1 py-2 rounded-lg font-black text-sm tracking-wider transition-all bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/25 hover:border-red-500/40 active:scale-95"
+          >
+            LOSS
+          </button>
+        </div>
       </div>
     );
   }
@@ -684,6 +762,30 @@ export function StreamCompanionPage() {
               <div className="text-[10px] text-slate-600 mt-2">
                 Loaded from Team Builder. Edit here for quick changes.
               </div>
+            </div>
+
+            {/* Screenshot reference */}
+            <div
+              className="poke-panel p-3"
+              onDragOver={e => e.preventDefault()}
+              onDrop={handleDrop}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-xs font-bold text-violet-400 uppercase tracking-wider">Team Preview Screenshot</div>
+                {screenshotUrl && (
+                  <button onClick={() => setScreenshotUrl(null)} className="text-[10px] text-slate-500 hover:text-poke-red transition-colors">Clear</button>
+                )}
+              </div>
+              {screenshotUrl ? (
+                <div className="relative rounded-lg overflow-hidden border border-violet-500/20 mb-2">
+                  <img src={screenshotUrl} alt="Team preview" className="w-full h-auto max-h-48 object-contain bg-black/50" />
+                </div>
+              ) : (
+                <div className="border-2 border-dashed border-poke-border/50 rounded-lg p-4 text-center hover:border-violet-500/30 transition-colors cursor-pointer">
+                  <div className="text-slate-500 text-xs mb-1">Paste screenshot (Ctrl+V) or drag & drop</div>
+                  <div className="text-slate-600 text-[10px]">Capture team preview and paste here for reference while inputting</div>
+                </div>
+              )}
             </div>
 
             {/* Opponent Team */}
