@@ -1039,8 +1039,7 @@ export function StreamCompanionPage() {
       const map = blm.isOpponent ? rightVotes : leftVotes;
       map.set(blm.species, (map.get(blm.species) ?? 0) + 5);
 
-      // Train: if a sprite was detected near this species, capture it
-      // as a real in-game profile for future matching.
+      // Train sprite profile from in-game appearance
       const matchingSprite = (result.spriteMatched ?? []).find(s => s.species === blm.species);
       if (matchingSprite && matchingSprite.confidence >= 0.4) {
         addTrainedProfile(blm.species, frame, {
@@ -1049,6 +1048,42 @@ export function StreamCompanionPage() {
           w: 80,
           h: 80,
         }).catch(() => {});
+      }
+
+      // ── CORRECTION LOOP ──
+      // Battle log is authoritative. If it names a species NOT on the
+      // opponent list, the wrong species is probably there in its place.
+      // Replace the lowest-confidence opponent (likely a sprite mismatch)
+      // with the battle-log-confirmed species.
+      if (blm.isOpponent && !filledOpponents.includes(blm.species) && !filledMyTeam.includes(blm.species)) {
+        setOpponentTeam(prev => {
+          const filled = prev.filter(Boolean);
+          if (filled.includes(blm.species)) return prev;
+          // Find the opponent with the LOWEST sprite-only support
+          // (no battle-log confirmation, lowest vote count)
+          const ranked = filled.map(sp => {
+            const blConfirmed = (result.battleLogMatches ?? []).some(m => m.species === sp && m.isOpponent);
+            const votes = rightVotesRef.current.get(sp) ?? 0;
+            return { species: sp, blConfirmed, votes };
+          }).sort((a, b) => {
+            if (a.blConfirmed !== b.blConfirmed) return a.blConfirmed ? 1 : -1; // unconfirmed first
+            return a.votes - b.votes; // lowest votes first
+          });
+          const weakest = ranked[0];
+          if (!weakest || weakest.blConfirmed) {
+            // No weak opponent to replace — just append if room
+            if (filled.length < 6) return [...filled, blm.species];
+            return prev;
+          }
+          // Swap weakest with the new battle-log species
+          const next = filled.map(s => s === weakest.species ? blm.species : s);
+          // Transfer side commitment, dismiss the wrong species so it
+          // doesn't get re-added by sprite-only votes
+          rightVotesRef.current.delete(weakest.species);
+          committedSidesRef.current.delete(weakest.species);
+          setDismissedSpecies(d => new Set([...d, weakest.species]));
+          return next;
+        });
       }
     }
 
