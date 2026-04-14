@@ -505,9 +505,23 @@ export function StreamCompanionPage() {
   const { team: contextTeam, setTeam: setContextTeam } = useTeam();
 
   // ─── Core state ────────────────────────────────────────────────
-  const [isOverlay, setIsOverlay] = useState(false);
+  const [isOverlay, setIsOverlay] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return new URLSearchParams(window.location.search).has('overlay')
+      || window.location.hash.includes('?overlay=1')
+      || window.location.hash.includes('&overlay=1');
+  });
   // Embedded preview of the overlay inside companion view — keeps detection running
   const [showOverlayPreview, setShowOverlayPreview] = useState(false);
+  // Pop-out overlay window mode — set via ?overlay=1 query
+  const isOverlayWindow = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return new URLSearchParams(window.location.search).has('overlay')
+      || window.location.hash.includes('?overlay=1')
+      || window.location.hash.includes('&overlay=1');
+  }, []);
+  // BroadcastChannel for cross-window state sync (host ↔ pop-out overlay)
+  const broadcastRef = useRef<BroadcastChannel | null>(null);
   const [history, setHistory] = useState<MatchRecord[]>(() => loadHistory());
   const [showHistory, setShowHistory] = useState(false);
   const [opponentTeam, setOpponentTeam] = useState<string[]>([]);
@@ -572,12 +586,74 @@ export function StreamCompanionPage() {
   // Permanent side assignment once high-confidence detection is seen.
   // Camera pans cannot flip committed sides.
   const committedSidesRef = useRef<Map<string, 'left' | 'right'>>(new Map());
+  // Currently active battlers — sprite detected at battle field position
+  // (bottom-left = yours, top-right = opponent)
+  const [activeYour, setActiveYour] = useState<string | null>(null);
+  const [activeOpp, setActiveOpp] = useState<string | null>(null);
   const [teamsLocked, setTeamsLocked] = useState(false);
   // Current match ID for keyframe tagging
   const currentMatchIdRef = useRef<string>('');
   const previewFrameIdRef = useRef<string>('');
   // Cache stats
   const [cacheStats, setCacheStats] = useState<{ frames: number; bytes: number }>({ frames: 0, bytes: 0 });
+
+  // Set up cross-window BroadcastChannel
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof BroadcastChannel === 'undefined') return;
+    const channel = new BroadcastChannel('champions-companion-state');
+    broadcastRef.current = channel;
+    if (isOverlayWindow) {
+      // Pop-out window: receive state updates from host
+      channel.onmessage = (e) => {
+        const { type, payload } = e.data;
+        if (type === 'state') {
+          if (payload.opponentTeam) setOpponentTeam(payload.opponentTeam);
+          if (payload.history) setHistory(payload.history);
+          if (payload.lastResult !== undefined) setLastResult(payload.lastResult);
+          if (payload.matchStartTime !== undefined) setMatchStartTime(payload.matchStartTime);
+          if (payload.activeYour !== undefined) setActiveYour(payload.activeYour);
+          if (payload.activeOpp !== undefined) setActiveOpp(payload.activeOpp);
+        }
+      };
+      // Request initial state
+      channel.postMessage({ type: 'request-state' });
+    } else {
+      // Host: respond to state requests
+      channel.onmessage = (e) => {
+        if (e.data?.type === 'request-state') {
+          channel.postMessage({
+            type: 'state',
+            payload: {
+              opponentTeam,
+              history,
+              lastResult,
+              matchStartTime,
+              activeYour,
+              activeOpp,
+            },
+          });
+        }
+      };
+    }
+    return () => channel.close();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOverlayWindow]);
+
+  // Host: broadcast state changes to pop-out windows
+  useEffect(() => {
+    if (isOverlayWindow || !broadcastRef.current) return;
+    broadcastRef.current.postMessage({
+      type: 'state',
+      payload: {
+        opponentTeam,
+        history,
+        lastResult,
+        matchStartTime,
+        activeYour,
+        activeOpp,
+      },
+    });
+  }, [opponentTeam, history, lastResult, matchStartTime, activeYour, activeOpp, isOverlayWindow]);
 
   // Persist history
   useEffect(() => { saveHistory(history); }, [history]);
@@ -726,6 +802,8 @@ export function StreamCompanionPage() {
     setDetectionPhase('preview');
     currentMatchIdRef.current = '';
     previewFrameIdRef.current = '';
+    setActiveYour(null);
+    setActiveOpp(null);
 
     setTimeout(() => setLastResult(null), 3000);
   }, [filledOpponents, filledMyTeam, archetypes, matchStartTime, orderedBringList]);
@@ -1006,7 +1084,35 @@ export function StreamCompanionPage() {
     // battle:  teams locked, skip detection entirely (just watch W/L)
     // ended:   cooldown after W/L, then transition back to preview
 
-    if (detectionPhase === 'battle') return; // locked, OCR W/L handled above
+    if (detectionPhase === 'battle') {
+      // Locked. Identify active battlers by field position.
+      // Bottom-left = your active mon. Top-right = opponent active.
+      // Field zones: bottom-left ≈ x<50%, y>50%. Top-right ≈ x>50%, y<50%.
+      let bestYour: { species: string; conf: number } | null = null;
+      let bestOpp: { species: string; conf: number } | null = null;
+      for (const s of (result.spriteMatched ?? [])) {
+        if (s.confidence < 0.3) continue;
+        const inBottomLeft = s.x < midX && s.y > midY;
+        const inTopRight = s.x > midX && s.y < midY;
+        if (inBottomLeft && filledMyTeam.includes(s.species)) {
+          if (!bestYour || s.confidence > bestYour.conf) bestYour = { species: s.species, conf: s.confidence };
+        }
+        if (inTopRight && filledOpponents.includes(s.species)) {
+          if (!bestOpp || s.confidence > bestOpp.conf) bestOpp = { species: s.species, conf: s.confidence };
+        }
+      }
+      // Battle log overrides position — last seen mon usually = active
+      for (const blm of (result.battleLogMatches ?? [])) {
+        if (blm.isOpponent && filledOpponents.includes(blm.species)) {
+          bestOpp = { species: blm.species, conf: 1.0 };
+        } else if (!blm.isOpponent && filledMyTeam.includes(blm.species)) {
+          bestYour = { species: blm.species, conf: 1.0 };
+        }
+      }
+      if (bestYour && bestYour.species !== activeYour) setActiveYour(bestYour.species);
+      if (bestOpp && bestOpp.species !== activeOpp) setActiveOpp(bestOpp.species);
+      return; // OCR W/L already handled above
+    }
 
     // Preview phase — accumulate votes across frames
     const leftVotes = leftVotesRef.current;
@@ -1189,6 +1295,8 @@ export function StreamCompanionPage() {
 
   // Auto-scan loop: every 4 seconds when detection is active
   useEffect(() => {
+    // Pop-out overlay windows are display-only — no detection
+    if (isOverlayWindow) return;
     if (detecting) {
       runScan(); // immediate first scan
       scanIntervalRef.current = setInterval(runScan, 1000);
@@ -1298,14 +1406,28 @@ export function StreamCompanionPage() {
           </div>
           {filledMyTeam.length > 0 ? (
             <div className="flex gap-1">
-              {filledMyTeam.map(species => (
-                <div key={species} className="flex flex-col items-center group">
-                  <div className="relative w-14 h-14 flex items-center justify-center rounded-lg" style={{ background: 'radial-gradient(circle, rgba(0,117,190,0.25) 0%, transparent 70%)' }}>
-                    <Sprite species={species} size="lg" />
+              {filledMyTeam.map(species => {
+                const isActive = activeYour === species;
+                return (
+                  <div key={species} className="flex flex-col items-center group">
+                    <div
+                      className={`relative w-14 h-14 flex items-center justify-center rounded-lg transition-all ${isActive ? 'scale-110' : 'opacity-60'}`}
+                      style={{
+                        background: isActive
+                          ? 'radial-gradient(circle, rgba(0,117,190,0.6) 0%, transparent 70%)'
+                          : 'radial-gradient(circle, rgba(0,117,190,0.18) 0%, transparent 70%)',
+                        boxShadow: isActive ? '0 0 16px rgba(0,117,190,0.7)' : 'none',
+                      }}
+                    >
+                      <Sprite species={species} size="lg" />
+                      {isActive && (
+                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+                      )}
+                    </div>
+                    <span className={`text-[8px] font-semibold truncate max-w-[60px] ${isActive ? 'text-sky-300' : 'text-white/50'}`}>{species}</span>
                   </div>
-                  <span className="text-[8px] text-white/60 font-semibold truncate max-w-[60px]">{species}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="h-14 flex items-center justify-center">
@@ -1327,14 +1449,28 @@ export function StreamCompanionPage() {
           </div>
           {filledOpponents.length > 0 ? (
             <div className="flex gap-1 flex-row-reverse">
-              {filledOpponents.map(species => (
-                <div key={species} className="flex flex-col items-center group">
-                  <div className="relative w-14 h-14 flex items-center justify-center rounded-lg" style={{ background: 'radial-gradient(circle, rgba(196,13,31,0.25) 0%, transparent 70%)' }}>
-                    <Sprite species={species} size="lg" />
+              {filledOpponents.map(species => {
+                const isActive = activeOpp === species;
+                return (
+                  <div key={species} className="flex flex-col items-center group">
+                    <div
+                      className={`relative w-14 h-14 flex items-center justify-center rounded-lg transition-all ${isActive ? 'scale-110' : 'opacity-60'}`}
+                      style={{
+                        background: isActive
+                          ? 'radial-gradient(circle, rgba(196,13,31,0.6) 0%, transparent 70%)'
+                          : 'radial-gradient(circle, rgba(196,13,31,0.18) 0%, transparent 70%)',
+                        boxShadow: isActive ? '0 0 16px rgba(196,13,31,0.7)' : 'none',
+                      }}
+                    >
+                      <Sprite species={species} size="lg" />
+                      {isActive && (
+                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                      )}
+                    </div>
+                    <span className={`text-[8px] font-semibold truncate max-w-[60px] ${isActive ? 'text-red-300' : 'text-white/50'}`}>{species}</span>
                   </div>
-                  <span className="text-[8px] text-white/60 font-semibold truncate max-w-[60px]">{species}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="h-14 flex items-center justify-center">
@@ -1570,6 +1706,16 @@ export function StreamCompanionPage() {
                 Overlay
               </button>
               <button
+                onClick={() => {
+                  const url = `${window.location.pathname}#/stream?overlay=1`;
+                  window.open(url, 'champions-overlay', 'width=1280,height=720,resizable=yes');
+                }}
+                className="text-[10px] px-2 py-1 bg-poke-surface border border-poke-border text-slate-400 rounded hover:text-poke-gold hover:border-poke-gold/40 transition-colors"
+                title="Pop out overlay to a new window — receives live state from this tab"
+              >
+                Pop Out
+              </button>
+              <button
                 onClick={() => setShowHistory(!showHistory)}
                 className={`text-[10px] px-2 py-1 rounded border transition-colors ${
                   showHistory
@@ -1739,7 +1885,43 @@ export function StreamCompanionPage() {
       </header>
 
       {/* ═══ MAIN CONTENT — 2-column on wide screens ═══ */}
-      <div className="flex-1 max-w-6xl mx-auto w-full px-4 py-4">
+      <div className="flex-1 max-w-6xl mx-auto w-full px-4 py-4 space-y-4">
+
+      {/* Full-width overlay preview when toggled */}
+      {showOverlayPreview && (
+        <div className="poke-panel overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-1.5 border-b border-poke-border">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Overlay Preview · Live</span>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setIsOverlay(true)}
+                className="text-[9px] px-2 py-0.5 rounded bg-poke-gold/15 border border-poke-gold/30 text-poke-gold hover:bg-poke-gold/25 transition-colors"
+              >
+                Fullscreen
+              </button>
+              <button
+                onClick={() => {
+                  const url = `${window.location.pathname}#/stream?overlay=1`;
+                  window.open(url, 'champions-overlay', 'width=1280,height=720,resizable=yes');
+                }}
+                className="text-[9px] px-2 py-0.5 rounded bg-sky-500/15 border border-sky-500/30 text-sky-400 hover:bg-sky-500/25 transition-colors"
+              >
+                Pop Out Window
+              </button>
+              <button
+                onClick={() => setShowOverlayPreview(false)}
+                className="text-[9px] text-slate-600 hover:text-red-400 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+          <div className="relative bg-slate-950/50 w-full" style={{ aspectRatio: '16 / 9' }}>
+            {overlayJSX}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
       {/* Left column: stream, debug, opponent input */}
       <div className="space-y-4">
@@ -2399,35 +2581,6 @@ export function StreamCompanionPage() {
 
         {/* Right column: analysis */}
         <div className="space-y-4">
-
-        {/* ═══ OVERLAY PREVIEW (embedded) ═══ */}
-        {showOverlayPreview && (
-          <div className="poke-panel overflow-hidden">
-            <div className="flex items-center justify-between px-3 py-1.5 border-b border-poke-border">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Overlay Preview</span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setIsOverlay(true)}
-                  className="text-[9px] px-1.5 py-0.5 rounded bg-poke-gold/15 border border-poke-gold/30 text-poke-gold hover:bg-poke-gold/25 transition-colors"
-                >
-                  Fullscreen
-                </button>
-                <button
-                  onClick={() => setShowOverlayPreview(false)}
-                  className="text-[9px] text-slate-600 hover:text-red-400 transition-colors"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-            <div
-              className="relative bg-slate-950/50"
-              style={{ aspectRatio: '16 / 9', minHeight: '260px' }}
-            >
-              {overlayJSX}
-            </div>
-          </div>
-        )}
 
         {/* ═══ LIVE ANALYSIS (appears with 1+ opponents) ═══ */}
         {filledOpponents.length >= 1 && (
