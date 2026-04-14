@@ -1197,11 +1197,18 @@ export function StreamCompanionPage() {
       map.set(s.species, (map.get(s.species) ?? 0) + weight);
     }
 
-    // OCR votes by side
+    // OCR votes by side — panel OCR matches have exact side assignment
+    // and 0.9+ confidence. Give them heavy weight + commit immediately.
     for (const m of result.matched) {
-      if (m.confidence < 0.8) continue;
-      if (m.side === 'left') leftVotes.set(m.species, (leftVotes.get(m.species) ?? 0) + 2);
-      else if (m.side === 'right') rightVotes.set(m.species, (rightVotes.get(m.species) ?? 0) + 2);
+      if (m.confidence < 0.6) continue;
+      const side = m.side;
+      if (side !== 'left' && side !== 'right') continue;
+      // Panel OCR matches (conf >= 0.9) = ground truth from HP bar
+      const isPanelMatch = m.confidence >= 0.9;
+      const weight = isPanelMatch ? 8 : 2;
+      if (isPanelMatch) committed.set(m.species, side);
+      const map = side === 'left' ? leftVotes : rightVotes;
+      map.set(m.species, (map.get(m.species) ?? 0) + weight);
     }
 
     // Battle log is definitive — skip votes, go straight to lock-eligible.

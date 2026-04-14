@@ -404,8 +404,8 @@ function classifyScreen(
 }
 
 /**
- * Run OCR on a captured frame using multiple preprocessing strategies.
- * Returns the best result across passes.
+ * Run TARGETED OCR on HP bar panel regions + full-frame fallback.
+ * Panel OCR is fast (small crops) and reliable (fixed positions).
  */
 export async function detectPokemonFromFrame(
   canvas: HTMLCanvasElement,
@@ -416,6 +416,38 @@ export async function detectPokemonFromFrame(
   if (!_worker || !_workerReady) {
     return { rawText: '', tokens: [], matched: [], spriteMatched: [], rejected: [], species: [], durationMs: 0, bestPass: 'none', matchResult: null, matchResultDebug: '', screenContext: 'unknown', screenContextDebug: '', sideDetection: emptySide, battleLogMatches: [] };
   }
+
+  // ── FAST PANEL OCR ──
+  // HP bar panels are at fixed positions. OCR just those regions first.
+  // Bottom-left panel (YOUR mon): x 2-40%, y 60-85%
+  // Top-right panel (OPP mon): x 55-98%, y 10-40%
+  // Much faster than full-frame OCR and gives exact side assignment.
+  const panelMatches: OcrMatch[] = [];
+  const w = canvas.width, h = canvas.height;
+
+  const ocrPanel = async (x0: number, y0: number, x1: number, y1: number, side: 'left' | 'right') => {
+    const pw = Math.round(x1 - x0), ph = Math.round(y1 - y0);
+    if (pw < 20 || ph < 20) return;
+    const crop = document.createElement('canvas');
+    crop.width = pw; crop.height = ph;
+    crop.getContext('2d')!.drawImage(canvas, Math.round(x0), Math.round(y0), pw, ph, 0, 0, pw, ph);
+    const processed = preprocessHighContrast(crop);
+    try {
+      const { data } = await _worker!.recognize(processed);
+      const tokens = tokenize(data.text);
+      for (const token of tokens) {
+        const result = matchToken(token);
+        if (result && result.confidence >= 0.6) {
+          panelMatches.push({ ...result, token, side, method: 'token' });
+        }
+      }
+    } catch { /* panel OCR failed, continue with full-frame */ }
+  };
+
+  await Promise.all([
+    ocrPanel(w * 0.02, h * 0.60, w * 0.40, h * 0.85, 'left'),   // your panel
+    ocrPanel(w * 0.55, h * 0.10, w * 0.98, h * 0.40, 'right'),  // opponent panel
+  ]);
 
   // Crop out the right 25% of the frame — this is where Twitch chat
   // typically sits. Chat text generates massive OCR noise (usernames,
@@ -436,6 +468,10 @@ export async function detectPokemonFromFrame(
   ];
 
   const allMatched = new Map<string, OcrMatch>();
+  // Seed with panel OCR results — highest confidence, exact side assignment
+  for (const pm of panelMatches) {
+    allMatched.set(pm.species, { ...pm, confidence: Math.max(pm.confidence, 0.9) });
+  }
   const allRejected: { token: string; reason: string }[] = [];
   let allRawText = '';
   let allTokens: string[] = [];
