@@ -1587,28 +1587,24 @@ export function StreamCompanionPage() {
                 className="relative z-10 rounded-full flex items-center justify-center"
                 style={{
                   width: '55%', height: '55%',
-                  background: 'radial-gradient(circle, #0b0b16 0%, #1a1a2e 100%)',
-                  border: '5px solid #0b0b16',
-                  boxShadow: 'inset 0 0 0 3px #fff, inset 0 0 24px rgba(0,0,0,0.6)',
+                  background: 'radial-gradient(circle, #f8fafc 0%, #e2e8f0 100%)',
+                  border: '5px solid #0f172a',
+                  boxShadow: 'inset 0 0 0 2px #cbd5e1, inset 0 4px 12px rgba(0,0,0,0.15)',
                 }}
               >
                 <div className="flex flex-col items-center justify-center leading-none">
                   <div className="flex items-baseline gap-1.5">
-                    <span className="font-black text-3xl tracking-tighter" style={{ color: '#4ade80', WebkitTextStroke: '1.5px #064e3b', textShadow: '0 2px 4px rgba(0,0,0,0.9)' }}>{wins}</span>
-                    <span className="font-black text-lg" style={{ color: '#ffd700', WebkitTextStroke: '1px #78350f' }}>-</span>
-                    <span className="font-black text-3xl tracking-tighter" style={{ color: '#f87171', WebkitTextStroke: '1.5px #7f1d1d', textShadow: '0 2px 4px rgba(0,0,0,0.9)' }}>{losses}</span>
+                    <span className="font-black text-3xl tracking-tighter" style={{ color: '#16a34a', WebkitTextStroke: '1px #052e16' }}>{wins}</span>
+                    <span className="font-black text-lg" style={{ color: '#94a3b8' }}>-</span>
+                    <span className="font-black text-3xl tracking-tighter" style={{ color: '#dc2626', WebkitTextStroke: '1px #450a0a' }}>{losses}</span>
                   </div>
                   {totalGames > 0 && (
-                    <div className="text-[11px] font-black mt-0.5 tracking-widest" style={{ color: '#ffd700', WebkitTextStroke: '0.5px #78350f', textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>{winRate}%</div>
+                    <div className="text-[11px] font-black mt-0.5 tracking-widest" style={{ color: '#1e293b' }}>{winRate}%</div>
                   )}
                   {streak.count >= 2 && (
                     <div
                       className="text-[9px] font-black uppercase tracking-widest mt-1"
-                      style={{
-                        color: '#ffd700',
-                        WebkitTextStroke: '0.5px #78350f',
-                        textShadow: '0 1px 3px rgba(0,0,0,0.9)',
-                      }}
+                      style={{ color: '#1e293b' }}
                     >
                       {streak.count}{streak.type === 'win' ? 'W' : 'L'} STREAK
                     </div>
