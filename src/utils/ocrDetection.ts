@@ -813,6 +813,62 @@ function tokenize(text: string): string[] {
 // ─── Preprocessing strategies ───────────────────────────────────
 
 /**
+ * Auto-detect game window inside a stream overlay.
+ * Scans brightness grid — game area is darker than branding/webcam/chat.
+ * Returns pct-based crop or null if full-frame or can't determine.
+ */
+export function autoDetectGameWindow(canvas: HTMLCanvasElement): { x: number; y: number; w: number; h: number } | null {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const fw = canvas.width, fh = canvas.height;
+
+  const cols = 20, rows = 12;
+  const cellW = Math.floor(fw / cols), cellH = Math.floor(fh / rows);
+  const grid: number[][] = [];
+
+  for (let r = 0; r < rows; r++) {
+    grid[r] = [];
+    for (let c = 0; c < cols; c++) {
+      const data = ctx.getImageData(c * cellW, r * cellH, cellW, cellH).data;
+      let sum = 0, count = 0;
+      for (let i = 0; i < data.length; i += 32) {
+        sum += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        count++;
+      }
+      grid[r][c] = count > 0 ? sum / count : 128;
+    }
+  }
+
+  const allVals = grid.flat().sort((a, b) => a - b);
+  const median = allVals[Math.floor(allVals.length / 2)];
+  const darkThresh = Math.min(median, 120);
+
+  // Find dark rectangle bounds
+  let left = 0, right = cols - 1, top = 0, bottom = rows - 1;
+  for (let c = 0; c < cols; c++) {
+    if (grid.reduce((s, row) => s + row[c], 0) / rows <= darkThresh) { left = c; break; }
+  }
+  for (let c = cols - 1; c >= 0; c--) {
+    if (grid.reduce((s, row) => s + row[c], 0) / rows <= darkThresh) { right = c; break; }
+  }
+  for (let r = 0; r < rows; r++) {
+    if (grid[r].reduce((s, v) => s + v, 0) / cols <= darkThresh) { top = r; break; }
+  }
+  for (let r = rows - 1; r >= 0; r--) {
+    if (grid[r].reduce((s, v) => s + v, 0) / cols <= darkThresh) { bottom = r; break; }
+  }
+
+  const x = left / cols;
+  const y = top / rows;
+  const w = (right - left + 1) / cols;
+  const h = (bottom - top + 1) / rows;
+
+  // Skip if too small or basically full-frame
+  if (w < 0.25 || h < 0.25 || (w > 0.92 && h > 0.92)) return null;
+  return { x, y, w, h };
+}
+
+/**
  * Crop a canvas to a percentage region. Used to exclude Twitch chat (right side)
  * and stream overlay bars (bottom) before running OCR.
  */

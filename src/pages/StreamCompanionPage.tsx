@@ -16,6 +16,7 @@ import {
   isCaptureActive,
   grabFrame,
   detectPokemonFromFrame,
+  autoDetectGameWindow,
   type OcrDetectionResult,
 } from '../utils/ocrDetection';
 import {
@@ -975,19 +976,22 @@ export function StreamCompanionPage() {
       setLastRawFrameUrl(rawFrame.toDataURL('image/jpeg', 0.55));
     }
 
-    // Apply user-defined capture region crop BEFORE any analysis.
-    // Excludes other browser tabs/windows/overlays on shared screen.
+    // Crop to game window BEFORE analysis.
+    // Priority: 1) user-drawn ROI, 2) auto-detected game window, 3) full frame
     let frame = rawFrame;
-    if (captureRegion) {
-      const { x, y, w, h } = captureRegion;
+    const region = captureRegion ?? autoDetectGameWindow(rawFrame);
+    if (region) {
+      const { x, y, w, h } = region;
       const sx = Math.round(rawFrame.width * x);
       const sy = Math.round(rawFrame.height * y);
       const sw = Math.round(rawFrame.width * w);
       const sh = Math.round(rawFrame.height * h);
-      const cropped = document.createElement('canvas');
-      cropped.width = sw; cropped.height = sh;
-      cropped.getContext('2d')!.drawImage(rawFrame, sx, sy, sw, sh, 0, 0, sw, sh);
-      frame = cropped;
+      if (sw > 100 && sh > 100) {
+        const cropped = document.createElement('canvas');
+        cropped.width = sw; cropped.height = sh;
+        cropped.getContext('2d')!.drawImage(rawFrame, sx, sy, sw, sh, 0, 0, sw, sh);
+        frame = cropped;
+      }
     }
 
     // Keyframe gate: skip OCR on frames identical to previous scan.
@@ -2270,6 +2274,20 @@ export function StreamCompanionPage() {
                             className="px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400 font-bold"
                           >
                             Cancel
+                          </button>
+                        )}
+                        {!regionSelecting && (
+                          <button
+                            onClick={() => {
+                              const raw = grabFrame();
+                              if (raw) {
+                                const detected = autoDetectGameWindow(raw);
+                                if (detected) setCaptureRegion(detected);
+                              }
+                            }}
+                            className="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-bold hover:bg-emerald-500/25 transition-colors"
+                          >
+                            Auto-detect Window
                           </button>
                         )}
                         {captureRegion && !regionSelecting && (
