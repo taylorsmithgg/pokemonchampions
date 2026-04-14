@@ -2055,6 +2055,86 @@ export function StreamCompanionPage() {
         </div>
       )}
 
+      {/* ═══ FRAME CAPTURE — full-width above grid ═══ */}
+      {(detecting || lastFrameUrl) && lastOcrResult && (
+        <div className="poke-panel overflow-visible">
+          <div className="flex items-center justify-between px-3 py-1.5 border-b border-poke-border">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              Frame Capture{captureRegion ? ' · ROI' : ''}
+            </span>
+            <div className="flex items-center gap-1.5 text-[10px]">
+              {!regionSelecting ? (
+                <button
+                  onClick={() => { setRegionSelecting(true); setRegionDragStart(null); setRegionDragEnd(null); }}
+                  className="px-2 py-0.5 rounded bg-violet-500/15 border border-violet-500/30 text-violet-400 font-bold hover:bg-violet-500/25 transition-colors"
+                >
+                  {captureRegion ? 'Redraw' : 'Set Region'}
+                </button>
+              ) : (
+                <button
+                  onClick={() => { setRegionSelecting(false); setRegionDragStart(null); setRegionDragEnd(null); }}
+                  className="px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400 font-bold"
+                >
+                  Cancel
+                </button>
+              )}
+              {!regionSelecting && (
+                <button
+                  onClick={() => {
+                    const raw = grabFrame();
+                    if (raw) {
+                      const detected = autoDetectGameWindow(raw);
+                      if (detected) setCaptureRegion(detected);
+                    }
+                  }}
+                  className="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-bold hover:bg-emerald-500/25 transition-colors"
+                >
+                  Auto-detect
+                </button>
+              )}
+              {captureRegion && !regionSelecting && (
+                <button onClick={() => setCaptureRegion(null)} className="px-2 py-0.5 rounded bg-poke-surface border border-poke-border text-slate-400 hover:text-red-400 transition-colors">
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+          <div
+            className="relative"
+            onMouseDown={regionSelecting ? (e) => {
+              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              setRegionDragStart({ x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height });
+              setRegionDragEnd({ x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height });
+            } : undefined}
+            onMouseMove={regionSelecting && regionDragStart ? (e) => {
+              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              setRegionDragEnd({ x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height });
+            } : undefined}
+            onMouseUp={regionSelecting && regionDragStart && regionDragEnd ? () => {
+              const x0 = Math.min(regionDragStart!.x, regionDragEnd!.x), y0 = Math.min(regionDragStart!.y, regionDragEnd!.y);
+              const x1 = Math.max(regionDragStart!.x, regionDragEnd!.x), y1 = Math.max(regionDragStart!.y, regionDragEnd!.y);
+              if ((x1-x0) > 0.05 && (y1-y0) > 0.05) setCaptureRegion({ x: x0, y: y0, w: x1-x0, h: y1-y0 });
+              setRegionSelecting(false); setRegionDragStart(null); setRegionDragEnd(null);
+            } : undefined}
+            style={{ cursor: regionSelecting ? 'crosshair' : 'default', userSelect: 'none' }}
+          >
+            <img
+              src={(regionSelecting ? (lastRawFrameUrl ?? lastFrameUrl) : lastFrameUrl) ?? undefined}
+              alt="Captured frame"
+              className="w-full h-auto block"
+              draggable={false}
+              style={{ pointerEvents: 'none' }}
+            />
+            {regionSelecting && regionDragStart && regionDragEnd && (
+              <div className="absolute border-2 border-violet-400 bg-violet-400/10 pointer-events-none" style={{
+                left: `${Math.min(regionDragStart.x, regionDragEnd.x)*100}%`, top: `${Math.min(regionDragStart.y, regionDragEnd.y)*100}%`,
+                width: `${Math.abs(regionDragEnd.x-regionDragStart.x)*100}%`, height: `${Math.abs(regionDragEnd.y-regionDragStart.y)*100}%`,
+              }} />
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
       {/* Left column: stream, debug, opponent input */}
       <div className="space-y-4">
@@ -2255,95 +2335,6 @@ export function StreamCompanionPage() {
           {/* Video embed */}
           {videoSource && <VideoEmbed source={videoSource} />}
         </div>
-
-        {/* ═══ FRAME CAPTURE — full-width, always visible when detecting ═══ */}
-        {(detecting || lastFrameUrl) && lastOcrResult && (
-          <div className="poke-panel overflow-visible">
-            <div className="flex items-center justify-between px-3 py-1.5 border-b border-poke-border">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                Frame Capture{captureRegion ? ' · ROI' : ''}
-              </span>
-              <div className="flex items-center gap-1.5 text-[10px]">
-                {!regionSelecting ? (
-                  <button
-                    onClick={() => { setRegionSelecting(true); setRegionDragStart(null); setRegionDragEnd(null); }}
-                    className="px-2 py-0.5 rounded bg-violet-500/15 border border-violet-500/30 text-violet-400 font-bold hover:bg-violet-500/25 transition-colors"
-                  >
-                    {captureRegion ? 'Redraw' : 'Set Region'}
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => { setRegionSelecting(false); setRegionDragStart(null); setRegionDragEnd(null); }}
-                    className="px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400 font-bold"
-                  >
-                    Cancel
-                  </button>
-                )}
-                {!regionSelecting && (
-                  <button
-                    onClick={() => {
-                      const raw = grabFrame();
-                      if (raw) {
-                        const detected = autoDetectGameWindow(raw);
-                        if (detected) setCaptureRegion(detected);
-                      }
-                    }}
-                    className="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-bold hover:bg-emerald-500/25 transition-colors"
-                  >
-                    Auto-detect
-                  </button>
-                )}
-                {captureRegion && !regionSelecting && (
-                  <button onClick={() => setCaptureRegion(null)} className="px-2 py-0.5 rounded bg-poke-surface border border-poke-border text-slate-400 hover:text-red-400 transition-colors">
-                    Clear
-                  </button>
-                )}
-              </div>
-            </div>
-            <div
-              className="relative"
-              onMouseDown={regionSelecting ? (e) => {
-                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                const x = (e.clientX - rect.left) / rect.width;
-                const y = (e.clientY - rect.top) / rect.height;
-                setRegionDragStart({ x, y });
-                setRegionDragEnd({ x, y });
-              } : undefined}
-              onMouseMove={regionSelecting && regionDragStart ? (e) => {
-                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                setRegionDragEnd({ x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height });
-              } : undefined}
-              onMouseUp={regionSelecting && regionDragStart && regionDragEnd ? () => {
-                const x0 = Math.min(regionDragStart!.x, regionDragEnd!.x);
-                const y0 = Math.min(regionDragStart!.y, regionDragEnd!.y);
-                const x1 = Math.max(regionDragStart!.x, regionDragEnd!.x);
-                const y1 = Math.max(regionDragStart!.y, regionDragEnd!.y);
-                if ((x1 - x0) > 0.05 && (y1 - y0) > 0.05) setCaptureRegion({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
-                setRegionSelecting(false); setRegionDragStart(null); setRegionDragEnd(null);
-              } : undefined}
-              style={{ cursor: regionSelecting ? 'crosshair' : 'default', userSelect: 'none' }}
-            >
-              <img
-                src={(regionSelecting ? (lastRawFrameUrl ?? lastFrameUrl) : lastFrameUrl) ?? undefined}
-                alt="Captured frame"
-                className="w-full h-auto block"
-                draggable={false}
-                style={{ pointerEvents: 'none' }}
-              />
-              {regionSelecting && regionDragStart && regionDragEnd && (
-                <div
-                  className="absolute border-2 border-violet-400 bg-violet-400/10 pointer-events-none"
-                  style={{
-                    left: `${Math.min(regionDragStart.x, regionDragEnd.x) * 100}%`,
-                    top: `${Math.min(regionDragStart.y, regionDragEnd.y) * 100}%`,
-                    width: `${Math.abs(regionDragEnd.x - regionDragStart.x) * 100}%`,
-                    height: `${Math.abs(regionDragEnd.y - regionDragStart.y) * 100}%`,
-                  }}
-                />
-              )}
-            </div>
-          </div>
-        )}
 
         {/* ═══ DEBUG SECTIONS — collapsible details ═══ */}
         <div className="poke-panel overflow-hidden">
