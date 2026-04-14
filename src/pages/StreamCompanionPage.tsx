@@ -379,7 +379,7 @@ function VideoEmbed({ source }: { source: VideoSource }) {
 
 // ─── Match History Row with expandable thumbnails ───────────────
 
-function MatchHistoryRow({ match, onDelete }: { match: MatchRecord; onDelete: (id: string) => void }) {
+function MatchHistoryRow({ match, onDelete, onFlip }: { match: MatchRecord; onDelete: (id: string) => void; onFlip: (id: string) => void }) {
   const [expanded, setExpanded] = useState(false);
   const [frames, setFrames] = useState<CachedFrame[] | null>(null);
 
@@ -434,6 +434,13 @@ function MatchHistoryRow({ match, onDelete }: { match: MatchRecord; onDelete: (i
             {expanded ? 'Hide' : 'Replay'}
           </button>
         )}
+        <button
+          onClick={() => onFlip(match.id)}
+          className="text-[9px] px-1.5 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors shrink-0"
+          title={`Flip result (currently ${match.result})`}
+        >
+          Flip→{match.result === 'win' ? 'L' : 'W'}
+        </button>
         <button onClick={() => onDelete(match.id)} className="text-slate-700 hover:text-red-400 transition-colors p-1 shrink-0" title="Delete match">
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -586,6 +593,9 @@ export function StreamCompanionPage() {
   // Permanent side assignment once high-confidence detection is seen.
   // Camera pans cannot flip committed sides.
   const committedSidesRef = useRef<Map<string, 'left' | 'right'>>(new Map());
+  // Counter for high-confidence sightings on the OPPOSITE side from committed.
+  // 3+ contradictions force a side flip — self-correction loop.
+  const wrongSideHitsRef = useRef<Map<string, number>>(new Map());
   // Currently active battlers — sprite detected at battle field position
   // (bottom-left = yours, top-right = opponent)
   const [activeYour, setActiveYour] = useState<string | null>(null);
@@ -718,6 +728,34 @@ export function StreamCompanionPage() {
   );
   const filledOpponents = useMemo(() => opponentTeam.filter(Boolean), [opponentTeam]);
 
+  // Self-correction: if a species rapidly registers on the WRONG side
+  // (e.g. opponent sends out, briefly seen on your side too), drop it
+  // from the side with significantly fewer votes. Mirror matches rare —
+  // user can manually correct via dismiss buttons if needed.
+  useEffect(() => {
+    const myTeamSet = new Set(filledMyTeam);
+    const dupes = filledOpponents.filter(s => myTeamSet.has(s));
+    if (dupes.length === 0) return;
+    const opponentDominant = dupes.filter(s => {
+      const leftV = leftVotesRef.current.get(s) ?? 0;
+      const rightV = rightVotesRef.current.get(s) ?? 0;
+      return rightV >= leftV * 3 && rightV >= 5;
+    });
+    const yourDominant = dupes.filter(s => {
+      const leftV = leftVotesRef.current.get(s) ?? 0;
+      const rightV = rightVotesRef.current.get(s) ?? 0;
+      return leftV >= rightV * 3 && leftV >= 5;
+    });
+    if (yourDominant.length > 0) {
+      setOpponentTeam(prev => prev.filter(s => !yourDominant.includes(s)));
+    }
+    if (opponentDominant.length > 0) {
+      const cleaned = filledMyTeam.filter(s => !opponentDominant.includes(s));
+      handleSetMyTeam(cleaned);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filledMyTeam, filledOpponents]);
+
   const archetypes = useMemo(
     () => filledOpponents.length >= 1 ? detectOpponentArchetype(filledOpponents) : [],
     [filledOpponents],
@@ -796,7 +834,7 @@ export function StreamCompanionPage() {
     // Clear dismissed list for fresh game
     setDismissedSpecies(new Set());
     // Reset phase machine — ready for next match's team preview
-    leftVotesRef.current = new Map(); committedSidesRef.current = new Map();
+    leftVotesRef.current = new Map(); committedSidesRef.current = new Map(); wrongSideHitsRef.current = new Map();
     rightVotesRef.current = new Map();
     setTeamsLocked(false);
     setDetectionPhase('preview');
@@ -812,6 +850,16 @@ export function StreamCompanionPage() {
     setHistory(prev => prev.filter(h => h.id !== id));
   }, []);
 
+  // Replay/rollback — flip a recorded result (W↔L) for correction
+  const flipMatchResult = useCallback((id: string) => {
+    setHistory(prev => prev.map(m => m.id === id ? { ...m, result: m.result === 'win' ? 'loss' : 'win' } : m));
+  }, []);
+
+  // Undo most recent match record entirely
+  const undoLastMatch = useCallback(() => {
+    setHistory(prev => prev.slice(1));
+  }, []);
+
   // Full session reset — clears EVERYTHING for starting fresh
   const resetSession = useCallback(() => {
     setOpponentTeam([]);
@@ -825,7 +873,7 @@ export function StreamCompanionPage() {
     setScanCount(0);
     setDismissedSpecies(new Set());
     cooldownUntilRef.current = 0;
-    leftVotesRef.current = new Map(); committedSidesRef.current = new Map();
+    leftVotesRef.current = new Map(); committedSidesRef.current = new Map(); wrongSideHitsRef.current = new Map();
     rightVotesRef.current = new Map();
     setTeamsLocked(false);
     setDetectionPhase('preview');
@@ -1118,28 +1166,52 @@ export function StreamCompanionPage() {
     const leftVotes = leftVotesRef.current;
     const rightVotes = rightVotesRef.current;
 
-    // Sprite votes by position with permanent side commitment.
-    // Once a species is detected at ≥0.5 confidence, commit its side.
-    // All subsequent votes for that species go to committed side regardless
-    // of where the sprite appears — camera pans cannot flip it.
+    // Sprite votes with side commitment + self-correcting wrong-side flips.
     const committed = committedSidesRef.current;
+    const wrongHits = wrongSideHitsRef.current;
     for (const s of (result.spriteMatched ?? [])) {
-      if (s.confidence < 0.3) continue;
+      if (s.confidence < 0.22) continue; // lowered to catch dark/desaturated sprites
       const isLeft = s.x < midX;
-      const weight = Math.max(1, Math.round(s.confidence * 4));
+      const isBottom = s.y > midY;
+      const isTop = s.y < midY;
+      // FIELD POSITION BOOST: bottom-left = your active mon (4× weight),
+      // top-right = opponent active mon (4× weight). These are battlefield
+      // sprite positions during battle — strong ground-truth signal.
+      const onYourField = isLeft && isBottom;
+      const onOpponentField = !isLeft && isTop;
+      const fieldMultiplier = (onYourField || onOpponentField) ? 4 : 1;
+      const weight = Math.max(1, Math.round(s.confidence * 4)) * fieldMultiplier;
+      const detectedSide: 'left' | 'right' = isLeft ? 'left' : 'right';
 
       let targetSide: 'left' | 'right';
       const existing = committed.get(s.species);
       if (existing) {
-        // Already committed — stick with committed side
-        targetSide = existing;
+        if (existing !== detectedSide && s.confidence >= 0.5) {
+          // High-confidence hit on opposite side → contradiction
+          const hits = (wrongHits.get(s.species) ?? 0) + 1;
+          wrongHits.set(s.species, hits);
+          if (hits >= 3) {
+            // Self-correct: flip side. Move votes too.
+            committed.set(s.species, detectedSide);
+            const oldMap = existing === 'left' ? leftVotes : rightVotes;
+            const newMap = detectedSide === 'left' ? leftVotes : rightVotes;
+            const transferredVotes = oldMap.get(s.species) ?? 0;
+            oldMap.delete(s.species);
+            newMap.set(s.species, (newMap.get(s.species) ?? 0) + transferredVotes);
+            wrongHits.delete(s.species);
+            targetSide = detectedSide;
+          } else {
+            targetSide = existing; // not enough contradiction yet
+          }
+        } else {
+          if (existing === detectedSide) wrongHits.delete(s.species); // reset on agreement
+          targetSide = existing;
+        }
       } else if (s.confidence >= 0.4) {
-        // First decent-confidence sighting → commit permanently
-        targetSide = isLeft ? 'left' : 'right';
+        targetSide = detectedSide;
         committed.set(s.species, targetSide);
       } else {
-        // Low-conf, uncommitted → vote on current position, don't commit yet
-        targetSide = isLeft ? 'left' : 'right';
+        targetSide = detectedSide;
       }
       const map = targetSide === 'left' ? leftVotes : rightVotes;
       map.set(s.species, (map.get(s.species) ?? 0) + weight);
@@ -1226,15 +1298,19 @@ export function StreamCompanionPage() {
     const yourTop = leftWinners.slice(0, 6).map(([s]) => s);
     const oppTop = rightWinners.slice(0, 6).map(([s]) => s);
 
-    // Lock condition: 3+ species per side with 2+ weighted votes each.
-    // Side-commitment + dominant-side assignment already prevent flips,
-    // so we don't need high vote counts to stabilize ordering.
+    // Lock condition: opponent side must be confident (3+ species, 2+ votes).
+    // Your team is OPTIONAL — locks if confident, otherwise user enters manually.
+    // Asymmetric because your team often switches rapidly (you control it),
+    // while opponent team you scout from team preview screen.
     const confidentLeft = [...leftVotes.entries()].filter(([, v]) => v >= 2);
     const confidentRight = [...rightVotes.entries()].filter(([, v]) => v >= 2);
 
-    if (!teamsLocked && confidentLeft.length >= 3 && confidentRight.length >= 3) {
+    // Lock when opponent side is confident. Your team locks if also
+    // confident, otherwise stays empty for manual entry.
+    if (!teamsLocked && confidentRight.length >= 3) {
       // LOCK — assign teams, move to battle phase
-      if (filledMyTeam.length < 2) {
+      // Only auto-assign your team if we have decent left-side detection (2+)
+      if (filledMyTeam.length < 2 && confidentLeft.length >= 2) {
         handleSetMyTeam(yourTop);
       }
       const oppTeam = oppTop.filter(s => !yourTop.includes(s) && !dismissedSpecies.has(s));
@@ -1299,7 +1375,7 @@ export function StreamCompanionPage() {
     if (isOverlayWindow) return;
     if (detecting) {
       runScan(); // immediate first scan
-      scanIntervalRef.current = setInterval(runScan, 1000);
+      scanIntervalRef.current = setInterval(runScan, 600);
     } else {
       if (scanIntervalRef.current) {
         clearInterval(scanIntervalRef.current);
@@ -1725,6 +1801,15 @@ export function StreamCompanionPage() {
               >
                 History ({history.length})
               </button>
+              {history.length > 0 && (
+                <button
+                  onClick={undoLastMatch}
+                  className="text-[10px] px-2 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded hover:bg-amber-500/20 transition-colors"
+                  title="Remove the most recent match record (last W/L)"
+                >
+                  Undo Last
+                </button>
+              )}
               <button
                 onClick={resetSession}
                 className="text-[10px] px-2 py-1 bg-poke-surface border border-poke-border text-slate-400 rounded hover:text-red-400 hover:border-red-500/30 transition-colors"
@@ -1765,7 +1850,7 @@ export function StreamCompanionPage() {
                   onClick={() => {
                     setTeamsLocked(false);
                     setDetectionPhase('preview');
-                    leftVotesRef.current = new Map(); committedSidesRef.current = new Map();
+                    leftVotesRef.current = new Map(); committedSidesRef.current = new Map(); wrongSideHitsRef.current = new Map();
                     rightVotesRef.current = new Map();
                     setOpponentTeam([]);
                   }}
@@ -2818,7 +2903,7 @@ export function StreamCompanionPage() {
             ) : (
               <div className="space-y-1.5 max-h-[480px] overflow-y-auto">
                 {history.map(match => (
-                  <MatchHistoryRow key={match.id} match={match} onDelete={deleteMatch} />
+                  <MatchHistoryRow key={match.id} match={match} onDelete={deleteMatch} onFlip={flipMatchResult} />
                 ))}
               </div>
             )}
