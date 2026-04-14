@@ -346,14 +346,17 @@ function detectBattlePanels(canvas: HTMLCanvasElement): { hasLeftPanel: boolean;
   // Top-right panel region: x 55-95%, y 15-40%
   const tr = sample(Math.round(w * 0.55), Math.round(h * 0.15), Math.round(w * 0.95), Math.round(h * 0.40));
 
-  // Panel signature: moderate stddev (15-55). Arena only: stddev > 60 (noisy) or < 8 (flat wall)
-  const isPanel = (s: { stddev: number }) => s.stddev >= 15 && s.stddev <= 55;
+  // Panel = dark-ish region (mean < 140) with moderate variance (10-70).
+  // Arena backgrounds without panels: very bright (mean > 180) or very
+  // noisy (stddev > 80) or totally flat (stddev < 5).
+  const isPanel = (s: { mean: number; stddev: number }) =>
+    s.mean < 140 && s.stddev >= 10 && s.stddev <= 70;
   const hasLeftPanel = isPanel(bl);
   const hasRightPanel = isPanel(tr);
 
   return {
     hasLeftPanel, hasRightPanel,
-    debug: `BL σ=${bl.stddev.toFixed(0)} TR σ=${tr.stddev.toFixed(0)}`,
+    debug: `BL μ=${bl.mean.toFixed(0)} σ=${bl.stddev.toFixed(0)} TR μ=${tr.mean.toFixed(0)} σ=${tr.stddev.toFixed(0)}`,
   };
 }
 

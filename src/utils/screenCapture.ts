@@ -395,17 +395,18 @@ export async function scanFrame(
   const ctx = canvas.getContext('2d')!;
   ctx.putImageData(imageData, 0, 0);
 
-  // Adaptive region sizing — scan at multiple scales to catch sprites
-  // at different sizes (team preview vs battle vs selection screen)
+  // Aggressive multi-scale scan — catch everything from tiny selection
+  // screen icons to large battle models.
   const baseSize = Math.round(Math.min(width, height) / 8);
   const sizes = [
+    Math.round(baseSize * 0.35), // tiny selection icons
     Math.round(baseSize * 0.5),  // small icons
     Math.round(baseSize * 0.7),  // medium icons
     baseSize,                     // standard
     Math.round(baseSize * 1.3),  // large sprites
     Math.round(baseSize * 1.8),  // full battle models
   ];
-  const stepFactor = 0.35; // more overlap for better coverage
+  const stepFactor = 0.3; // more overlap — fewer missed sprites
 
   const allRegions: ScanRegion[] = [];
   const candidateMap = new Map<string, { score: number; region: ScanRegion }>();
@@ -481,7 +482,7 @@ export async function scanFrame(
           finalScore = bestHistScore * 0.4 + bestTemplate * 0.6;
         }
 
-        const accepted = finalScore > 0.18 && bestSpecies !== null;
+        const accepted = finalScore > 0.14 && bestSpecies !== null;
         const region: ScanRegion = {
           x, y, w: rw, h: rh,
           match: bestSpecies,

@@ -1028,7 +1028,6 @@ export function StreamCompanionPage() {
     for (const species of filledMyTeam) myTeamViz.add(species.split('-')[0]);
 
     // Y-axis split: bottom = yours, top = opponent (singles + doubles)
-    const midX = frame.width / 2;
     const midY = frame.height / 2;
 
     // Horizontal midline guide (Y-axis split)
@@ -1171,45 +1170,24 @@ export function StreamCompanionPage() {
     const leftVotes = leftVotesRef.current;
     const rightVotes = rightVotesRef.current;
 
-    // Sprite votes with side commitment + self-correcting wrong-side flips.
+    // Sprite votes with PERMANENT side commitment. Once committed, never
+    // flips — camera pans, animations, doubles positioning all cause
+    // temporary position noise. Only Re-detect button or new match resets.
     const committed = committedSidesRef.current;
-    const wrongHits = wrongSideHitsRef.current;
     for (const s of (result.spriteMatched ?? [])) {
-      if (s.confidence < 0.22) continue;
+      if (s.confidence < 0.2) continue;
       const isBottom = s.y > midY;
-      // Y-axis = primary team signal. Works for singles AND doubles:
-      // Bottom half = your mons (both slots in doubles). Top = opponent.
-      const onField = isBottom || s.y < midY; // always on one side
-      const fieldMultiplier = onField ? 4 : 1;
-      const weight = Math.max(1, Math.round(s.confidence * 4)) * fieldMultiplier;
-      // 'left' = your team votes, 'right' = opponent votes (naming legacy)
+      // Y-axis primary: bottom = yours, top = opponent
+      const weight = Math.max(1, Math.round(s.confidence * 5));
       const detectedSide: 'left' | 'right' = isBottom ? 'left' : 'right';
 
       let targetSide: 'left' | 'right';
       const existing = committed.get(s.species);
       if (existing) {
-        if (existing !== detectedSide && s.confidence >= 0.5) {
-          // High-confidence hit on opposite side → contradiction
-          const hits = (wrongHits.get(s.species) ?? 0) + 1;
-          wrongHits.set(s.species, hits);
-          if (hits >= 3) {
-            // Self-correct: flip side. Move votes too.
-            committed.set(s.species, detectedSide);
-            const oldMap = existing === 'left' ? leftVotes : rightVotes;
-            const newMap = detectedSide === 'left' ? leftVotes : rightVotes;
-            const transferredVotes = oldMap.get(s.species) ?? 0;
-            oldMap.delete(s.species);
-            newMap.set(s.species, (newMap.get(s.species) ?? 0) + transferredVotes);
-            wrongHits.delete(s.species);
-            targetSide = detectedSide;
-          } else {
-            targetSide = existing; // not enough contradiction yet
-          }
-        } else {
-          if (existing === detectedSide) wrongHits.delete(s.species); // reset on agreement
-          targetSide = existing;
-        }
-      } else if (s.confidence >= 0.4) {
+        // LOCKED — always vote on committed side regardless of current position
+        targetSide = existing;
+      } else if (s.confidence >= 0.35) {
+        // First decent sighting → commit permanently
         targetSide = detectedSide;
         committed.set(s.species, targetSide);
       } else {
@@ -1309,7 +1287,7 @@ export function StreamCompanionPage() {
 
     // Lock when opponent side is confident. Your team locks if also
     // confident, otherwise stays empty for manual entry.
-    if (!teamsLocked && confidentRight.length >= 3) {
+    if (!teamsLocked && confidentRight.length >= 2) {
       // LOCK — assign teams, move to battle phase
       // Only auto-assign your team if we have decent left-side detection (2+)
       if (filledMyTeam.length < 2 && confidentLeft.length >= 2) {
