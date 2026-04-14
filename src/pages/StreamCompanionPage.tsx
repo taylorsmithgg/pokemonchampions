@@ -4,6 +4,7 @@ import { Sprite } from '../components/Sprite';
 import { SearchSelect } from '../components/SearchSelect';
 import { QuickTeamInput } from '../components/QuickTeamInput';
 import { SessionTracker } from '../components/SessionTracker';
+import { ScreenCapturePanel } from '../components/ScreenCapturePanel';
 import { getAvailablePokemon, getPokemonData, getTypeEffectiveness } from '../data/champions';
 import { getTierForPokemon, TIER_DEFINITIONS } from '../data/tierlist';
 import { useTeam } from '../contexts/TeamContext';
@@ -779,26 +780,32 @@ export function StreamCompanionPage() {
               </div>
             </div>
 
-            {/* Screenshot reference */}
+            {/* Screen capture + detection */}
+            <ScreenCapturePanel
+              onDetected={(species) => {
+                // Auto-fill opponent team with detected Pokemon
+                const padded = [...species, ...Array(Math.max(0, 6 - species.length)).fill('')];
+                setOpponentTeam(padded.slice(0, 6));
+              }}
+            />
+
+            {/* Screenshot paste fallback */}
             <div
               className="poke-panel p-3"
               onDragOver={e => e.preventDefault()}
               onDrop={handleDrop}
             >
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-xs font-bold text-violet-400 uppercase tracking-wider">Team Preview Screenshot</div>
-                {screenshotUrl && (
-                  <button onClick={() => setScreenshotUrl(null)} className="text-[10px] text-slate-500 hover:text-poke-red transition-colors">Clear</button>
-                )}
-              </div>
               {screenshotUrl ? (
-                <div className="relative rounded-lg overflow-hidden border border-violet-500/20 mb-2">
-                  <img src={screenshotUrl} alt="Team preview" className="w-full h-auto max-h-48 object-contain bg-black/50" />
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] text-slate-500">Screenshot reference</span>
+                    <button onClick={() => setScreenshotUrl(null)} className="text-[10px] text-slate-600 hover:text-poke-red transition-colors">Clear</button>
+                  </div>
+                  <img src={screenshotUrl} alt="Team preview" className="w-full h-auto max-h-36 object-contain rounded border border-poke-border/30 bg-black/50" />
                 </div>
               ) : (
-                <div className="border-2 border-dashed border-poke-border/50 rounded-lg p-4 text-center hover:border-violet-500/30 transition-colors cursor-pointer">
-                  <div className="text-slate-500 text-xs mb-1">Paste screenshot (Ctrl+V) or drag & drop</div>
-                  <div className="text-slate-600 text-[10px]">Capture team preview and paste here for reference while inputting</div>
+                <div className="border border-dashed border-poke-border/30 rounded p-2 text-center">
+                  <div className="text-slate-600 text-[10px]">Ctrl+V to paste screenshot · or drag & drop</div>
                 </div>
               )}
             </div>
