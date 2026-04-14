@@ -726,7 +726,7 @@ const PRESETS_RAW: PokemonPreset[] = [
 ];
 
 // Filter presets to only species in the Champions roster.
-export const PRESETS: PokemonPreset[] = PRESETS_RAW.filter(p => {
+const CURATED_PRESETS: PokemonPreset[] = PRESETS_RAW.filter(p => {
   if (isChampionsPokemon(p.species)) return true;
   if (typeof console !== 'undefined') {
     console.warn(`[presets.ts] Dropping preset "${p.name}" — species "${p.species}" not in Champions roster.`);
@@ -734,11 +734,42 @@ export const PRESETS: PokemonPreset[] = PRESETS_RAW.filter(p => {
   return false;
 });
 
-// Group presets by species
+// Auto-generated presets for species without curated builds.
+// These ensure every roster species has move data for the projection
+// engines, synergy engine, and team builder to classify. Curated
+// presets always take priority — auto-presets only fill gaps.
+import { generateAutoPresets } from './autoPresets';
+
+let _allPresets: PokemonPreset[] | null = null;
+
+/** All presets: curated first, then auto-generated for uncovered species. */
+export const PRESETS: PokemonPreset[] = new Proxy([] as PokemonPreset[], {
+  get(_target, prop) {
+    if (!_allPresets) {
+      _allPresets = [...CURATED_PRESETS, ...generateAutoPresets()];
+    }
+    if (prop === 'length') return _allPresets.length;
+    if (prop === Symbol.iterator) return _allPresets[Symbol.iterator].bind(_allPresets);
+    if (typeof prop === 'string' && !isNaN(Number(prop))) return _allPresets[Number(prop)];
+    if (typeof prop === 'string') {
+      const val = (_allPresets as any)[prop];
+      return typeof val === 'function' ? val.bind(_allPresets) : val;
+    }
+    return undefined;
+  },
+}) as unknown as PokemonPreset[];
+
+// Group presets by species (curated first, then auto)
 export function getPresetsBySpecies(species: string): PokemonPreset[] {
-  return PRESETS.filter(p => p.species === species);
+  // Always prioritize curated presets
+  const curated = CURATED_PRESETS.filter(p => p.species === species);
+  if (curated.length > 0) return curated;
+  // Fall back to auto-generated
+  if (!_allPresets) _allPresets = [...CURATED_PRESETS, ...generateAutoPresets()];
+  return _allPresets.filter(p => p.species === species);
 }
 
 export function getAllPresetSpecies(): string[] {
-  return [...new Set(PRESETS.map(p => p.species))].sort();
+  if (!_allPresets) _allPresets = [...CURATED_PRESETS, ...generateAutoPresets()];
+  return [...new Set(_allPresets.map(p => p.species))].sort();
 }
