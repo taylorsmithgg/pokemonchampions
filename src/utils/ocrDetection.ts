@@ -341,10 +341,11 @@ function detectBattlePanels(canvas: HTMLCanvasElement): { hasLeftPanel: boolean;
     return { mean, stddev: Math.sqrt(variance), count };
   };
 
-  // Bottom-left panel region: x 5-35%, y 55-80%
-  const bl = sample(Math.round(w * 0.05), Math.round(h * 0.55), Math.round(w * 0.35), Math.round(h * 0.80));
-  // Top-right panel region: x 55-95%, y 15-40%
-  const tr = sample(Math.round(w * 0.55), Math.round(h * 0.15), Math.round(w * 0.95), Math.round(h * 0.40));
+  // Actual panel positions from Pokemon Champions battle UI:
+  // Bottom-left panel: x 0-20%, y 84-100% (name + HP bar strip)
+  const bl = sample(Math.round(w * 0.00), Math.round(h * 0.84), Math.round(w * 0.22), Math.round(h * 1.00));
+  // Top-right panel: x 70-100%, y 0-15% (name + HP bar strip)
+  const tr = sample(Math.round(w * 0.70), Math.round(h * 0.00), Math.round(w * 1.00), Math.round(h * 0.16));
 
   // Panel = dark-ish region (mean < 140) with moderate variance (10-70).
   // Arena backgrounds without panels: very bright (mean > 180) or very
@@ -427,11 +428,13 @@ export async function detectPokemonFromFrame(
 
   const ocrPanel = async (x0: number, y0: number, x1: number, y1: number, side: 'left' | 'right') => {
     const pw = Math.round(x1 - x0), ph = Math.round(y1 - y0);
-    if (pw < 20 || ph < 20) return;
+    if (pw < 20 || ph < 10) return;
     const crop = document.createElement('canvas');
     crop.width = pw; crop.height = ph;
     crop.getContext('2d')!.drawImage(canvas, Math.round(x0), Math.round(y0), pw, ph, 0, 0, pw, ph);
-    const processed = preprocessHighContrast(crop);
+    // Panel-specific preprocess: game name text is bright/colored on dark
+    // semi-transparent panel. Use lower threshold (100) to catch colored text.
+    const processed = preprocessPanelText(crop);
     try {
       const { data } = await _worker!.recognize(processed);
       const tokens = tokenize(data.text);
@@ -444,9 +447,13 @@ export async function detectPokemonFromFrame(
     } catch { /* panel OCR failed, continue with full-frame */ }
   };
 
+  // Panel positions from Pokemon Champions battle UI.
+  // Generous crops — better to include extra bg than miss the name.
+  // YOUR panel: entire bottom-left corner strip
+  // OPP panel: entire top-right corner strip
   await Promise.all([
-    ocrPanel(w * 0.02, h * 0.60, w * 0.40, h * 0.85, 'left'),   // your panel
-    ocrPanel(w * 0.55, h * 0.10, w * 0.98, h * 0.40, 'right'),  // opponent panel
+    ocrPanel(w * 0.00, h * 0.82, w * 0.25, h * 1.00, 'left'),   // your full panel
+    ocrPanel(w * 0.68, h * 0.00, w * 1.00, h * 0.18, 'right'),  // opp full panel
   ]);
 
   // Crop out the right 25% of the frame — this is where Twitch chat
@@ -822,6 +829,37 @@ function preprocessGrayscale(source: HTMLCanvasElement): HTMLCanvasElement {
       d[i] = d[i + 1] = d[i + 2] = 0; // light → black (text)
     } else {
       d[i] = d[i + 1] = d[i + 2] = 255; // dark → white (bg)
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  return canvas;
+}
+
+/**
+ * Panel-specific preprocess: game UI name text is bright/colored on
+ * dark semi-transparent bg. Lower threshold (100) + saturation boost
+ * to catch colored text (blue Kingambit label, green Victreebel, etc).
+ */
+function preprocessPanelText(source: HTMLCanvasElement): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = source.width;
+  canvas.height = source.height;
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(source, 0, 0);
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const d = imageData.data;
+
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
+    const maxC = Math.max(r, g, b);
+    // Bright text OR saturated colored text → black (for OCR)
+    if (brightness > 100 || maxC > 150) {
+      d[i] = d[i + 1] = d[i + 2] = 0;
+    } else {
+      d[i] = d[i + 1] = d[i + 2] = 255;
     }
   }
 
