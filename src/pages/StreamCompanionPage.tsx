@@ -992,14 +992,23 @@ export function StreamCompanionPage() {
     const leftVotes = leftVotesRef.current;
     const rightVotes = rightVotesRef.current;
 
-    // Sprite votes by position. Weight by confidence so high-conf hits
-    // reach lock faster and outrank noise.
+    // Sprite votes by position. Once a species has a clear majority on one
+    // side (2× the other side), freeze it there — prevents mid-battle swaps
+    // when animated sprites cross the midpoint visually.
     for (const s of (result.spriteMatched ?? [])) {
       if (s.confidence < 0.3) continue;
       const isLeft = s.x < midX;
+      const existingLeft = leftVotes.get(s.species) ?? 0;
+      const existingRight = rightVotes.get(s.species) ?? 0;
+      const dominant: 'left' | 'right' | null =
+        existingLeft >= 3 && existingLeft >= existingRight * 2 ? 'left' :
+        existingRight >= 3 && existingRight >= existingLeft * 2 ? 'right' : null;
+      // If already dominant on opposite side, skip this vote (noise)
+      if (dominant === 'left' && !isLeft) continue;
+      if (dominant === 'right' && isLeft) continue;
+
       const map = isLeft ? leftVotes : rightVotes;
-      // 0.30→1, 0.45→2, 0.60→3, 0.75→4
-      const weight = Math.max(1, Math.round(s.confidence * 4) - 0);
+      const weight = Math.max(1, Math.round(s.confidence * 4));
       map.set(s.species, (map.get(s.species) ?? 0) + weight);
     }
 
@@ -1017,11 +1026,22 @@ export function StreamCompanionPage() {
     }
 
     // Pick top-N by vote count per side
-    const topBy = (m: Map<string, number>, n: number) =>
-      [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, n).map(([s]) => s);
-
-    const yourTop = topBy(leftVotes, 6);
-    const oppTop = topBy(rightVotes, 6);
+    // Assign each species to its dominant side (majority votes).
+    // Species with votes on both sides goes to whichever has more.
+    const allSpecies = new Set([...leftVotes.keys(), ...rightVotes.keys()]);
+    const leftWinners: [string, number][] = [];
+    const rightWinners: [string, number][] = [];
+    for (const species of allSpecies) {
+      const l = leftVotes.get(species) ?? 0;
+      const r = rightVotes.get(species) ?? 0;
+      if (l > r) leftWinners.push([species, l]);
+      else if (r > l) rightWinners.push([species, r]);
+      // ties: skip (ambiguous)
+    }
+    leftWinners.sort((a, b) => b[1] - a[1]);
+    rightWinners.sort((a, b) => b[1] - a[1]);
+    const yourTop = leftWinners.slice(0, 6).map(([s]) => s);
+    const oppTop = rightWinners.slice(0, 6).map(([s]) => s);
 
     // Lock condition: 3+ species per side with 3+ weighted votes each.
     // 3 votes = either 3 low-conf sightings or 1 strong hit repeated.
@@ -1492,12 +1512,20 @@ export function StreamCompanionPage() {
               {!teamsLocked && detecting && (leftVotesRef.current.size > 0 || rightVotesRef.current.size > 0) && (
                 <button
                   onClick={() => {
-                    const topBy = (m: Map<string, number>, n: number) =>
-                      [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, n).map(([s]) => s);
-                    const yourTop = topBy(leftVotesRef.current, 6);
-                    const oppTop = topBy(rightVotesRef.current, 6);
+                    const lv = leftVotesRef.current, rv = rightVotesRef.current;
+                    const species = new Set([...lv.keys(), ...rv.keys()]);
+                    const left: [string, number][] = [], right: [string, number][] = [];
+                    for (const s of species) {
+                      const l = lv.get(s) ?? 0, r = rv.get(s) ?? 0;
+                      if (l > r) left.push([s, l]);
+                      else if (r > l) right.push([s, r]);
+                    }
+                    left.sort((a, b) => b[1] - a[1]);
+                    right.sort((a, b) => b[1] - a[1]);
+                    const yourTop = left.slice(0, 6).map(([s]) => s);
+                    const oppTop = right.slice(0, 6).map(([s]) => s);
                     if (filledMyTeam.length < 2) handleSetMyTeam(yourTop);
-                    setOpponentTeam(oppTop.filter(s => !yourTop.includes(s)));
+                    setOpponentTeam(oppTop);
                     setTeamsLocked(true);
                     setDetectionPhase('battle');
                     const matchId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);

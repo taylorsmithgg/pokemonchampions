@@ -374,25 +374,27 @@ function classifyScreen(
     if (BATTLE_KEYWORDS.has(t)) { battleHits++; battleFound.push(t); }
   }
 
-  const tooManySprites = spriteCount > 10;
+  // Box screens have 15+ sprites dense-scattered. Team preview is ~6-12
+  // sprites in a clean 2-column grid — should NOT be classified as menu.
+  const boxLikeSpriteCount = spriteCount > 14;
   const bothPanels = panels.hasLeftPanel && panels.hasRightPanel;
 
   // STRONG BATTLE: battle keywords OR both corner panels detected
   if (battleHits >= 1) {
     return { context: 'battle', debug: `Battle: ${battleFound.join(', ')} [${panels.debug}]` };
   }
-  if (bothPanels && !tooManySprites) {
-    return { context: 'battle', debug: `Battle UI panels detected [${panels.debug}]` };
+  if (bothPanels) {
+    return { context: 'battle', debug: `Battle UI panels [${panels.debug}]` };
   }
 
   // MENU: menu keywords with no battle signal
-  if (menuHits >= 1 && !bothPanels) {
+  if (menuHits >= 1) {
     return { context: 'menu', debug: `Menu: ${menuFound.join(', ')} [${panels.debug}]` };
   }
 
-  // MENU: sprite grid (box screen) with no battle panels
-  if (tooManySprites && !bothPanels) {
-    return { context: 'menu', debug: `Menu (${spriteCount} sprites, grid) [${panels.debug}]` };
+  // MENU: sprite grid (box screen) — lots of sprites, no panels
+  if (boxLikeSpriteCount) {
+    return { context: 'menu', debug: `Menu (${spriteCount} sprites, box grid) [${panels.debug}]` };
   }
 
   return { context: 'unknown', debug: `Ambiguous (menu:${menuHits} battle:${battleHits} sprites:${spriteCount}) [${panels.debug}]` };
