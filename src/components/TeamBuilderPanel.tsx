@@ -148,109 +148,90 @@ function TeamSlot({
 
   const totalSP = Object.values(pokemon.sps).reduce((a: number, b: number) => a + b, 0);
 
+  const actionBtnClass = "w-7 h-7 flex items-center justify-center rounded-md border transition-colors";
+
   return (
-    <div className={`poke-panel ${!pokemon.species ? 'opacity-60' : ''}`}>
-      <div className="p-4">
-        {/* Species row */}
-        <div className="flex items-center gap-3 mb-3">
-          <span className="text-sm font-bold text-poke-gold w-5">{index + 1}</span>
-          {pokemon.species && (
-<Sprite species={pokemon.species} size="lg" className="shrink-0" />
-          )}
-          <div className="flex-1">
-            <SearchSelect
-              options={allPokemon}
-              value={pokemon.species}
-              onChange={handleSpeciesChange}
-              placeholder={`Slot ${index + 1}...`}
-            />
-          </div>
-          {pokemon.species && (
-            <div className="flex gap-1 items-center shrink-0">
-              {/* Optimize: auto-fill the slot from live data. Keeps
-                  the "Optimize" semantics explicit since it mutates
-                  the slot rather than routing elsewhere. */}
-              <button
-                onClick={(e) => {
-                  const btn = e.currentTarget;
-                  btn.classList.add('animate-spin');
-                  requestAnimationFrame(() => {
-                    onAutoFill();
-                    setTimeout(() => btn.classList.remove('animate-spin'), 400);
-                  });
-                }}
-                className="w-7 h-7 flex items-center justify-center rounded-md border bg-poke-gold/15 text-poke-gold border-poke-gold/30 hover:bg-poke-gold/25 hover:border-poke-gold/60 hover:text-white transition-colors"
-                style={{ animationDuration: '0.4s' }}
-                title="Auto-fill optimal set"
-                aria-label="Optimize this slot"
-              >
-                <OptimizeIcon className="w-[14px] h-[14px]" />
-              </button>
-              {/* Use-in-calc buttons: pass the exact current build
-                  (moves, SPs, nature) to the calculator. Distinct
-                  from QuickAdd, which pulls from the preset library
-                  and would discard the user's customization. */}
-              <button
-                onClick={() => onLoadToCalc('attacker')}
-                className="w-7 h-7 flex items-center justify-center rounded-md border bg-poke-red/15 text-poke-red-light border-poke-red/30 hover:bg-poke-red/25 hover:border-poke-red/60 hover:text-white transition-colors"
-                title="Use this exact build in calculator as Attacker"
-                aria-label="Use this build as Attacker"
-              >
-                <SwordIcon className="w-[14px] h-[14px]" />
-              </button>
-              <button
-                onClick={() => onLoadToCalc('defender')}
-                className="w-7 h-7 flex items-center justify-center rounded-md border bg-poke-blue/15 text-poke-blue-light border-poke-blue/30 hover:bg-poke-blue/25 hover:border-poke-blue/60 hover:text-white transition-colors"
-                title="Use this exact build in calculator as Defender"
-                aria-label="Use this build as Defender"
-              >
-                <ShieldIcon className="w-[14px] h-[14px]" />
-              </button>
-              <button
-                onClick={() => setExpanded(!expanded)}
-                className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-white transition-colors"
-                aria-label={expanded ? 'Collapse' : 'Expand'}
-              >
-                <svg className={`w-4 h-4 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-            </div>
+    <div className={`poke-panel overflow-hidden ${!pokemon.species ? 'opacity-50' : ''}`}>
+      {/* Header row — consistent height whether empty or filled */}
+      <div className="flex items-center gap-3 p-3 pb-0">
+        <span className="text-sm font-black text-poke-gold/60 w-5 text-center">{index + 1}</span>
+        <div className="w-10 h-10 shrink-0 flex items-center justify-center">
+          {pokemon.species ? (
+            <Sprite species={pokemon.species} size="lg" />
+          ) : (
+            <div className="w-10 h-10 rounded-lg bg-poke-surface/50 border border-poke-border/30" />
           )}
         </div>
-
-        {/* Summary when collapsed — full readable text, no truncation */}
-        {pokemon.species && !expanded && data && (
-          <div className="space-y-1.5 mt-2">
-            <div className="flex items-center gap-2 text-xs text-slate-400 flex-wrap">
-              <GenBadge species={pokemon.species} />
-              <span className="text-white font-medium">{pokemon.nature}</span>
-              <span className="text-slate-600">·</span>
-              <span>{pokemon.ability || '—'}</span>
-              <span className="text-slate-600">·</span>
-              <span className="text-poke-gold">{pokemon.item || '—'}</span>
-              <span className={`ml-auto text-xs font-mono ${totalSP === MAX_TOTAL_SP ? 'text-emerald-400' : 'text-amber-400'}`}>{totalSP}/{MAX_TOTAL_SP} SP</span>
-            </div>
-            <div className="flex gap-1.5 flex-wrap">
-              {pokemon.moves.filter(Boolean).map((m: string) => (
-                <span key={m} className="text-[11px] px-1.5 py-0.5 bg-poke-surface text-slate-300 rounded border border-poke-border/50">{m}</span>
-              ))}
-              {pokemon.moves.filter(Boolean).length === 0 && (
-                <span className="text-[11px] text-slate-600 italic">No moves set</span>
-              )}
-            </div>
-            {/* Stat bars — full width, readable labels */}
-            <div className="grid grid-cols-3 gap-x-4 gap-y-0.5 mt-1.5">
-              {STAT_IDS.map(s => (
-                <MiniStatBar key={s} stat={s} base={data.baseStats[s]} sp={pokemon.sps[s]} nature={pokemon.nature} level={pokemon.level} />
-              ))}
-            </div>
+        <div className="flex-1">
+          <SearchSelect
+            options={allPokemon}
+            value={pokemon.species}
+            onChange={handleSpeciesChange}
+            placeholder={`Slot ${index + 1} — choose Pokemon`}
+          />
+        </div>
+        {pokemon.species && (
+          <div className="flex gap-1 items-center shrink-0">
+            <button onClick={(e) => { const btn = e.currentTarget; btn.classList.add('animate-spin'); requestAnimationFrame(() => { onAutoFill(); setTimeout(() => btn.classList.remove('animate-spin'), 400); }); }} className={`${actionBtnClass} bg-poke-gold/15 text-poke-gold border-poke-gold/30 hover:bg-poke-gold/25`} style={{ animationDuration: '0.4s' }} title="Optimize" aria-label="Optimize">
+              <OptimizeIcon className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={() => onLoadToCalc('attacker')} className={`${actionBtnClass} bg-poke-red/15 text-poke-red-light border-poke-red/30 hover:bg-poke-red/25`} title="Use as Attacker" aria-label="Attacker">
+              <SwordIcon className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={() => onLoadToCalc('defender')} className={`${actionBtnClass} bg-poke-blue/15 text-poke-blue-light border-poke-blue/30 hover:bg-poke-blue/25`} title="Use as Defender" aria-label="Defender">
+              <ShieldIcon className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={() => setExpanded(!expanded)} className="w-7 h-7 flex items-center justify-center text-slate-600 hover:text-white transition-colors" aria-label={expanded ? 'Collapse' : 'Expand'}>
+              <svg className={`w-4 h-4 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+            </button>
           </div>
         )}
+      </div>
+
+      {/* Collapsed summary — consistent padding, uniform grid */}
+      {pokemon.species && !expanded && data && (
+        <div className="px-3 pb-3 pt-2 space-y-2">
+          {/* Nature · Ability · Item · SP bar */}
+          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-x-2 text-xs">
+            <div className="flex items-center gap-1.5">
+              <GenBadge species={pokemon.species} />
+              <span className="text-white font-medium">{pokemon.nature}</span>
+              <span className="text-slate-700">·</span>
+              <span className="text-slate-400">{pokemon.ability || '—'}</span>
+              <span className="text-slate-700">·</span>
+              <span className="text-poke-gold">{pokemon.item || '—'}</span>
+            </div>
+            <div />
+            <span className={`text-xs font-mono ${totalSP === MAX_TOTAL_SP ? 'text-emerald-400' : 'text-amber-400'}`}>{totalSP}/{MAX_TOTAL_SP}</span>
+          </div>
+          {/* Moves row */}
+          <div className="flex gap-1.5 flex-wrap">
+            {pokemon.moves.filter(Boolean).map((m: string) => (
+              <span key={m} className="text-[11px] px-1.5 py-0.5 bg-poke-surface text-slate-300 rounded border border-poke-border/40">{m}</span>
+            ))}
+            {pokemon.moves.filter(Boolean).length === 0 && (
+              <span className="text-[11px] text-slate-600 italic">No moves — click optimize</span>
+            )}
+          </div>
+          {/* Stat bars — 6-col grid, uniform */}
+          <div className="grid grid-cols-6 gap-x-2 gap-y-0">
+            {STAT_IDS.map(s => (
+              <MiniStatBar key={s} stat={s} base={data.baseStats[s]} sp={pokemon.sps[s]} nature={pokemon.nature} level={pokemon.level} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Empty state — matches filled height */}
+      {!pokemon.species && (
+        <div className="px-3 pb-3 pt-1">
+          <div className="text-[11px] text-slate-600">Select a Pokemon to fill this slot</div>
+        </div>
+      )}
 
         {/* Expanded form */}
         {pokemon.species && expanded && (
-          <div className="space-y-4 mt-3 border-t border-poke-border pt-4">
+          <div className="space-y-4 mx-3 mb-3 mt-2 border-t border-poke-border pt-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-slate-400 mb-1">Nature</label>
@@ -346,7 +327,7 @@ function TeamSlot({
                       key={pick.species}
                       onClick={() => onReplace(pick.species)}
                       className="w-full flex items-center gap-3 p-2.5 rounded-lg border border-poke-border text-left transition-colors hover:border-poke-red/30"
-                      style={{ backgroundColor: '#1a1b30' }}
+                      style={{ backgroundColor: 'var(--color-poke-surface, #1a1b30)' }}
                     >
                       <img
                         src={getSpriteUrl(pick.species)}
@@ -380,7 +361,6 @@ function TeamSlot({
             )}
           </div>
         )}
-      </div>
     </div>
   );
 }
@@ -608,7 +588,7 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
                     onChange(newTeam);
                   }}
                   className="flex items-center gap-3 p-3 rounded-lg border border-poke-border text-left transition-colors hover:border-poke-red/30"
-                  style={{ backgroundColor: '#1a1b30' }}
+                  style={{ backgroundColor: 'var(--color-poke-surface, #1a1b30)' }}
                 >
                   <img src={getSpriteUrl(pick.species)} alt={pick.species} className="w-12 h-12 object-contain shrink-0" loading="lazy" />
                   <div className="flex-1">
@@ -838,7 +818,7 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
                       onChange(newTeam);
                     }}
                     className="flex items-center gap-3 p-3 rounded-lg border border-poke-border text-left transition-colors hover:border-poke-red/30"
-                    style={{ backgroundColor: '#1a1b30' }}
+                    style={{ backgroundColor: 'var(--color-poke-surface, #1a1b30)' }}
                   >
                     <img
                       src={getSpriteUrl(pick.species)}
