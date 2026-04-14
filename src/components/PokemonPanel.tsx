@@ -31,6 +31,7 @@ import { getArchetypes } from '../calc/archetypes';
 import type { PokemonState, NatureName } from '../types';
 import { createDefaultPokemonState, CHAMPIONS_LEVEL } from '../types';
 import { usePokemonActions } from '../contexts/PokemonActions';
+import { PokeballMini } from './PokeballSpinner';
 
 function getMoveInfo(moveName: string): { type: string; category: string; bp: number } | null {
   if (!moveName) return null;
@@ -341,6 +342,7 @@ function getMetaUpgrades(selectedSpecies: string): MetaUpgrade[] {
 export function PokemonPanel({ state, onChange, side, teammateItems = [], teammates = [] }: PokemonPanelProps) {
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState('');
+  const [isOptimizingCalc, setIsOptimizingCalc] = useState(false);
   const { stats: liveStats } = useLiveData();
   const { addToTeam } = usePokemonActions();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -493,16 +495,25 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [], teamma
               const topArch = archs[0];
               return (
                 <button
-                  onClick={(e) => {
-                    const btn = e.currentTarget;
-                    btn.classList.add('scale-95', 'brightness-125');
-                    const optimized = buildOptimizedState(state.species, teammates);
-                    onChange(optimized);
-                    setTimeout(() => btn.classList.remove('scale-95', 'brightness-125'), 300);
+                  disabled={isOptimizingCalc}
+                  onClick={() => {
+                    setIsOptimizingCalc(true);
+                    requestAnimationFrame(() => {
+                      const optimized = buildOptimizedState(state.species, teammates);
+                      onChange(optimized);
+                      setTimeout(() => setIsOptimizingCalc(false), 400);
+                    });
                   }}
-                  className="w-full py-3 rounded-lg bg-gradient-to-r from-poke-red to-poke-red-dark text-white hover:from-poke-red-light hover:to-poke-red transition-all shadow-lg shadow-poke-red/20 hover:shadow-poke-red/40 text-left px-4 duration-200"
+                  className={`w-full py-3 rounded-lg text-white text-left px-4 transition-all duration-200 ${
+                    isOptimizingCalc
+                      ? 'bg-poke-red/50 cursor-wait'
+                      : 'bg-gradient-to-r from-poke-red to-poke-red-dark hover:from-poke-red-light hover:to-poke-red shadow-lg shadow-poke-red/20 hover:shadow-poke-red/40'
+                  }`}
                 >
-                  <div className="text-sm font-bold">Optimize → {topArch?.name || 'Best Build'}</div>
+                  <div className="text-sm font-bold flex items-center gap-2">
+                    {isOptimizingCalc && <PokeballMini />}
+                    {isOptimizingCalc ? 'Optimizing...' : `Optimize → ${topArch?.name || 'Best Build'}`}
+                  </div>
                   {topArch && (
                     <div className="text-xs text-white/70 mt-0.5">
                       {topArch.nature} · {topArch.item || 'auto item'} · {topArch.moves.filter(Boolean).join(', ') || 'auto moves'}

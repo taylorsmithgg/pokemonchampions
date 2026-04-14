@@ -168,9 +168,17 @@ function TeamSlot({
                   the "Optimize" semantics explicit since it mutates
                   the slot rather than routing elsewhere. */}
               <button
-                onClick={onAutoFill}
+                onClick={(e) => {
+                  const btn = e.currentTarget;
+                  btn.classList.add('animate-spin');
+                  requestAnimationFrame(() => {
+                    onAutoFill();
+                    setTimeout(() => btn.classList.remove('animate-spin'), 400);
+                  });
+                }}
                 className="w-7 h-7 flex items-center justify-center rounded-md border bg-poke-gold/15 text-poke-gold border-poke-gold/30 hover:bg-poke-gold/25 hover:border-poke-gold/60 hover:text-white transition-colors"
-                title="Auto-fill optimal set from live data"
+                style={{ animationDuration: '0.4s' }}
+                title="Auto-fill optimal set"
                 aria-label="Optimize this slot"
               >
                 <OptimizeIcon className="w-[14px] h-[14px]" />
@@ -418,9 +426,14 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
   }, [importText, team, onChange]);
 
   // Build a full optimal team from scratch (fills empty slots).
+  const [isBuilding, setIsBuilding] = useState(false);
   const handleBuildTeam = useCallback(() => {
-    const built = buildOptimalTeam(team, 6, format);
-    onChange(built);
+    setIsBuilding(true);
+    requestAnimationFrame(() => {
+      const built = buildOptimalTeam(team, 6, format);
+      onChange(built);
+      setTimeout(() => setIsBuilding(false), 400);
+    });
   }, [team, onChange, format]);
 
   // Optimize EVERY slot in one pass — fills empty slots with best
@@ -523,7 +536,9 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
         <div className="sticky top-0 z-20 border-b border-poke-border mb-4 -mx-4 px-4 py-3" style={{ backgroundColor: 'rgba(10,10,21,0.9)', backdropFilter: 'blur(8px)' }}>
           <div className="flex gap-2 flex-wrap items-center">
             <FormatSelector value={format.id} onChange={setFormat} />
-            <button onClick={handleBuildTeam} className="text-sm px-4 py-1.5 bg-gradient-to-r from-poke-red to-poke-red-dark text-white rounded-lg font-bold hover:from-poke-red-light hover:to-poke-red transition-all shadow-lg shadow-poke-red/20">Build Team</button>
+            <button onClick={handleBuildTeam} disabled={isBuilding} className={`text-sm px-4 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${isBuilding ? 'bg-poke-red/50 text-white/70 cursor-wait' : 'bg-gradient-to-r from-poke-red to-poke-red-dark text-white hover:from-poke-red-light hover:to-poke-red shadow-lg shadow-poke-red/20'}`}>
+              {isBuilding && <PokeballMini />}{isBuilding ? 'Building...' : 'Build Team'}
+            </button>
             <button onClick={handleOptimizeAll} className="text-sm px-4 py-1.5 bg-poke-gold/15 border border-poke-gold/40 text-poke-gold rounded-lg font-bold hover:bg-poke-gold/25 transition-colors flex items-center gap-1.5">
               <OptimizeIcon className="w-4 h-4" />Optimize All
             </button>
@@ -655,10 +670,16 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
             <div className="flex gap-2 flex-wrap">
               <button
                 onClick={handleBuildTeam}
-                className="text-sm px-4 py-1.5 bg-gradient-to-r from-poke-red to-poke-red-dark text-white rounded-lg font-bold hover:from-poke-red-light hover:to-poke-red transition-all shadow-lg shadow-poke-red/20"
+                disabled={isBuilding}
+                className={`text-sm px-4 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                  isBuilding
+                    ? 'bg-poke-red/50 text-white/70 cursor-wait'
+                    : 'bg-gradient-to-r from-poke-red to-poke-red-dark text-white hover:from-poke-red-light hover:to-poke-red shadow-lg shadow-poke-red/20'
+                }`}
                 title="Fill any empty slots with the best candidates for the current team"
               >
-                Build Team
+                {isBuilding && <PokeballMini />}
+                {isBuilding ? 'Building...' : 'Build Team'}
               </button>
               <button
                 onClick={handleOptimizeAll}
