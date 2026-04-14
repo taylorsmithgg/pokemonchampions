@@ -14,6 +14,7 @@ import { Sprite } from './Sprite';
 import { GenBadge } from './GenBadge';
 import { getSpriteUrl } from '../utils/sprites';
 import { getRecommendations, type SynergyReason } from '../data/synergies';
+import { TeamStoragePanel } from './TeamStoragePanel';
 import { PokeballSpinner, PokeballMini } from './PokeballSpinner';
 import {
   getAvailablePokemon,
@@ -536,6 +537,11 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
           </div>
         </div>
 
+        {/* Team storage — save/load/export */}
+        <div className="mb-4">
+          <TeamStoragePanel team={team} onLoadTeam={onChange} />
+        </div>
+
         {/* Team slots — 3-column grid in full-screen */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
           {team.map((slot, i) => (
@@ -711,20 +717,21 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
             </div>
           )}
 
-          {/* Import area */}
+          {/* Import area + Team storage */}
           {showImport && (
-            <div className="px-4 pb-3">
+            <div className="px-4 pb-3 space-y-3">
               <textarea
                 className="w-full bg-poke-surface border border-poke-border rounded-lg px-3 py-2 text-xs text-white font-mono resize-none focus:outline-none focus:border-poke-red/50"
-                rows={8}
+                rows={6}
                 placeholder="Paste a full Showdown team (6 Pokemon separated by blank lines)..."
                 value={importText}
                 onChange={e => setImportText(e.target.value)}
               />
-              <div className="flex gap-2 mt-2">
-                <button onClick={handleImportTeam} className="text-xs px-3 py-1 bg-poke-red text-white rounded-lg hover:bg-poke-red-dark transition-colors">Import</button>
+              <div className="flex gap-2">
+                <button onClick={handleImportTeam} className="text-xs px-3 py-1 bg-poke-red text-white rounded-lg hover:bg-poke-red-dark transition-colors">Import Showdown</button>
                 <button onClick={() => { setShowImport(false); setImportText(''); }} className="text-xs px-3 py-1 bg-poke-surface text-slate-400 rounded-lg hover:text-white transition-colors">Cancel</button>
               </div>
+              <TeamStoragePanel team={team} onLoadTeam={onChange} />
             </div>
           )}
         </div>

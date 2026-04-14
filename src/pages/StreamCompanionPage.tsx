@@ -6,6 +6,8 @@ import { ScreenCapturePanel } from '../components/ScreenCapturePanel';
 import { getPokemonData, getTypeEffectiveness } from '../data/champions';
 import { getTierForPokemon, TIER_DEFINITIONS } from '../data/tierlist';
 import { useTeam } from '../contexts/TeamContext';
+import { inferOpenerStrategy, orderBringList } from '../calc/openerStrategy';
+import type { OpenerStrategy } from '../calc/openerStrategy';
 
 // ─── Types ────────────────────────────────────────────────────────
 
