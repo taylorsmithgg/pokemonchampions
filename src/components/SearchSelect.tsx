@@ -118,7 +118,7 @@ export function SearchSelect({ options, value, onChange, placeholder = 'Select..
             Loading...
           </span>
         ) : (
-          <span className={`text-sm truncate ${value ? 'text-white' : 'text-slate-500'}`}>
+          <span className={`text-sm ${value ? 'text-white' : 'text-slate-500'}`}>
             {value || placeholder}
           </span>
         )}

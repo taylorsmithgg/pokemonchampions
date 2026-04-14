@@ -153,7 +153,7 @@ function TeamSlot({
           {pokemon.species && (
 <Sprite species={pokemon.species} size="lg" className="shrink-0" />
           )}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1">
             <SearchSelect
               options={allPokemon}
               value={pokemon.species}
@@ -342,23 +342,23 @@ function TeamSlot({
                         className="w-10 h-10 object-contain shrink-0"
                         loading="lazy"
                       />
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-bold text-white">{pick.species}</span>
                           {pick.matchedRoles.length > 0 && (
-                            <span className="text-[9px] px-1.5 py-0 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-full font-bold uppercase tracking-wider whitespace-nowrap">
+                            <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-full font-bold uppercase tracking-wider">
                               Same role
                             </span>
                           )}
                           <span className="text-xs text-poke-gold font-mono ml-auto">+{pick.score}</span>
                         </div>
                         {pick.matchedRoles.length > 0 && (
-                          <div className="text-[10px] text-emerald-400/80 leading-snug mt-0.5">
+                          <div className="text-xs text-emerald-400/80 leading-snug mt-0.5">
                             Fills: {pick.matchedRoles.join(', ')}
                           </div>
                         )}
-                        <div className="text-xs text-slate-500 leading-snug line-clamp-2 mt-0.5">
-                          {pick.reasons.slice(0, 2).join(' · ')}
+                        <div className="text-xs text-slate-500 leading-snug mt-0.5">
+                          {pick.reasons.slice(0, 3).join(' · ')}
                         </div>
                       </div>
                     </button>
@@ -636,12 +636,12 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
                   style={{ backgroundColor: '#1a1b30' }}
                 >
                   <img src={getSpriteUrl(pick.species)} alt={pick.species} className="w-12 h-12 object-contain shrink-0" loading="lazy" />
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1">
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="text-sm font-bold text-white">{pick.species}</span>
                       <span className="text-xs text-poke-gold font-mono">+{pick.score}</span>
                     </div>
-                    <div className="text-xs text-slate-500 leading-snug">{pick.reasons.slice(0, 2).join(' · ')}</div>
+                    <div className="text-xs text-slate-500 leading-snug">{pick.reasons.slice(0, 3).join(' · ')}</div>
                   </div>
                 </button>
               ))}
@@ -667,7 +667,7 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
           <div className="h-[3px] bg-gradient-to-r from-poke-red via-poke-gold to-poke-blue" />
           <div className="p-3 sm:p-4">
             <div className="flex items-start justify-between gap-3 mb-3">
-              <div className="min-w-0">
+              <div>
                 <h2 className="text-base sm:text-lg font-bold text-white">Team Builder</h2>
                 <p className="text-[10px] text-slate-500 hidden sm:block">Configure all 6 slots. Auto-fill from live tournament data. Audit analyzes gaps in real time.</p>
               </div>
@@ -837,9 +837,9 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
                       <span className="text-[10px] text-emerald-400">+</span>
                       <Sprite species={combo.b} size="sm" />
                     </div>
-                    <div className="min-w-0">
+                    <div>
                       <div className="text-xs font-bold text-emerald-300">{combo.reason.label}</div>
-                      <div className="text-xs text-slate-400 leading-snug">{combo.reason.description}</div>
+                      <div className="text-xs text-slate-400 leading-relaxed">{combo.reason.description}</div>
                     </div>
                   </div>
                 ))}
@@ -889,7 +889,7 @@ export function TeamBuilderPanel({ team, onChange, onLoadToCalc, isOpen, onClose
                       className="w-12 h-12 object-contain shrink-0"
                       loading="lazy"
                     />
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1">
                       <div className="flex items-center gap-2 mb-0.5">
                         <span className="text-sm font-bold text-white">{pick.species}</span>
                         <span className="text-xs text-poke-gold font-mono">+{pick.score}</span>
@@ -1032,7 +1032,7 @@ function LineupFlexibilitySection({
             <div key={i} className="p-2 rounded-lg border border-poke-border bg-poke-surface">
               <div className="flex items-start gap-2 mb-1">
                 <span className={`text-[10px] font-bold ${rankColor} w-4 shrink-0 pt-0.5`}>#{i + 1}</span>
-                <div className="flex gap-1 flex-1 min-w-0 flex-wrap">
+                <div className="flex gap-1 flex-1 flex-wrap">
                   {lineup.members.map(species => (
                     <div key={species} className="flex items-center gap-1 px-1.5 py-0.5 bg-poke-panel rounded text-[10px] text-white whitespace-nowrap">
                       <Sprite species={species} size="sm" />
