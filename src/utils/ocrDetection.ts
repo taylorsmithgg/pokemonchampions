@@ -611,12 +611,14 @@ export async function detectPokemonFromFrame(
           const wordCenterX = (bbox.x0 + bbox.x1) / 2;
           const isLeftSide = wordCenterX < scaledMidX;
 
-          const newDebug = `"${raw}" at x=${Math.round(wordCenterX)} (${isLeftSide ? 'LEFT' : 'RIGHT'} of midpoint ${Math.round(scaledMidX)}), pass: ${pass.name}`;
+          // ONLY accept results from LEFT half of screen.
+          // Right-side / center text is unreliable — splash screens,
+          // transitions, and overlays can show "Won"/"Lost" anywhere.
+          // Left-half results screen is the authoritative source.
+          if (!isLeftSide) continue;
 
-          // Take the result — later passes can override with higher confidence
-          const newResult = isLeftSide
-            ? (isWon ? 'win' : 'loss')     // left = player's result
-            : (isWon ? 'loss' : 'win');     // right = opponent's result (inverse)
+          const newDebug = `"${raw}" at x=${Math.round(wordCenterX)} LEFT, pass: ${pass.name}`;
+          const newResult = isWon ? 'win' : 'loss';
 
           matchResult = newResult as MatchResult;
           matchResultDebug = newDebug;
@@ -638,21 +640,7 @@ export async function detectPokemonFromFrame(
     }
   }
 
-  // Fallback: if word-level detection missed it, scan raw text for result keywords.
-  // Without position info we can't determine side, but if the text contains
-  // ONLY "won" or ONLY "lost" (not both), it's likely the results screen.
-  if (!matchResult && allRawText) {
-    const lower = allRawText.toLowerCase();
-    const hasWon = /\bwon\b|\bvictory\b|\bwin\b/.test(lower);
-    const hasLost = /\blost\b|\bdefeat\b|\blose\b/.test(lower);
-    if (hasWon && !hasLost) {
-      matchResult = 'win';
-      matchResultDebug = `Fallback text match: found "won/victory" in raw OCR (no position data)`;
-    } else if (hasLost && !hasWon) {
-      matchResult = 'loss';
-      matchResultDebug = `Fallback text match: found "lost/defeat" in raw OCR (no position data)`;
-    }
-  }
+  // No raw text fallback — requires word-level bbox to verify left-half position.
 
   // Extract species from battle log patterns — highest reliability
   const battleLogMatches = extractBattleLogSpecies(allRawText);
