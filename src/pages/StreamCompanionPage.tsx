@@ -928,9 +928,9 @@ export function StreamCompanionPage() {
       setOcrLoading(false);
     }
 
-    // Step 2: Start screen capture
+    // Step 2: Start screen capture (skip if already active)
     try {
-      await startCapture();
+      if (!isCaptureActive()) await startCapture();
       setDetecting(true);
       setScanCount(0);
       setLastOcrResult(null);
