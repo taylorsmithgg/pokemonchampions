@@ -25,7 +25,8 @@ export async function initOcrWorker(): Promise<void> {
   _loadProgress = 0;
 
   try {
-    _worker = await createWorker('eng', 1, {
+    // English + Japanese — Japanese opponents use JP species names/nicknames
+    _worker = await createWorker('eng+jpn', 1, {
       logger: (m) => {
         if (m.status === 'recognizing text') {
           _loadProgress = Math.round((m.progress ?? 0) * 100);
@@ -88,6 +89,30 @@ function getSpeciesNormMap(): Map<string, string> {
   };
   for (const [key, val] of Object.entries(aliases)) {
     if (!map.has(key)) map.set(key, val);
+  }
+
+  // Common Japanese Pokemon names → English species
+  // Covers most-used competitive Pokemon in Champions
+  const jpAliases: Record<string, string> = {
+    'ガブリアス': 'Garchomp', 'サーナイト': 'Gardevoir', 'ガオガエン': 'Incineroar',
+    'ゴリランダー': 'Rillaboom', 'マリルリ': 'Azumarill', 'ドラパルト': 'Dragapult',
+    'バンギラス': 'Tyranitar', 'ドリュウズ': 'Excadrill', 'トゲキッス': 'Togekiss',
+    'エルフーン': 'Whimsicott', 'ハッサム': 'Scizor', 'カイリュー': 'Dragonite',
+    'ミミッキュ': 'Mimikyu', 'キングドラ': 'Kingambit', 'ヌメルゴン': 'Goodra',
+    'エルレイド': 'Gallade', 'エレザード': 'Heliolisk', 'アップリュー': 'Flapple',
+    'タルップル': 'Appletun', 'ヤドキング': 'Slowking', 'プクリン': 'Clefable',
+    'ペリッパー': 'Pelipper', 'コータス': 'Torkoal', 'カバルドン': 'Hippowdon',
+    'ルカリオ': 'Lucario', 'ゲンガー': 'Gengar', 'メガニウム': 'Meganium',
+    'バクフーン': 'Typhlosion', 'オーダイル': 'Feraligatr', 'リザードン': 'Charizard',
+    'カメックス': 'Blastoise', 'フシギバナ': 'Venusaur', 'ギルガルド': 'Aegislash-Shield',
+    'キョジオーン': 'Garganacl', 'コノヨザル': 'Annihilape', 'サザンドラ': 'Hydreigon',
+    'アーマーガア': 'Corviknight', 'ドクロッグ': 'Toxicroak', 'グライオン': 'Gliscor',
+    'マンムー': 'Mamoswine', 'ウーラオス': 'Urshifu', 'ドヒドイデ': 'Toxapex',
+    'ジバコイル': 'Magnezone', 'ウインディ': 'Arcanine', 'キュウコン': 'Ninetales',
+    'ラプラス': 'Lapras', 'カビゴン': 'Snorlax', 'ボーマンダ': 'Salamence',
+  };
+  for (const [jp, en] of Object.entries(jpAliases)) {
+    map.set(jp, en);
   }
 
   _speciesNormMap = map;
@@ -178,14 +203,27 @@ function extractBattleLogSpecies(rawText: string): BattleLogMatch[] {
     .replace(/0(?=[a-zA-Z])/g, 'O')  // leading 0 before letter → O
     .replace(/1(?=[a-zA-Z])/g, 'l');  // leading 1 before letter → l
 
-  // Pattern: "Opposing X used/sent/fainted" — opponent Pokemon
+  // Pattern: "Opposing X used/sent/fainted" — opponent Pokemon (English names)
   for (const species of allSpecies) {
     const escaped = species.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    // "Opposing X" or "opposing X" or "the opposing X"
     const oppRegex = new RegExp(`(?:opposing|the opposing)\\s+${escaped}`, 'i');
     if (oppRegex.test(text) && !seen.has(species)) {
       seen.add(species);
       results.push({ species, pattern: `opposing ${species}`, isOpponent: true });
+    }
+  }
+
+  // JP species names anywhere in text → try to match via normMap
+  const normMap = getSpeciesNormMap();
+  for (const [key, species] of normMap) {
+    // Only check JP keys (contains non-ASCII)
+    if (!/[^\x00-\x7F]/.test(key)) continue;
+    if (seen.has(species)) continue;
+    if (text.includes(key)) {
+      seen.add(species);
+      // If "opposing" appears nearby, mark as opponent
+      const isOpp = /opposing/i.test(text);
+      results.push({ species, pattern: `JP: ${key}`, isOpponent: isOpp });
     }
   }
 
