@@ -8,7 +8,7 @@
 import { createWorker, type Worker, PSM } from 'tesseract.js';
 import { getAvailablePokemon } from '../data/champions';
 import { loadSpriteProfiles } from './screenCapture';
-import { loadHashDB, scanFrameWithHash, isHashDBReady } from './perceptualHash';
+import { loadModel, isModelReady, scanRegionsWithOnnx } from './onnxMatcher';
 
 // ─── Worker management ──────────────────────────────────────────
 
@@ -43,7 +43,7 @@ export async function initOcrWorker(): Promise<void> {
     _loadProgress = 100;
 
     // Preload perceptual hash DB + legacy sprite profiles (non-blocking)
-    loadHashDB();
+    loadModel();
     loadSpriteProfiles(250).catch(() => {});
   } catch (err) {
     console.warn('[ocrDetection] Failed to init worker:', err);
@@ -701,16 +701,12 @@ export async function detectPokemonFromFrame(
 
   const matched = [...allMatched.values()].sort((a, b) => b.confidence - a.confidence);
 
-  // ── PERCEPTUAL HASH sprite matching at known UI positions ──
-  // dHash comparison: fast, handles compression/scaling, accurate for game sprites.
+  // ── ONNX MobileNetV2 sprite classification ──
+  // Neural features bridge 2D↔3D visual gap. Cosine similarity matching.
   const spriteMatched: SpriteMatch[] = [];
   const cw = cropped.width, ch = cropped.height;
   try {
-    if (!isHashDBReady()) {
-      console.warn('[pHash] Hash DB not ready — sprite matching disabled');
-    }
-    if (isHashDBReady()) {
-      // Build scan regions for both selection screen + battle screen
+    if (isModelReady()) {
       const regions: { x: number; y: number; w: number; h: number; side: 'left' | 'right' }[] = [];
 
       // Selection screen: opponent right column (x 58-98%, 6 slots)
@@ -725,8 +721,8 @@ export async function detectPokemonFromFrame(
       regions.push({ x: 0, y: ch * 0.85, w: cw * 0.08, h: ch * 0.10, side: 'left' });
       regions.push({ x: cw * 0.88, y: 0, w: cw * 0.10, h: ch * 0.10, side: 'right' });
 
-      const hashMatches = scanFrameWithHash(cropped, regions);
-      for (const m of hashMatches) {
+      const onnxMatches = await scanRegionsWithOnnx(cropped, regions);
+      for (const m of onnxMatches) {
         spriteMatched.push({
           species: m.species,
           confidence: m.confidence,
