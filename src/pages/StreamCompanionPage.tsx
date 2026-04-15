@@ -55,7 +55,6 @@ type GamePhase = 'idle' | 'preview' | 'battle';
 // ─── LocalStorage helpers ─────────────────────────────────────────
 
 const HISTORY_KEY = 'stream-companion-history';
-const CHANNEL_KEY = 'stream-companion-channel';
 const MY_TEAM_KEY = 'stream-companion-my-team';
 
 function loadHistory(): MatchRecord[] {
@@ -71,13 +70,6 @@ function saveHistory(history: MatchRecord[]) {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
 }
 
-function loadChannel(): string {
-  return localStorage.getItem(CHANNEL_KEY) || '';
-}
-
-function saveChannel(channel: string) {
-  localStorage.setItem(CHANNEL_KEY, channel);
-}
 
 function formatElapsed(ms: number): string {
   const s = Math.floor(ms / 1000);
@@ -321,55 +313,6 @@ function suggestLead(bringList: BringRecommendation[], opponents: string[]): { l
 }
 
 
-// ─── Video Embed (Twitch / YouTube) ──────────────────────────────
-
-type VideoSource = { type: 'twitch'; channel: string } | { type: 'youtube'; videoId: string } | null;
-
-function parseVideoUrl(input: string): VideoSource {
-  const trimmed = input.trim();
-  if (!trimmed) return null;
-
-  // Twitch: twitch.tv/channel or just "channel"
-  const twitchMatch = trimmed.match(/(?:twitch\.tv\/)(\w+)/i);
-  if (twitchMatch) return { type: 'twitch', channel: twitchMatch[1] };
-
-  // YouTube: various URL formats
-  const ytMatch = trimmed.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);
-  if (ytMatch) return { type: 'youtube', videoId: ytMatch[1] };
-
-  // YouTube embed
-  const ytEmbed = trimmed.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/);
-  if (ytEmbed) return { type: 'youtube', videoId: ytEmbed[1] };
-
-  // Bare Twitch channel name (no URL, no dots, no slashes)
-  if (/^[a-zA-Z0-9_]{3,25}$/.test(trimmed)) return { type: 'twitch', channel: trimmed.toLowerCase() };
-
-  return null;
-}
-
-function VideoEmbed({ source }: { source: VideoSource }) {
-  if (!source) return null;
-
-  if (source.type === 'twitch') {
-    const embedUrl = `https://player.twitch.tv/?channel=${encodeURIComponent(source.channel)}&parent=${window.location.hostname}&muted=true`;
-    return (
-      <div className="w-full aspect-video rounded-lg overflow-hidden border border-poke-border bg-black">
-        <iframe src={embedUrl} className="w-full h-full" allowFullScreen allow="autoplay; encrypted-media" />
-      </div>
-    );
-  }
-
-  if (source.type === 'youtube') {
-    const embedUrl = `https://www.youtube.com/embed/${source.videoId}?autoplay=1&mute=1`;
-    return (
-      <div className="w-full aspect-video rounded-lg overflow-hidden border border-poke-border bg-black">
-        <iframe src={embedUrl} className="w-full h-full" allowFullScreen allow="autoplay; encrypted-media; picture-in-picture" />
-      </div>
-    );
-  }
-
-  return null;
-}
 
 // ─── Match History Row with expandable thumbnails ───────────────
 
@@ -542,9 +485,6 @@ export function StreamCompanionPage() {
   const [showSessionStats, setShowSessionStats] = useState(false);
 
   // Video source
-  const [videoUrl, setVideoUrl] = useState(() => loadChannel());
-  const [videoUrlInput, setVideoUrlInput] = useState(() => loadChannel());
-  const videoSource = useMemo(() => parseVideoUrl(videoUrl), [videoUrl]);
 
   // Auto-detection (OCR)
   const [detecting, setDetecting] = useState(false);
@@ -862,17 +802,6 @@ export function StreamCompanionPage() {
     }
   }, []);
 
-  const handleConnectVideo = useCallback(() => {
-    const trimmed = videoUrlInput.trim();
-    setVideoUrl(trimmed);
-    saveChannel(trimmed);
-  }, [videoUrlInput]);
-
-  const handleDisconnectVideo = useCallback(() => {
-    setVideoUrl('');
-    setVideoUrlInput('');
-    saveChannel('');
-  }, []);
 
   // Set your team from species names — each gets a full resolved build
   const handleSetMyTeam = useCallback((speciesList: string[]) => {
@@ -1820,94 +1749,29 @@ export function StreamCompanionPage() {
         </div>
       )}
 
-      {/* ═══ FRAME CAPTURE ═══ */}
+      {/* ═══ GAME WINDOW ═══ */}
       {detecting && (() => {
-        // ROI covering >85% of frame = useless (whole screen). Treat as no ROI.
-        const hasValidROI = captureRegion && (captureRegion.w < 0.85 || captureRegion.h < 0.85);
-        // Auto-enter region select when no valid ROI and frame available
-        const needsROI = !hasValidROI && !regionSelecting;
-
         return (
-          <div className="poke-panel overflow-hidden">
-            {/* ROI prompt — prominent when needed */}
-            {needsROI && lastFrameUrl && (
-              <div className="px-4 py-3 bg-amber-500/10 border-b border-amber-500/30 text-center">
-                <div className="text-sm font-bold text-amber-300 mb-1">Select your game window</div>
-                <div className="text-xs text-amber-400/70 mb-2">Overlay streams need a region drawn around the game capture. Click below then drag on the image.</div>
-                <button
-                  onClick={() => { setRegionSelecting(true); setRegionDragStart(null); setRegionDragEnd(null); }}
-                  className="px-4 py-1.5 rounded-lg bg-amber-500/25 border border-amber-500/50 text-amber-200 text-sm font-bold hover:bg-amber-500/35 transition-colors"
-                >
-                  Draw Game Region
-                </button>
+          <div className="rounded-xl overflow-hidden border border-poke-border">
+            <div className="relative bg-black" onMouseDown={regionSelecting ? (e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); const p = { x: (e.clientX-r.left)/r.width, y: (e.clientY-r.top)/r.height }; setRegionDragStart(p); setRegionDragEnd(p); } : undefined} onMouseMove={regionSelecting && regionDragStart ? (e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); setRegionDragEnd({ x: (e.clientX-r.left)/r.width, y: (e.clientY-r.top)/r.height }); } : undefined} onMouseUp={regionSelecting && regionDragStart && regionDragEnd ? () => { const x0=Math.min(regionDragStart!.x,regionDragEnd!.x),y0=Math.min(regionDragStart!.y,regionDragEnd!.y),x1=Math.max(regionDragStart!.x,regionDragEnd!.x),y1=Math.max(regionDragStart!.y,regionDragEnd!.y); if((x1-x0)>0.05&&(y1-y0)>0.05)setCaptureRegion({x:x0,y:y0,w:x1-x0,h:y1-y0}); setRegionSelecting(false);setRegionDragStart(null);setRegionDragEnd(null); } : undefined} style={{ cursor: regionSelecting ? 'crosshair' : 'default', userSelect: 'none' }}>
+              {!regionSelecting && !showDebug && <video ref={liveVideoRef} autoPlay muted playsInline className="w-full h-auto block" style={{ pointerEvents: 'none' }} />}
+              {(regionSelecting || showDebug) && <img src={(regionSelecting ? (lastRawFrameUrl ?? lastFrameUrl) : lastFrameUrl) ?? undefined} alt="" className="w-full h-auto block" draggable={false} style={{ pointerEvents: 'none' }} />}
+              {regionSelecting && <div className="absolute inset-0 bg-black/30 pointer-events-none flex items-center justify-center"><span className="text-white/80 text-sm font-bold bg-black/50 px-4 py-2 rounded-lg">Drag to select game area</span></div>}
+              {regionSelecting && regionDragStart && regionDragEnd && <div className="absolute border-2 border-emerald-400 bg-emerald-400/15 rounded pointer-events-none" style={{ left:`${Math.min(regionDragStart.x,regionDragEnd.x)*100}%`,top:`${Math.min(regionDragStart.y,regionDragEnd.y)*100}%`,width:`${Math.abs(regionDragEnd.x-regionDragStart.x)*100}%`,height:`${Math.abs(regionDragEnd.y-regionDragStart.y)*100}%` }} />}
+            </div>
+            <div className="flex items-center justify-between px-3 py-1.5 bg-poke-darker">
+              <div className="flex items-center gap-2 text-[10px]">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-slate-500">{captureRegion && captureRegion.w < 0.85 ? `ROI ${Math.round(captureRegion.w*100)}×${Math.round(captureRegion.h*100)}%` : 'Full screen'}</span>
+                {lastOcrResult && <span className="text-slate-600">{lastOcrResult.spriteMatched?.length ?? 0}I · #{scanCount}</span>}
               </div>
-            )}
-            {regionSelecting && (
-              <div className="px-4 py-2 bg-violet-500/10 border-b border-violet-500/30 text-center">
-                <span className="text-sm text-violet-300 font-bold">Click and drag on the image below to select the game area</span>
-                <button
-                  onClick={() => { setRegionSelecting(false); setRegionDragStart(null); setRegionDragEnd(null); }}
-                  className="ml-3 px-3 py-0.5 rounded bg-poke-surface border border-poke-border text-slate-400 text-xs hover:text-red-400 transition-colors"
-                >
-                  Cancel
-                </button>
+              <div className="flex items-center gap-1">
+                <button onClick={() => { setRegionSelecting(true); setRegionDragStart(null); setRegionDragEnd(null); }} className="text-[10px] px-2 py-0.5 rounded bg-poke-surface border border-poke-border text-slate-400 hover:text-emerald-400 transition-colors">{captureRegion ? 'Redraw' : 'Set ROI'}</button>
+                {captureRegion && <button onClick={() => setCaptureRegion(null)} className="text-[10px] px-2 py-0.5 rounded bg-poke-surface border border-poke-border text-slate-400 hover:text-red-400 transition-colors">Clear</button>}
+                <button onClick={() => setShowDebug(!showDebug)} className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${showDebug ? 'bg-violet-500/15 border-violet-500/30 text-violet-400' : 'bg-poke-surface border-poke-border text-slate-500'}`}>{showDebug ? 'Live' : 'Debug'}</button>
+                <button onClick={handleStopDetection} className="text-[10px] px-2 py-0.5 rounded bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors">Stop</button>
               </div>
-            )}
-            {/* Header — compact when ROI set */}
-            {hasValidROI && !regionSelecting && (
-              <div className="flex items-center justify-between px-3 py-1 border-b border-poke-border/30">
-                <span className="text-[10px] font-bold text-emerald-400/70 uppercase tracking-wider">
-                  Game Window · {Math.round((captureRegion?.w ?? 0) * 100)}×{Math.round((captureRegion?.h ?? 0) * 100)}%
-                </span>
-                <div className="flex items-center gap-1.5 text-[10px]">
-                  <button onClick={() => { setRegionSelecting(true); setRegionDragStart(null); setRegionDragEnd(null); }} className="px-2 py-0.5 rounded bg-poke-surface border border-poke-border text-slate-400 hover:text-violet-400 transition-colors">Redraw</button>
-                  <button onClick={() => setCaptureRegion(null)} className="px-2 py-0.5 rounded bg-poke-surface border border-poke-border text-slate-400 hover:text-red-400 transition-colors">Clear</button>
-                </div>
-              </div>
-            )}
-            {/* Live game window — video for smooth streaming, img for region select */}
-            {(lastFrameUrl || detecting) && (
-              <div
-                className="relative overflow-hidden"
-                onMouseDown={regionSelecting ? (e) => {
-                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                  const pos = { x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height };
-                  setRegionDragStart(pos); setRegionDragEnd(pos);
-                } : undefined}
-                onMouseMove={regionSelecting && regionDragStart ? (e) => {
-                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                  setRegionDragEnd({ x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height });
-                } : undefined}
-                onMouseUp={regionSelecting && regionDragStart && regionDragEnd ? () => {
-                  const x0 = Math.min(regionDragStart!.x, regionDragEnd!.x), y0 = Math.min(regionDragStart!.y, regionDragEnd!.y);
-                  const x1 = Math.max(regionDragStart!.x, regionDragEnd!.x), y1 = Math.max(regionDragStart!.y, regionDragEnd!.y);
-                  if ((x1-x0) > 0.05 && (y1-y0) > 0.05) setCaptureRegion({ x: x0, y: y0, w: x1-x0, h: y1-y0 });
-                  setRegionSelecting(false); setRegionDragStart(null); setRegionDragEnd(null);
-                } : undefined}
-                style={{ cursor: regionSelecting ? 'crosshair' : 'default', userSelect: 'none' }}
-              >
-                {/* Live video stream (smooth) — shown when not region-selecting */}
-                {detecting && !regionSelecting && !showDebug && (
-                  <video ref={liveVideoRef} autoPlay muted playsInline className="w-full h-auto block" style={{ pointerEvents: 'none' }} />
-                )}
-                {/* Annotated frame (debug overlays) or raw frame for region select */}
-                {(regionSelecting || showDebug || !detecting) && (
-                  <img
-                    src={(regionSelecting ? (lastRawFrameUrl ?? lastFrameUrl) : lastFrameUrl) ?? undefined}
-                    alt="Captured frame"
-                    className="w-full h-auto block"
-                    draggable={false}
-                  style={{ pointerEvents: 'none' }}
-                />
-                )}
-                {regionSelecting && regionDragStart && regionDragEnd && (
-                  <div className="absolute border-2 border-violet-400 bg-violet-400/10 pointer-events-none" style={{
-                    left: `${Math.min(regionDragStart.x, regionDragEnd.x)*100}%`, top: `${Math.min(regionDragStart.y, regionDragEnd.y)*100}%`,
-                    width: `${Math.abs(regionDragEnd.x-regionDragStart.x)*100}%`, height: `${Math.abs(regionDragEnd.y-regionDragStart.y)*100}%`,
-                  }} />
-                )}
-              </div>
-            )}
+            </div>
           </div>
         );
       })()}
@@ -1992,40 +1856,18 @@ export function StreamCompanionPage() {
 
           <div className="h-px bg-poke-border/30" />
 
-          {/* Stream + Detection controls — inline */}
-          <div className="flex gap-2 items-center">
-            <input
-              type="text"
-              value={videoUrlInput}
-              onChange={e => setVideoUrlInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleConnectVideo()}
-              placeholder="Stream URL or channel..."
-              className="flex-1 px-2 py-1.5 bg-poke-surface border border-poke-border rounded text-xs text-white placeholder:text-slate-600 focus:border-purple-500/50 focus:outline-none"
-            />
-            {!videoSource ? (
-              <button onClick={handleConnectVideo} className="px-3 py-1.5 bg-purple-600/20 border border-purple-500/40 text-purple-400 rounded text-xs font-bold hover:bg-purple-600/30 transition-colors shrink-0">
-                Watch
-              </button>
-            ) : (
-              <button onClick={handleDisconnectVideo} className="px-2 py-1.5 bg-poke-surface border border-poke-border text-slate-600 rounded text-xs hover:text-red-400 transition-colors shrink-0">
-                Close
-              </button>
-            )}
-            {!detecting ? (
-              <button onClick={handleStartDetection} disabled={ocrLoading} className={`px-3 py-1.5 rounded border text-xs font-bold transition-colors shrink-0 flex items-center gap-1.5 ${
-                ocrLoading ? 'border-poke-border bg-poke-surface text-slate-600 cursor-wait' : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-              }`}>
-                {ocrLoading ? 'Loading...' : 'Detect'}
-              </button>
-            ) : (
-              <button onClick={handleStopDetection} className="px-3 py-1.5 rounded border border-red-500/30 bg-red-500/10 text-red-400 text-xs font-bold hover:bg-red-500/20 transition-colors shrink-0 flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />Stop
-              </button>
-            )}
-          </div>
-
-          {/* Video embed — only when not detecting */}
-          {videoSource && !detecting && <VideoEmbed source={videoSource} />}
+          {/* Screen capture toggle */}
+          {!detecting ? (
+            <button onClick={handleStartDetection} disabled={ocrLoading} className={`w-full py-2 rounded-lg border text-xs font-bold transition-colors flex items-center justify-center gap-2 ${
+              ocrLoading ? 'border-poke-border bg-poke-surface text-slate-600 cursor-wait' : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+            }`}>
+              {ocrLoading ? 'Loading model...' : 'Share Screen to Start Detection'}
+            </button>
+          ) : (
+            <button onClick={handleStopDetection} className="w-full py-2 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 text-xs font-bold hover:bg-red-500/20 transition-colors flex items-center justify-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />Stop Detection
+            </button>
+          )}
         </div>
 
         {/* ═══ COMPACT STATUS BAR — inline under frame capture ═══ */}
