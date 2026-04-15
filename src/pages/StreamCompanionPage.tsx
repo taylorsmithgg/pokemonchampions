@@ -1241,7 +1241,6 @@ export function StreamCompanionPage() {
     // flips — camera pans, animations, doubles positioning all cause
     // temporary position noise. Only Re-detect button or new match resets.
     const committed = committedSidesRef.current;
-    const midX = frame.width / 2;
     for (const s of (result.spriteMatched ?? [])) {
       if (s.confidence < 0.2) continue;
       const isLeft = s.x < midX;
