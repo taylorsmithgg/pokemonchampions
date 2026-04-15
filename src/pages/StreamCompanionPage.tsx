@@ -857,6 +857,7 @@ export function StreamCompanionPage() {
   // Full session reset — clears EVERYTHING for starting fresh
   const resetSession = useCallback(() => {
     setOpponentTeam([]);
+    handleSetMyTeam([]);
     setHistory([]);
     setGamePhase('idle');
     setMatchStartTime(null);
