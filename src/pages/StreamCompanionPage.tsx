@@ -1026,29 +1026,30 @@ export function StreamCompanionPage() {
     const myTeamViz = new Set(filledMyTeam);
     for (const species of filledMyTeam) myTeamViz.add(species.split('-')[0]);
 
-    // Y-axis split: bottom = yours, top = opponent (singles + doubles)
+    // X-axis split: left = yours, right = opponent
+    const midX = frame.width / 2;
     const midY = frame.height / 2;
 
-    // Horizontal midline guide (Y-axis split)
-    actx.strokeStyle = 'rgba(255,255,255,0.15)';
-    actx.lineWidth = 1;
+    // Vertical midline guide (X-axis split for team assignment)
+    actx.strokeStyle = 'rgba(255,255,255,0.2)';
+    actx.lineWidth = 2;
     actx.beginPath();
-    actx.moveTo(0, midY); actx.lineTo(frame.width, midY);
+    actx.moveTo(midX, 0); actx.lineTo(midX, frame.height);
     actx.stroke();
     // Labels
-    actx.fillStyle = 'rgba(0,0,0,0.5)';
-    actx.fillRect(4, midY - 14, 80, 14);
-    actx.fillRect(4, midY + 2, 80, 14);
-    actx.font = 'bold 10px system-ui';
-    actx.fillStyle = '#f97316'; actx.fillText('▲ OPPONENT', 6, midY - 4);
-    actx.fillStyle = '#38bdf8'; actx.fillText('▼ YOURS', 6, midY + 13);
+    actx.fillStyle = 'rgba(0,0,0,0.6)';
+    actx.fillRect(midX - 85, 4, 80, 16);
+    actx.fillRect(midX + 5, 4, 80, 16);
+    actx.font = 'bold 11px system-ui';
+    actx.fillStyle = '#38bdf8'; actx.fillText('◄ YOURS', midX - 82, 16);
+    actx.fillStyle = '#f97316'; actx.fillText('OPPONENT ►', midX + 8, 16);
 
-    // Sprite detection boxes — bright with solid labels
+    // Sprite detection boxes — X-axis determines side
     for (const s of (result.spriteMatched ?? [])) {
       const isYours = myTeamViz.has(s.species);
-      const inTop = s.y < midY;
-      const color = isYours ? '#38bdf8' : inTop ? '#f97316' : '#eab308';
-      const tag = isYours ? 'YOURS' : inTop ? 'OPP' : '???';
+      const isRightSide = s.x > midX;
+      const color = isYours ? '#38bdf8' : isRightSide ? '#f97316' : '#eab308';
+      const tag = isYours ? 'YOURS' : isRightSide ? 'OPP' : '???';
       // Glow fill
       actx.fillStyle = color + '20';
       actx.fillRect(s.x, s.y, 80, 80);
@@ -1240,12 +1241,15 @@ export function StreamCompanionPage() {
     // flips — camera pans, animations, doubles positioning all cause
     // temporary position noise. Only Re-detect button or new match resets.
     const committed = committedSidesRef.current;
+    const midX = frame.width / 2;
     for (const s of (result.spriteMatched ?? [])) {
       if (s.confidence < 0.2) continue;
-      const isBottom = s.y > midY;
-      // Y-axis primary: bottom = yours, top = opponent
+      const isLeft = s.x < midX;
+      // X-axis primary — works for BOTH layouts:
+      // Selection screen: left column = yours, right column = opponent
+      // Battle screen: your mon = bottom-LEFT, opponent = top-RIGHT
       const weight = Math.max(1, Math.round(s.confidence * 5));
-      const detectedSide: 'left' | 'right' = isBottom ? 'left' : 'right';
+      const detectedSide: 'left' | 'right' = isLeft ? 'left' : 'right';
 
       let targetSide: 'left' | 'right';
       const existing = committed.get(s.species);
