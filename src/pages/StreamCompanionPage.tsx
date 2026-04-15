@@ -561,8 +561,6 @@ export function StreamCompanionPage() {
   const cooldownUntilRef = useRef<number>(0);
   // Species dismissed by the user — won't be re-added by auto-detect this game
   const [dismissedSpecies, setDismissedSpecies] = useState<Set<string>>(new Set());
-  // Frame-diff hash for keyframe selection (skip OCR on unchanged frames)
-  const lastFrameHashRef = useRef<Uint8Array | null>(null);
   // User-defined capture region (percentages 0-1). Null = full frame.
   const [captureRegion, setCaptureRegion] = useState<{ x: number; y: number; w: number; h: number } | null>(() => {
     try {
@@ -872,7 +870,6 @@ export function StreamCompanionPage() {
     rightVotesRef.current = new Map();
     setTeamsLocked(false);
     setDetectionPhase('preview');
-    lastFrameHashRef.current = null;
     setCaptureRegion(null);
     saveHistory([]);
   }, []);
@@ -988,29 +985,6 @@ export function StreamCompanionPage() {
         frame = cropped;
       }
     }
-
-    // Keyframe gate: skip OCR on frames identical to previous scan.
-    // Cheap 64x36 luminance hash diff — under 1ms.
-    const tiny = document.createElement('canvas');
-    tiny.width = 64; tiny.height = 36;
-    const tctx = tiny.getContext('2d')!;
-    tctx.drawImage(frame, 0, 0, 64, 36);
-    const tinyData = tctx.getImageData(0, 0, 64, 36).data;
-    const hash = new Uint8Array(64 * 36);
-    for (let i = 0, j = 0; i < tinyData.length; i += 4, j++) {
-      hash[j] = (tinyData[i] + tinyData[i + 1] + tinyData[i + 2]) / 3;
-    }
-    let frameChanged = true;
-    if (lastFrameHashRef.current) {
-      let diff = 0;
-      for (let i = 0; i < hash.length; i++) diff += Math.abs(hash[i] - lastFrameHashRef.current[i]);
-      frameChanged = (diff / hash.length) > 8;
-    }
-    lastFrameHashRef.current = hash;
-    // Only skip static frames when teams are locked (battle phase).
-    // During preview, we NEED repeat scans of the same selection screen
-    // to accumulate votes across detections.
-    if (!frameChanged && detectionPhase === 'battle') return;
 
     const result = await detectPokemonFromFrame(frame);
     setLastOcrResult(result);

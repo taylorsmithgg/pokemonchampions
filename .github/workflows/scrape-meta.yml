@@ -1,0 +1,37 @@
+name: Scrape pikalytics meta
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # every Monday 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: scrape-meta
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/scrape-pikalytics.mjs
+      - name: Open PR if data changed
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: 'chore(meta): refresh pikalytics top-teams snapshot'
+          branch: meta/pikalytics-refresh
+          delete-branch: true
+          title: 'Meta refresh — pikalytics tournament top teams'
+          body: |
+            Automated refresh of `src/data/pikalyticsTopTeams.json` from
+            https://www.pikalytics.com/topteams/championstournaments
+
+            Review the diff to spot meta shifts (new top picks, archetype trends).
+          add-paths: src/data/pikalyticsTopTeams.json
