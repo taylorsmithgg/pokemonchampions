@@ -7,6 +7,7 @@
 import { getAvailablePokemon, getPokemonData, getTypeEffectiveness, getDefensiveMultiplier } from './champions';
 import { PRESETS, type PokemonPreset } from './presets';
 import { NORMAL_TIER_LIST } from './tierlist';
+import { getMetaUsage, getMetaTeammates } from './pikalyticsMeta';
 import {
   speciesRunsMove, speciesHasAbility as sharedSpeciesHasAbility,
   likelyHasSpreadEQ as sharedLikelyHasSpreadEQ,
@@ -772,23 +773,62 @@ export function getRecommendations(selectedSpecies: string, otherSpecies?: strin
 
     const synergyScore = reasons.reduce((sum, r) => sum + r.strength, 0);
 
-    // Meta viability bonus — S/A+ tier Pokemon get significant boosts
+    // Editorial tier viability — kept as fallback for picks not yet in
+    // tournament data (new releases, theorymon).
     const tierEntry = NORMAL_TIER_LIST.find(e => e.name === candidateName);
     const tierBonus: Record<string, number> = { S: 8, 'A+': 6, A: 4, B: 2, C: 0 };
-    const viability = tierEntry ? (tierBonus[tierEntry.tier] || 0) : 0;
+    const tierViability = tierEntry ? (tierBonus[tierEntry.tier] || 0) : 0;
 
-    // Preset bonus — Pokemon with presets are proven competitive picks
+    // Tournament viability — pikalytics usage is the strongest signal that
+    // a pick is actually competitive. A Pokemon at 50% tournament usage
+    // (Sneasler/Incineroar) is more proven than any tier list assertion.
+    const candidateUsage = getMetaUsage(candidateName);
+    let metaViability = 0;
+    if (candidateUsage >= 30) metaViability = 12;
+    else if (candidateUsage >= 15) metaViability = 8;
+    else if (candidateUsage >= 5) metaViability = 5;
+    else if (candidateUsage >= 1) metaViability = 2;
+
+    // Use the higher of the two — don't double-count viability when both
+    // tier list and tournament data agree the pick is strong.
+    const viability = Math.max(tierViability, metaViability);
+
+    // Co-occurrence bonus — if the selected Pokemon and this candidate
+    // appear together on the same tournament team, that's empirical
+    // evidence of partner synergy. Worth more than any heuristic combo.
+    const partners = getMetaTeammates(selectedSpecies, 50);
+    const partnerEntry = partners.find(p => p.species === candidateName);
+    const coOccurrenceBonus = partnerEntry
+      ? Math.min(15, Math.round(partnerEntry.percent / 4))  // 60% co-occurrence → +15
+      : 0;
+
+    // Preset bonus — only meaningful if not already meta-validated.
     const preset = PRESETS.find(p => p.species === candidateName);
-    const presetBonus = preset ? 3 : 0;
+    const presetBonus = preset && metaViability === 0 ? 3 : 0;
 
-    const totalScore = synergyScore + viability + presetBonus;
+    const totalScore = synergyScore + viability + presetBonus + coOccurrenceBonus;
 
-    if (viability > 0) {
+    // Surface the highest-priority signal as a context reason
+    if (coOccurrenceBonus > 0) {
+      reasons.push({
+        type: 'stat-profile',
+        label: `Tournament-Proven Pair`,
+        description: `${partnerEntry!.percent}% of top-team ${selectedSpecies} squads also run ${candidateName}`,
+        strength: 0,
+      });
+    } else if (metaViability > 0) {
+      reasons.push({
+        type: 'stat-profile',
+        label: `${candidateUsage.toFixed(1)}% Meta`,
+        description: `Used by ${candidateUsage.toFixed(1)}% of top tournament teams`,
+        strength: 0,
+      });
+    } else if (tierViability > 0) {
       reasons.push({
         type: 'stat-profile',
         label: `${tierEntry!.tier} Tier`,
-        description: `Meta-viable — ranked ${tierEntry!.tier} tier in competitive play`,
-        strength: 0, // Don't double-count in display, just for context
+        description: `Editorial tier — ranked ${tierEntry!.tier} in competitive play`,
+        strength: 0,
       });
     }
 

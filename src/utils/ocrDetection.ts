@@ -1056,6 +1056,9 @@ export function stopCapture() {
 export function isCaptureActive(): boolean {
   return _captureStream !== null && _captureStream.active;
 }
+export function getCaptureStream(): MediaStream | null {
+  return _captureStream;
+}
 
 export function grabFrame(): HTMLCanvasElement | null {
   if (!_videoEl || !_captureStream?.active) return null;

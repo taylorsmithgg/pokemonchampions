@@ -15,6 +15,7 @@ import {
   stopCapture,
   isCaptureActive,
   grabFrame,
+  getCaptureStream,
   detectPokemonFromFrame,
   autoDetectGameWindow,
   type OcrDetectionResult,
@@ -576,6 +577,8 @@ export function StreamCompanionPage() {
     if (captureRegion) localStorage.setItem('stream-companion-region', JSON.stringify(captureRegion));
     else localStorage.removeItem('stream-companion-region');
   }, [captureRegion]);
+  // Live video element ref for smooth game window rendering
+  const liveVideoRef = useRef<HTMLVideoElement>(null);
   // Active battlers (during battle)
   const [activeYour, setActiveYour] = useState<string | null>(null);
   const [activeOpp, setActiveOpp] = useState<string | null>(null);
@@ -1101,16 +1104,7 @@ export function StreamCompanionPage() {
 
     setLastFrameUrl(annotated.toDataURL('image/jpeg', 0.6));
 
-    // If we see Won/Lost text but already locked in battle phase OR
-    // already past a recent match (cooldown JUST expired), this is the
-    // SAME results screen lingering — extend cooldown to wait it out.
-    // Prevents re-detecting opponent sprites from previous match.
-    if (result.matchResult && (Date.now() - cooldownUntilRef.current) < 15000 && cooldownUntilRef.current > 0) {
-      cooldownUntilRef.current = Date.now() + 5000; // hold cooldown until results clear
-      return;
-    }
-
-    // Auto-record match result FIRST — results screen is authoritative,
+    // Auto-record match result — results screen is authoritative,
     // takes precedence over screen-context classification.
     if (result.matchResult) {
       const matchId = currentMatchIdRef.current || 'unknown';
@@ -1220,7 +1214,20 @@ export function StreamCompanionPage() {
     }
   }, [filledMyTeam, filledOpponents, recordMatch, handleSetMyTeam, dismissedSpecies, captureRegion]);
 
-  // Auto-scan loop: every 4 seconds when detection is active
+  // Attach capture stream to live video element for smooth preview
+  useEffect(() => {
+    if (detecting && liveVideoRef.current) {
+      const stream = getCaptureStream();
+      if (stream) {
+        liveVideoRef.current.srcObject = stream;
+        liveVideoRef.current.play().catch(() => {});
+      }
+    }
+    return () => {
+      if (liveVideoRef.current) liveVideoRef.current.srcObject = null;
+    };
+  }, [detecting]);
+
   // Sequential scan loop — each scan finishes, then waits 200ms, then
   // next scan starts. No interval pileup. If a scan takes 3s, next one
   // starts at 3.2s, not 0.6s (which would pile up 5 concurrent scans).
@@ -1861,8 +1868,8 @@ export function StreamCompanionPage() {
                 </div>
               </div>
             )}
-            {/* Frame image — full height during selection, compact otherwise */}
-            {lastFrameUrl && (
+            {/* Live game window — video for smooth streaming, img for region select */}
+            {(lastFrameUrl || detecting) && (
               <div
                 className="relative overflow-hidden"
                 onMouseDown={regionSelecting ? (e) => {
@@ -1880,19 +1887,22 @@ export function StreamCompanionPage() {
                   if ((x1-x0) > 0.05 && (y1-y0) > 0.05) setCaptureRegion({ x: x0, y: y0, w: x1-x0, h: y1-y0 });
                   setRegionSelecting(false); setRegionDragStart(null); setRegionDragEnd(null);
                 } : undefined}
-                style={{
-                  cursor: regionSelecting ? 'crosshair' : 'default',
-                  userSelect: 'none',
-                  maxHeight: 'none',
-                }}
+                style={{ cursor: regionSelecting ? 'crosshair' : 'default', userSelect: 'none' }}
               >
-                <img
-                  src={(regionSelecting ? (lastRawFrameUrl ?? lastFrameUrl) : lastFrameUrl) ?? undefined}
-                  alt="Captured frame"
-                  className="w-full h-auto block"
-                  draggable={false}
+                {/* Live video stream (smooth) — shown when not region-selecting */}
+                {detecting && !regionSelecting && !showDebug && (
+                  <video ref={liveVideoRef} autoPlay muted playsInline className="w-full h-auto block" style={{ pointerEvents: 'none' }} />
+                )}
+                {/* Annotated frame (debug overlays) or raw frame for region select */}
+                {(regionSelecting || showDebug || !detecting) && (
+                  <img
+                    src={(regionSelecting ? (lastRawFrameUrl ?? lastFrameUrl) : lastFrameUrl) ?? undefined}
+                    alt="Captured frame"
+                    className="w-full h-auto block"
+                    draggable={false}
                   style={{ pointerEvents: 'none' }}
                 />
+                )}
                 {regionSelecting && regionDragStart && regionDragEnd && (
                   <div className="absolute border-2 border-violet-400 bg-violet-400/10 pointer-events-none" style={{
                     left: `${Math.min(regionDragStart.x, regionDragEnd.x)*100}%`, top: `${Math.min(regionDragStart.y, regionDragEnd.y)*100}%`,

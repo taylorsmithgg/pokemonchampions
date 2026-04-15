@@ -7,6 +7,7 @@ import type { StatID, StatsTable } from '@smogon/calc';
 import { NORMAL_TIER_LIST, MEGA_TIER_LIST } from '../data/tierlist';
 import { getPokemonData, getNatureMod, MAX_STAT_SP, MAX_TOTAL_SP } from '../data/champions';
 import { PRESETS } from '../data/presets';
+import { getMetaRanking, getMetaWeight, getTopItem } from '../data/pikalyticsMeta';
 import type { NatureName } from '../types';
 
 // ─── Meta Threat Pool ───────────────────────────────────────────────
