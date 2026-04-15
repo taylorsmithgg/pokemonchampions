@@ -1158,18 +1158,8 @@ export function StreamCompanionPage() {
       }
     }
 
-    // OCR text — ONLY from panel regions (conf >= 0.9) or selection column.
-    // Full-frame OCR picks up chat text ("aggron", "ditto" from viewers)
-    // which falsely adds to teams. Panel matches are pre-tagged with 0.9+.
-    for (const m of result.matched) {
-      if (m.confidence < 0.85 || m.side === 'unknown') continue;
-      if (dismissedSpecies.has(m.species)) continue;
-      if (m.side === 'left' && !myTeamSet.has(m.species) && !oppTeamSet.has(m.species)) {
-        newYours.push(m.species);
-      } else if (m.side === 'right' && !oppTeamSet.has(m.species) && !myTeamSet.has(m.species)) {
-        newOpps.push(m.species);
-      }
-    }
+    // OCR disabled for team assignment — too noisy (chat, overlays).
+    // Sprites (pHash) + battle log only.
 
     // Battle log — "Opposing X" = opponent, "Go! X" = yours
     for (const blm of (result.battleLogMatches ?? [])) {

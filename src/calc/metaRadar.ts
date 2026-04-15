@@ -294,17 +294,29 @@ export function generateMetaReport(liveStats: UsageStats | null): MetaReport {
     else if (score >= 18) tier = 'C';
     else tier = 'D';
 
-    // Determine trend
+    // Determine trend by comparing dynamic radar score to a baseline.
+    // Baseline = max of editorial tier rank and tournament-usage rank,
+    // so a Pokemon that's S in pikalytics but C in editorial tier list
+    // doesn't get incorrectly flagged as "rising".
     const staticTier = NORMAL_TIER_LIST.find(e => e.name === species);
     const staticTierScore: Record<string, number> = { S: 5, 'A+': 4, A: 3, B: 2, C: 1 };
     const dynamicTierScore: Record<string, number> = { S: 5, A: 4, B: 3, C: 2, D: 1 };
-    const staticVal = staticTier ? (staticTierScore[staticTier.tier] || 0) : 0;
+    const editorialVal = staticTier ? (staticTierScore[staticTier.tier] || 0) : 0;
+
+    const tournamentUsage = getMetaUsage(species);
+    let tournamentVal = 0;
+    if (tournamentUsage >= 30) tournamentVal = 5;
+    else if (tournamentUsage >= 15) tournamentVal = 4;
+    else if (tournamentUsage >= 5) tournamentVal = 3;
+    else if (tournamentUsage >= 1) tournamentVal = 2;
+
+    const baselineVal = Math.max(editorialVal, tournamentVal);
     const dynamicVal = dynamicTierScore[tier] || 0;
 
     let trend: MetaScore['trend'] = 'stable';
-    if (staticVal === 0) trend = 'new';
-    else if (dynamicVal > staticVal) trend = 'rising';
-    else if (dynamicVal < staticVal) trend = 'falling';
+    if (baselineVal === 0) trend = 'new';
+    else if (dynamicVal > baselineVal) trend = 'rising';
+    else if (dynamicVal < baselineVal) trend = 'falling';
 
     // Extract top moves/items/teammates from live data
     const topMoves = liveData
