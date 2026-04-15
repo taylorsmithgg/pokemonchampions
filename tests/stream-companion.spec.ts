@@ -38,16 +38,16 @@ test.describe('Stream Companion', () => {
 
   test('page loads — URL input + team sections', async ({ page }) => {
     // Universal URL input
-    await expect(page.locator('input[placeholder*="Twitch or YouTube"]')).toBeVisible();
+    await expect(page.locator('input[placeholder*="channel"], input[placeholder*="Stream"]')).toBeVisible();
     await expect(page.locator('button:has-text("Watch")')).toBeVisible();
     // Team sections
     await expect(page.getByText('Your Team').first()).toBeVisible();
-    await expect(page.getByText('Opponent Team').first()).toBeVisible();
+    await expect(page.getByText('Opponent').first()).toBeVisible();
     await page.screenshot({ path: 'tests/screenshots/01-initial.png', fullPage: true });
   });
 
   test('Twitch channel loads via URL input', async ({ page }) => {
-    const urlInput = page.locator('input[placeholder*="Twitch or YouTube"]');
+    const urlInput = page.locator('input[placeholder*="channel"], input[placeholder*="Stream"]');
     await urlInput.fill('lizard_machine');
     await page.locator('button:has-text("Watch")').click();
     await page.waitForTimeout(2000);
@@ -56,7 +56,7 @@ test.describe('Stream Companion', () => {
   });
 
   test('YouTube URL loads embed', async ({ page }) => {
-    const urlInput = page.locator('input[placeholder*="Twitch or YouTube"]');
+    const urlInput = page.locator('input[placeholder*="channel"], input[placeholder*="Stream"]');
     await urlInput.fill('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
     await page.locator('button:has-text("Watch")').click();
     await page.waitForTimeout(1000);

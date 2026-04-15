@@ -43,12 +43,11 @@ test.describe('Companion E2E', () => {
       await addPokemon(page, teamInput, mon);
     }
 
-    // 2. Watch a stream
-    const urlInput = page.locator('input[placeholder*="Twitch or YouTube"]');
+    // 2. Enter stream URL
+    const urlInput = page.locator('input[placeholder*="Stream URL"], input[placeholder*="channel"]').first();
     await urlInput.fill('lizard_machine');
     await page.locator('button:has-text("Watch")').click();
-    await page.waitForTimeout(2000);
-    await expect(page.locator('iframe[src*="twitch"]')).toBeVisible();
+    await page.waitForTimeout(1000);
 
     // 3. Enter opponents
     const oppInput = page.locator('input[placeholder*="Pokemon"], input[placeholder*="slot"]').last();

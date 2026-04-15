@@ -320,13 +320,6 @@ function suggestLead(bringList: BringRecommendation[], opponents: string[]): { l
   return { lead1: bestPair[0], lead2: bestPair[1], reasoning: bestReason };
 }
 
-// ─── Phase config ────────────────────────────────────────────────
-
-const PHASE_CONFIG: Record<GamePhase, { label: string; color: string; desc: string }> = {
-  idle:    { label: 'Between Games', color: '#6B7280', desc: 'Ready for next match' },
-  preview: { label: 'Team Preview',  color: '#F59E0B', desc: 'Enter opponent team below' },
-  battle:  { label: 'In Battle',     color: '#EF4444', desc: 'Battle in progress' },
-};
 
 // ─── Video Embed (Twitch / YouTube) ──────────────────────────────
 
@@ -1049,19 +1042,26 @@ export function StreamCompanionPage() {
     actx.fillStyle = '#f97316'; actx.fillText('▲ OPPONENT', 6, midY - 4);
     actx.fillStyle = '#38bdf8'; actx.fillText('▼ YOURS', 6, midY + 13);
 
-    // Sprite boxes — Y position determines color
+    // Sprite detection boxes — bright with solid labels
     for (const s of (result.spriteMatched ?? [])) {
       const isYours = myTeamViz.has(s.species);
       const inTop = s.y < midY;
       const color = isYours ? '#38bdf8' : inTop ? '#f97316' : '#eab308';
-      actx.strokeStyle = color;
-      actx.lineWidth = 3;
+      const tag = isYours ? 'YOURS' : inTop ? 'OPP' : '???';
+      // Glow fill
+      actx.fillStyle = color + '20';
+      actx.fillRect(s.x, s.y, 80, 80);
+      // Thick border
+      actx.strokeStyle = color; actx.lineWidth = 4;
       actx.strokeRect(s.x, s.y, 80, 80);
-      actx.fillStyle = 'rgba(0,0,0,0.75)';
-      actx.fillRect(s.x, s.y - 18, 160, 18);
+      // Label with background
+      const label = `${s.species} ${Math.round(s.confidence * 100)}% [${tag}]`;
+      actx.font = 'bold 13px system-ui';
+      const lw = actx.measureText(label).width + 10;
+      actx.fillStyle = 'rgba(0,0,0,0.85)';
+      actx.fillRect(s.x, s.y - 22, lw, 22);
       actx.fillStyle = color;
-      actx.font = 'bold 12px system-ui';
-      actx.fillText(`${s.species} ${Math.round(s.confidence * 100)}%`, s.x + 2, s.y - 4);
+      actx.fillText(label, s.x + 5, s.y - 5);
     }
 
     // OCR text listing
@@ -1088,39 +1088,44 @@ export function StreamCompanionPage() {
       actx.fillText(`LOG ${blm.pattern}`, 10, y);
     }
 
-    // ── Draw all scan region boundaries ──
+    // ── Draw all scan region boundaries — thick, bright, labeled ──
     const fw = frame.width, fh = frame.height;
-    actx.setLineDash([4, 4]);
 
-    // Battle HP panels (where panel OCR reads names)
-    actx.strokeStyle = '#a855f7'; actx.lineWidth = 2;
-    actx.strokeRect(fw * 0.00, fh * 0.82, fw * 0.25, fh * 0.18); // BL panel
-    actx.strokeRect(fw * 0.68, fh * 0.00, fw * 0.32, fh * 0.18); // TR panel
+    const drawRegion = (x: number, y: number, w: number, h: number, color: string, label: string, fill = true) => {
+      if (fill) { actx.fillStyle = color + '15'; actx.fillRect(x, y, w, h); }
+      actx.strokeStyle = color; actx.lineWidth = 3; actx.setLineDash([6, 3]);
+      actx.strokeRect(x, y, w, h);
+      actx.setLineDash([]);
+      if (label) {
+        actx.fillStyle = 'rgba(0,0,0,0.8)';
+        actx.font = 'bold 11px system-ui';
+        const tw = actx.measureText(label).width + 8;
+        actx.fillRect(x, y, tw, 16);
+        actx.fillStyle = color;
+        actx.fillText(label, x + 4, y + 12);
+      }
+    };
 
-    // Selection screen left column (YOUR team OCR)
-    actx.strokeStyle = '#06b6d4'; actx.lineWidth = 1;
-    actx.strokeRect(fw * 0.00, fh * 0.07, fw * 0.23, fh * 0.88); // left col
+    // Battle HP panels
+    drawRegion(fw * 0.00, fh * 0.82, fw * 0.25, fh * 0.18, '#a855f7', 'YOUR HP');
+    drawRegion(fw * 0.68, fh * 0.00, fw * 0.32, fh * 0.18, '#f97316', 'OPP HP');
 
-    // Selection screen right column sprite slots (OPP icons)
-    actx.strokeStyle = '#f43f5e';
+    // Battle icon sprites
+    drawRegion(0, fh * 0.85, fw * 0.08, fh * 0.10, '#a855f7', 'Icon', false);
+    drawRegion(fw * 0.88, 0, fw * 0.10, fh * 0.10, '#f97316', 'Icon', false);
+
+    // Selection YOUR column
+    drawRegion(fw * 0.00, fh * 0.07, fw * 0.23, fh * 0.88, '#06b6d4', 'YOUR TEXT');
+
+    // Selection OPP sprites
     for (let i = 0; i < 6; i++) {
-      const sy = fh * (0.08 + i * 0.135);
-      actx.strokeRect(fw * 0.78, sy, fw * 0.18, fh * 0.12);
+      drawRegion(fw * 0.78, fh * (0.08 + i * 0.135), fw * 0.18, fh * 0.12, '#f43f5e', i === 0 ? 'OPP SPRITES' : '', false);
     }
 
-    // YOUR team icon sprite slots (left column)
-    actx.strokeStyle = '#06b6d4';
+    // YOUR icon sprites
     for (let i = 0; i < 6; i++) {
-      const sy = fh * (0.08 + i * 0.145);
-      actx.strokeRect(fw * 0.01, sy, fw * 0.07, fh * 0.11);
+      drawRegion(fw * 0.01, fh * (0.08 + i * 0.145), fw * 0.07, fh * 0.11, '#06b6d4', '', false);
     }
-
-    // Battle HP panel icon sprites
-    actx.strokeStyle = '#a855f7';
-    actx.strokeRect(0, fh * 0.85, fw * 0.08, fh * 0.10);             // BL icon
-    actx.strokeRect(fw * 0.88, 0, fw * 0.10, fh * 0.10);             // TR icon
-
-    actx.setLineDash([]);
 
     // Auto-detected game window (if applicable)
     if (!captureRegion) {
@@ -1779,7 +1784,6 @@ export function StreamCompanionPage() {
 
   // ─── Full Layout ───────────────────────────────────────────────
 
-  const phaseConf = PHASE_CONFIG[gamePhase];
 
   return (
     <div className="min-h-screen bg-poke-darkest text-white flex flex-col">
@@ -2149,200 +2153,115 @@ export function StreamCompanionPage() {
       {/* Left column: stream, debug, opponent input */}
       <div className="space-y-4">
 
-        {/* ═══ GAME PHASE INDICATOR ═══ */}
-        <div
-          className="flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all"
-          style={{
-            backgroundColor: `${phaseConf.color}10`,
-            borderColor: `${phaseConf.color}30`,
-          }}
-        >
-          <div className="relative">
-            <div
-              className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: phaseConf.color }}
-            />
-            {gamePhase !== 'idle' && (
-              <div
-                className="absolute inset-0 w-3 h-3 rounded-full animate-ping opacity-40"
-                style={{ backgroundColor: phaseConf.color }}
-              />
-            )}
-          </div>
-          <div className="flex-1">
-            <span className="text-sm font-bold" style={{ color: phaseConf.color }}>{phaseConf.label}</span>
-            <span className="text-xs text-slate-500 ml-2">{phaseConf.desc}</span>
-          </div>
-          {/* Phase toggle buttons */}
-          <div className="flex gap-1">
-            {(['idle', 'preview', 'battle'] as GamePhase[]).map(p => (
-              <button
-                key={p}
-                onClick={() => {
-                  setGamePhase(p);
-                  if ((p === 'preview' || p === 'battle') && !matchStartTime) {
-                    setMatchStartTime(Date.now());
-                    setMatchElapsed(0);
-                  }
-                  if (p === 'idle') {
-                    setMatchStartTime(null);
-                    setMatchElapsed(0);
-                  }
-                }}
-                className={`px-2 py-1 rounded text-[10px] font-bold transition-all border ${
-                  gamePhase === p
-                    ? 'text-white border-transparent'
-                    : 'text-slate-500 border-poke-border bg-poke-surface hover:text-white'
-                }`}
-                style={gamePhase === p ? { backgroundColor: phaseConf.color, borderColor: phaseConf.color } : undefined}
-              >
-                {PHASE_CONFIG[p].label.split(' ').pop()}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Result flash banner */}
+        {/* Result flash */}
         {lastResult && (
-          <div
-            className={`text-center py-4 rounded-xl font-black text-xl ${
-              lastResult === 'win'
-                ? 'bg-emerald-900/40 text-emerald-300 border-2 border-emerald-500/60 shadow-lg shadow-emerald-500/20'
-                : 'bg-red-900/40 text-red-300 border-2 border-red-500/60 shadow-lg shadow-red-500/20'
-            }`}
-            style={{
-              animation: 'resultFlash 3s ease-out forwards',
-            }}
-          >
+          <div className={`text-center py-3 rounded-xl font-black text-lg ${
+            lastResult === 'win' ? 'bg-emerald-900/40 text-emerald-300 border border-emerald-500/40' : 'bg-red-900/40 text-red-300 border border-red-500/40'
+          }`} style={{ animation: 'resultFlash 3s ease-out forwards' }}>
             {lastResult === 'win' ? 'VICTORY' : 'DEFEAT'}
-            {lastResult === 'win' && <span className="block text-xs font-bold text-emerald-400/60 mt-0.5 tracking-widest">GG</span>}
           </div>
         )}
 
-        {/* ═══ YOUR TEAM ═══ */}
-        <div className="poke-panel p-4">
-          {filledMyTeam.length >= 2 && !teamExpanded ? (
-            <>
-              {/* Collapsed: compact sprite strip */}
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Your Team</span>
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                    filledMyTeam.length === 6 ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
-                  }`}>{filledMyTeam.length}/6</span>
-                </div>
-                <div className="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto">
-                  {filledMyTeam.map(species => (
-                    <div key={species} className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-poke-surface border border-poke-border shrink-0">
-                      <Sprite species={species} size="sm" />
-                      <span className="text-[10px] text-slate-400 font-medium">{species}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    onClick={() => setTeamExpanded(true)}
-                    className="text-[10px] px-2 py-1 rounded bg-poke-surface border border-poke-border text-slate-400 hover:text-white hover:border-poke-blue/40 transition-colors font-bold"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleSetMyTeam([])}
-                    className="text-[10px] px-2 py-1 rounded bg-poke-surface border border-poke-border text-slate-600 hover:text-red-400 hover:border-red-500/30 transition-colors"
-                  >
-                    Clear
-                  </button>
-                </div>
+        {/* ═══ TEAMS + CONTROLS — single compact panel ═══ */}
+        <div className="poke-panel p-3 space-y-3">
+          {/* Your Team */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Your Team</span>
+                <span className="text-[10px] text-slate-600">{filledMyTeam.length}/6</span>
               </div>
-            </>
-          ) : (
-            <>
-              {/* Expanded: full QuickTeamInput */}
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Your Team</span>
-                  {filledMyTeam.length > 0 && filledMyTeam.length < 6 && (
-                    <span className="text-[10px] text-amber-400/60">{filledMyTeam.length}/6</span>
-                  )}
-                  {filledMyTeam.length === 6 && (
-                    <span className="text-[10px] text-emerald-400/60">6/6</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  {filledMyTeam.length >= 2 && (
-                    <button onClick={() => setTeamExpanded(false)} className="text-[10px] text-poke-blue hover:text-poke-blue-light transition-colors font-bold">Done</button>
-                  )}
-                  {filledMyTeam.length > 0 && (
-                    <button onClick={() => handleSetMyTeam([])} className="text-[10px] text-slate-600 hover:text-red-400 transition-colors">Clear</button>
-                  )}
-                  {filledMyTeam.length > 0 && (
-                    <Link to="/team-builder" className="text-[10px] text-poke-blue hover:text-poke-blue-light transition-colors">Edit in Builder</Link>
-                  )}
-                </div>
+              <div className="flex items-center gap-1.5">
+                {filledMyTeam.length >= 2 && !teamExpanded && (
+                  <button onClick={() => setTeamExpanded(true)} className="text-[10px] text-poke-blue hover:text-poke-blue-light transition-colors">Edit</button>
+                )}
+                {filledMyTeam.length >= 2 && teamExpanded && (
+                  <button onClick={() => setTeamExpanded(false)} className="text-[10px] text-poke-blue hover:text-poke-blue-light transition-colors">Done</button>
+                )}
+                {filledMyTeam.length > 0 && (
+                  <button onClick={() => handleSetMyTeam([])} className="text-[10px] text-slate-600 hover:text-red-400 transition-colors">Clear</button>
+                )}
               </div>
-              {filledMyTeam.length === 0 && (
-                <div className="text-[10px] text-slate-600 mb-2">Enter your team to unlock bring list, threats, and opener strategy</div>
-              )}
-              <QuickTeamInput
-                value={filledMyTeam}
-                onChange={handleSetMyTeam}
-                maxSlots={6}
-              />
-            </>
-          )}
-        </div>
+            </div>
+            {filledMyTeam.length >= 2 && !teamExpanded ? (
+              <div className="flex items-center gap-1 flex-wrap">
+                {filledMyTeam.map(species => (
+                  <div key={species} className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-poke-surface border border-poke-border/40 shrink-0">
+                    <Sprite species={species} size="sm" />
+                    <span className="text-[10px] text-slate-400">{species}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <QuickTeamInput value={filledMyTeam} onChange={handleSetMyTeam} maxSlots={6} />
+            )}
+          </div>
 
-        {/* ═══ WATCH + AUTO-DETECT ═══ */}
-        <div className="poke-panel overflow-hidden">
-          {/* URL input row + auto-detect button */}
-          <div className="p-3 flex gap-2 items-center">
+          <div className="h-px bg-poke-border/30" />
+
+          {/* Opponent Team */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] text-poke-red uppercase tracking-wider font-bold">Opponent</span>
+              <span className="text-[10px] text-slate-600">{filledOpponents.length}/6 · Tab to accept</span>
+            </div>
+            {filledOpponents.length > 0 && detecting && (
+              <div className="flex gap-1 flex-wrap mb-1.5">
+                {filledOpponents.map(species => (
+                  <div key={species} className="flex items-center gap-1 pl-1.5 pr-0.5 py-0.5 rounded bg-poke-surface border border-poke-border group">
+                    <Sprite species={species} size="sm" />
+                    <span className="text-[10px] text-white">{species}</span>
+                    <button
+                      onClick={() => {
+                        setOpponentTeam(prev => prev.filter(s => s !== species));
+                        setDismissedSpecies(prev => new Set([...prev, species]));
+                      }}
+                      className="w-4 h-4 flex items-center justify-center rounded text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    >
+                      <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <QuickTeamInput value={filledOpponents} onChange={setOpponentTeam} maxSlots={6} />
+          </div>
+
+          <div className="h-px bg-poke-border/30" />
+
+          {/* Stream + Detection controls — inline */}
+          <div className="flex gap-2 items-center">
             <input
               type="text"
               value={videoUrlInput}
               onChange={e => setVideoUrlInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleConnectVideo()}
-              placeholder="Paste Twitch or YouTube URL, or type a channel name..."
-              className="flex-1 px-3 py-2 bg-poke-surface border border-poke-border rounded-lg text-sm text-white placeholder:text-slate-600 focus:border-purple-500/50 focus:outline-none"
+              placeholder="Stream URL or channel..."
+              className="flex-1 px-2 py-1.5 bg-poke-surface border border-poke-border rounded text-xs text-white placeholder:text-slate-600 focus:border-purple-500/50 focus:outline-none"
             />
             {!videoSource ? (
-              <button onClick={handleConnectVideo} className="px-4 py-2 bg-purple-600/20 border border-purple-500/40 text-purple-400 rounded-lg text-xs font-bold hover:bg-purple-600/30 transition-colors shrink-0">
+              <button onClick={handleConnectVideo} className="px-3 py-1.5 bg-purple-600/20 border border-purple-500/40 text-purple-400 rounded text-xs font-bold hover:bg-purple-600/30 transition-colors shrink-0">
                 Watch
               </button>
             ) : (
-              <button onClick={handleDisconnectVideo} className="px-3 py-2 bg-poke-surface border border-poke-border text-slate-600 rounded-lg text-xs hover:text-red-400 transition-colors shrink-0">
+              <button onClick={handleDisconnectVideo} className="px-2 py-1.5 bg-poke-surface border border-poke-border text-slate-600 rounded text-xs hover:text-red-400 transition-colors shrink-0">
                 Close
               </button>
             )}
-            <div className="w-px h-6 bg-poke-border shrink-0" />
             {!detecting ? (
-              <button
-                onClick={handleStartDetection}
-                disabled={ocrLoading}
-                className={`px-4 py-2 rounded-lg border text-xs font-bold transition-colors shrink-0 flex items-center gap-1.5 ${
-                  ocrLoading
-                    ? 'border-poke-border bg-poke-surface text-slate-600 cursor-wait'
-                    : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-                }`}
-                title="Share your screen to auto-detect Pokemon names via OCR"
-              >
-                {ocrLoading ? (
-                  <><span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />Loading OCR...</>
-                ) : (
-                  <><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>Auto-Detect</>
-                )}
+              <button onClick={handleStartDetection} disabled={ocrLoading} className={`px-3 py-1.5 rounded border text-xs font-bold transition-colors shrink-0 flex items-center gap-1.5 ${
+                ocrLoading ? 'border-poke-border bg-poke-surface text-slate-600 cursor-wait' : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+              }`}>
+                {ocrLoading ? 'Loading...' : 'Detect'}
               </button>
             ) : (
-              <button
-                onClick={handleStopDetection}
-                className="px-4 py-2 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 text-xs font-bold hover:bg-red-500/20 transition-colors shrink-0 flex items-center gap-1.5"
-              >
-                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                Stop
+              <button onClick={handleStopDetection} className="px-3 py-1.5 rounded border border-red-500/30 bg-red-500/10 text-red-400 text-xs font-bold hover:bg-red-500/20 transition-colors shrink-0 flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />Stop
               </button>
             )}
           </div>
 
-          {/* Video embed — hidden when screen capture active (redundant) */}
+          {/* Video embed — only when not detecting */}
           {videoSource && !detecting && <VideoEmbed source={videoSource} />}
         </div>
 
@@ -2552,53 +2471,14 @@ export function StreamCompanionPage() {
           </div>
         )}
 
-        {/* ═══ OPPONENT TEAM INPUT ═══ */}
-        <div className="poke-panel p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm font-bold text-poke-red uppercase tracking-wider">Opponent Team</div>
-            <div className="flex items-center gap-2">
-              {detecting && filledOpponents.length > 0 && (
-                <span className="text-[9px] text-slate-600">Click X on wrong detections</span>
-              )}
-              <div className="text-[10px] text-slate-600">Tab to accept | Paste to bulk-add</div>
-            </div>
+        {/* Dismissed species tracker */}
+        {dismissedSpecies.size > 0 && (
+          <div className="flex items-center gap-1.5 px-3 text-[9px] text-slate-600">
+            <span>Dismissed:</span>
+            {[...dismissedSpecies].map(s => <span key={s} className="px-1 py-0.5 rounded bg-poke-surface border border-poke-border/30 line-through">{s}</span>)}
+            <button onClick={() => setDismissedSpecies(new Set())} className="text-slate-500 hover:text-white transition-colors">Reset</button>
           </div>
-          {/* Detected opponents with dismiss buttons */}
-          {filledOpponents.length > 0 && detecting && (
-            <div className="flex gap-1.5 flex-wrap mb-2">
-              {filledOpponents.map(species => (
-                <div key={species} className="flex items-center gap-1 pl-1.5 pr-0.5 py-0.5 rounded-lg bg-poke-surface border border-poke-border group">
-                  <Sprite species={species} size="sm" />
-                  <span className="text-[10px] text-white">{species}</span>
-                  <button
-                    onClick={() => {
-                      setOpponentTeam(prev => prev.filter(s => s !== species));
-                      setDismissedSpecies(prev => new Set([...prev, species]));
-                    }}
-                    className="w-4 h-4 flex items-center justify-center rounded text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                    title={`Remove ${species} — won't be re-added this game`}
-                  >
-                    <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          <QuickTeamInput
-            value={filledOpponents}
-            onChange={setOpponentTeam}
-            maxSlots={6}
-          />
-          {dismissedSpecies.size > 0 && (
-            <div className="flex items-center gap-1.5 mt-2 text-[9px] text-slate-600">
-              <span>Dismissed:</span>
-              {[...dismissedSpecies].map(s => (
-                <span key={s} className="px-1 py-0.5 rounded bg-poke-surface border border-poke-border/30 line-through">{s}</span>
-              ))}
-              <button onClick={() => setDismissedSpecies(new Set())} className="text-slate-500 hover:text-white transition-colors ml-1">Reset</button>
-            </div>
-          )}
-        </div>
+        )}
       </div>{/* end left column */}
 
         {/* Right column: analysis */}
