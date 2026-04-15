@@ -885,6 +885,13 @@ export function StreamCompanionPage() {
     setContextTeam(newTeam);
   }, [setContextTeam]);
 
+  // Preload pHash DB on mount — don't wait for Detect click
+  useEffect(() => {
+    import('../utils/perceptualHash').then(mod => {
+      mod.loadHashDB(250).then(db => console.log(`[pHash] Preloaded ${db.length} hashes`));
+    });
+  }, []);
+
   // ─── Auto-detection (OCR) handlers ─────────────────────────────
 
   const handleStartDetection = useCallback(async () => {
@@ -1158,8 +1165,8 @@ export function StreamCompanionPage() {
       }
     }
 
-    // OCR disabled for team assignment — too noisy (chat, overlays).
-    // Sprites (pHash) + battle log only.
+    // OCR disabled for team assignment — nicknames make species ID unreliable.
+    // pHash sprites + battle log only.
 
     // Battle log — "Opposing X" = opponent, "Go! X" = yours
     for (const blm of (result.battleLogMatches ?? [])) {

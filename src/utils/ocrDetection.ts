@@ -43,7 +43,7 @@ export async function initOcrWorker(): Promise<void> {
     _loadProgress = 100;
 
     // Preload perceptual hash DB + legacy sprite profiles (non-blocking)
-    loadHashDB(250).catch(() => {});
+    loadHashDB(250).then(db => console.log(`[pHash] Loaded ${db.length} hashes`)).catch(e => console.warn('[pHash] Load failed:', e));
     loadSpriteProfiles(250).catch(() => {});
   } catch (err) {
     console.warn('[ocrDetection] Failed to init worker:', err);
@@ -706,6 +706,9 @@ export async function detectPokemonFromFrame(
   const spriteMatched: SpriteMatch[] = [];
   const cw = cropped.width, ch = cropped.height;
   try {
+    if (!isHashDBReady()) {
+      console.warn('[pHash] Hash DB not ready — sprite matching disabled');
+    }
     if (isHashDBReady()) {
       // Build scan regions for both selection screen + battle screen
       const regions: { x: number; y: number; w: number; h: number; side: 'left' | 'right' }[] = [];
