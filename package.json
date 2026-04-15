@@ -16,6 +16,7 @@
     "@pkmn/smogon": "^0.5.29",
     "@smogon/calc": "^0.11.0",
     "@tailwindcss/vite": "^4.2.2",
+    "blockhash-core": "^0.1.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.14.0",

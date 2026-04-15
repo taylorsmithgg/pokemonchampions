@@ -7,7 +7,8 @@
 
 import { createWorker, type Worker, PSM } from 'tesseract.js';
 import { getAvailablePokemon } from '../data/champions';
-import { loadSpriteProfiles, scanFrame as spritesScanFrame } from './screenCapture';
+import { loadSpriteProfiles } from './screenCapture';
+import { loadHashDB, scanFrameWithHash, isHashDBReady } from './perceptualHash';
 
 // ─── Worker management ──────────────────────────────────────────
 
@@ -41,7 +42,8 @@ export async function initOcrWorker(): Promise<void> {
     _workerReady = true;
     _loadProgress = 100;
 
-    // Also preload sprite profiles for icon matching (non-blocking)
+    // Preload perceptual hash DB + legacy sprite profiles (non-blocking)
+    loadHashDB(250).catch(() => {});
     loadSpriteProfiles(250).catch(() => {});
   } catch (err) {
     console.warn('[ocrDetection] Failed to init worker:', err);
@@ -697,66 +699,35 @@ export async function detectPokemonFromFrame(
 
   const matched = [...allMatched.values()].sort((a, b) => b.confidence - a.confidence);
 
-  // ── TARGETED sprite matching at known UI positions ──
-  // Much more accurate than full-frame grid scan.
+  // ── PERCEPTUAL HASH sprite matching at known UI positions ──
+  // dHash comparison: fast, handles compression/scaling, accurate for game sprites.
   const spriteMatched: SpriteMatch[] = [];
   const cw = cropped.width, ch = cropped.height;
   try {
-    const ctx = cropped.getContext('2d');
-    if (ctx) {
-      // Helper: extract a region and match against sprite profiles
-      const matchRegion = async (rx: number, ry: number, rw: number, rh: number, _side?: 'left' | 'right') => {
-        const regionData = ctx.getImageData(Math.round(rx), Math.round(ry), Math.round(rw), Math.round(rh));
-        const regionScan = await spritesScanFrame(regionData, Math.round(rw), Math.round(rh), 2);
-        for (const det of regionScan.detections) {
-          if (det.confidence >= 0.15) {
-            spriteMatched.push({
-              species: det.species,
-              confidence: det.confidence,
-              // Map coordinates back to cropped frame space
-              x: rx + det.x,
-              y: ry + det.y,
-            });
-          }
-        }
-      };
+    if (isHashDBReady()) {
+      // Build scan regions for both selection screen + battle screen
+      const regions: { x: number; y: number; w: number; h: number; side: 'left' | 'right' }[] = [];
 
-      // Selection screen: opponent right column — wider scan (x 58-98%)
-      // Game layout varies with ROI crop. Opponent sprites can be anywhere
-      // in the right 40% of the cropped frame.
+      // Selection screen: opponent right column (x 58-98%, 6 slots)
       for (let i = 0; i < 6; i++) {
-        const slotY = ch * (0.05 + i * 0.14);
-        const slotH = ch * 0.13;
-        await matchRegion(cw * 0.58, slotY, cw * 0.40, slotH, 'right');
+        regions.push({ x: cw * 0.58, y: ch * (0.05 + i * 0.14), w: cw * 0.40, h: ch * 0.13, side: 'right' });
       }
-
-      // Selection screen: 6 YOUR team icon sprites in left column
-      // Small icons at x 1-7%, same vertical slots as the names.
-      // Catches nicknamed Pokemon that OCR can't identify by text.
+      // Selection screen: YOUR icon sprites (x 1-7%, 6 slots)
       for (let i = 0; i < 6; i++) {
-        const slotY = ch * (0.08 + i * 0.145);
-        const slotH = ch * 0.11;
-        await matchRegion(cw * 0.01, slotY, cw * 0.07, slotH, 'left');
+        regions.push({ x: cw * 0.01, y: ch * (0.08 + i * 0.145), w: cw * 0.07, h: ch * 0.11, side: 'left' });
       }
+      // Battle: HP panel icon sprites
+      regions.push({ x: 0, y: ch * 0.85, w: cw * 0.08, h: ch * 0.10, side: 'left' });
+      regions.push({ x: cw * 0.88, y: 0, w: cw * 0.10, h: ch * 0.10, side: 'right' });
 
-      // Battle screen: small icon sprites in HP bar panels
-      // BL icon: x 0-8%, y 85-95%
-      await matchRegion(0, ch * 0.85, cw * 0.08, ch * 0.10, 'left');
-      // TR icon: x 88-98%, y 0-10%
-      await matchRegion(cw * 0.88, 0, cw * 0.10, ch * 0.10, 'right');
-
-      // Also do a lighter full-frame scan as fallback (fewer sizes, wider step)
-      const imageData = ctx.getImageData(0, 0, cw, ch);
-      const fullScan = await spritesScanFrame(imageData, cw, ch, 8);
-      for (const det of fullScan.detections) {
-        if (det.confidence >= 0.25 && !spriteMatched.some(s => s.species === det.species)) {
-          spriteMatched.push({
-            species: det.species,
-            confidence: det.confidence,
-            x: det.x,
-            y: det.y,
-          });
-        }
+      const hashMatches = scanFrameWithHash(cropped, regions);
+      for (const m of hashMatches) {
+        spriteMatched.push({
+          species: m.species,
+          confidence: m.confidence,
+          x: m.x,
+          y: m.y,
+        });
       }
     }
   } catch { /* sprite detection is best-effort */ }
