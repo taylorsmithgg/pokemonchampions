@@ -1044,12 +1044,11 @@ export function StreamCompanionPage() {
     actx.fillStyle = '#38bdf8'; actx.fillText('◄ YOURS', midX - 82, 16);
     actx.fillStyle = '#f97316'; actx.fillText('OPPONENT ►', midX + 8, 16);
 
-    // Sprite detection boxes — X-axis determines side
+    // Sprite detection boxes — side from scan region
     for (const s of (result.spriteMatched ?? [])) {
       const isYours = myTeamViz.has(s.species);
-      const isRightSide = s.x > midX;
-      const color = isYours ? '#38bdf8' : isRightSide ? '#f97316' : '#eab308';
-      const tag = isYours ? 'YOURS' : isRightSide ? 'OPP' : '???';
+      const color = isYours ? '#38bdf8' : s.side === 'right' ? '#f97316' : '#eab308';
+      const tag = isYours ? 'YOURS' : s.side === 'right' ? 'OPP' : 'YOURS?';
       // Glow fill
       actx.fillStyle = color + '20';
       actx.fillRect(s.x, s.y, 80, 80);
@@ -1243,12 +1242,9 @@ export function StreamCompanionPage() {
     const committed = committedSidesRef.current;
     for (const s of (result.spriteMatched ?? [])) {
       if (s.confidence < 0.2) continue;
-      const isLeft = s.x < midX;
-      // X-axis primary — works for BOTH layouts:
-      // Selection screen: left column = yours, right column = opponent
-      // Battle screen: your mon = bottom-LEFT, opponent = top-RIGHT
+      // Use side directly from scan region — no coord recalculation
       const weight = Math.max(1, Math.round(s.confidence * 5));
-      const detectedSide: 'left' | 'right' = isLeft ? 'left' : 'right';
+      const detectedSide: 'left' | 'right' = s.side;
 
       let targetSide: 'left' | 'right';
       const existing = committed.get(s.species);

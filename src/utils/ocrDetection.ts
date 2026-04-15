@@ -290,6 +290,8 @@ export interface SpriteMatch {
   confidence: number;
   x: number;
   y: number;
+  /** Side from scan region — authoritative, no recalculation needed */
+  side: 'left' | 'right';
 }
 
 export type ScreenContext = 'battle' | 'menu' | 'unknown';
@@ -727,6 +729,7 @@ export async function detectPokemonFromFrame(
           confidence: m.confidence,
           x: m.x,
           y: m.y,
+          side: m.side,
         });
       }
     }
