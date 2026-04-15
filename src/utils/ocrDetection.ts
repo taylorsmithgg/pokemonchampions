@@ -43,7 +43,7 @@ export async function initOcrWorker(): Promise<void> {
     _loadProgress = 100;
 
     // Preload perceptual hash DB + legacy sprite profiles (non-blocking)
-    loadHashDB(250).then(db => console.log(`[pHash] Loaded ${db.length} hashes`)).catch(e => console.warn('[pHash] Load failed:', e));
+    loadHashDB();
     loadSpriteProfiles(250).catch(() => {});
   } catch (err) {
     console.warn('[ocrDetection] Failed to init worker:', err);

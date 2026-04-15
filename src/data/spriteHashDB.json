@@ -1,0 +1,830 @@
+[
+  {
+    "species": "Abomasnow",
+    "hash": "5a0c0c8850203000"
+  },
+  {
+    "species": "Absol",
+    "hash": "401844804c220410"
+  },
+  {
+    "species": "Aegislash-Shield",
+    "hash": "084c1556da040800"
+  },
+  {
+    "species": "Aerodactyl",
+    "hash": "0000001808404000"
+  },
+  {
+    "species": "Aggron",
+    "hash": "ace8b4a448100000"
+  },
+  {
+    "species": "Alakazam",
+    "hash": "442a95938d0c2800"
+  },
+  {
+    "species": "Alcremie",
+    "hash": "9c0c496e045cb810"
+  },
+  {
+    "species": "Altaria",
+    "hash": "0060288e26441000"
+  },
+  {
+    "species": "Ampharos",
+    "hash": "2884222010141000"
+  },
+  {
+    "species": "Appletun",
+    "hash": "265667452f000000"
+  },
+  {
+    "species": "Araquanid",
+    "hash": "808292b428600c00"
+  },
+  {
+    "species": "Arbok",
+    "hash": "c018184880502800"
+  },
+  {
+    "species": "Arcanine",
+    "hash": "b4ea52a28cae5200"
+  },
+  {
+    "species": "Arcanine-Hisui",
+    "hash": "9ac880b4a8d48800"
+  },
+  {
+    "species": "Archaludon",
+    "hash": "222a15254d1c8000"
+  },
+  {
+    "species": "Ariados",
+    "hash": "52c2942048480000"
+  },
+  {
+    "species": "Armarouge",
+    "hash": "2232145b81323800"
+  },
+  {
+    "species": "Aromatisse",
+    "hash": "40248650a484a480"
+  },
+  {
+    "species": "Audino",
+    "hash": "408048c8489a4800"
+  },
+  {
+    "species": "Aurorus",
+    "hash": "4088402830485200"
+  },
+  {
+    "species": "Avalugg",
+    "hash": "736a6c5458783020"
+  },
+  {
+    "species": "Avalugg-Hisui",
+    "hash": "23614583872b0600"
+  },
+  {
+    "species": "Azumarill",
+    "hash": "4018e89080202000"
+  },
+  {
+    "species": "Banette",
+    "hash": "5288689cc0802800"
+  },
+  {
+    "species": "Basculegion",
+    "hash": "18180c5050101000"
+  },
+  {
+    "species": "Bastiodon",
+    "hash": "5068646444646000"
+  },
+  {
+    "species": "Beartic",
+    "hash": "641448080c301000"
+  },
+  {
+    "species": "Beedrill",
+    "hash": "8460203418080000"
+  },
+  {
+    "species": "Bellibolt",
+    "hash": "abd1c5cd625a2400"
+  },
+  {
+    "species": "Blastoise",
+    "hash": "10109844a4ae0800"
+  },
+  {
+    "species": "Camerupt",
+    "hash": "b090105008c8b020"
+  },
+  {
+    "species": "Castform",
+    "hash": "5048384014203000"
+  },
+  {
+    "species": "Ceruledge",
+    "hash": "249152322c140000"
+  },
+  {
+    "species": "Chandelure",
+    "hash": "2490242020202000"
+  },
+  {
+    "species": "Charizard",
+    "hash": "a828101028400000"
+  },
+  {
+    "species": "Chesnaught",
+    "hash": "90d06262b0a01000"
+  },
+  {
+    "species": "Chimecho",
+    "hash": "8048201008360808"
+  },
+  {
+    "species": "Clawitzer",
+    "hash": "2450402020200000"
+  },
+  {
+    "species": "Clefable",
+    "hash": "04460706468a2100"
+  },
+  {
+    "species": "Cofagrigus",
+    "hash": "b191303432424000"
+  },
+  {
+    "species": "Conkeldurr",
+    "hash": "24444464b00ca000"
+  },
+  {
+    "species": "Corviknight",
+    "hash": "00202020c8040000"
+  },
+  {
+    "species": "Crabominable",
+    "hash": "44a44e0ec0a00000"
+  },
+  {
+    "species": "Decidueye",
+    "hash": "0430885444342000"
+  },
+  {
+    "species": "Decidueye-Hisui",
+    "hash": "121446593a400c00"
+  },
+  {
+    "species": "Dedenne",
+    "hash": "204460261436b400"
+  },
+  {
+    "species": "Delphox",
+    "hash": "00488c58305c9000"
+  },
+  {
+    "species": "Diggersby",
+    "hash": "5040409444228800"
+  },
+  {
+    "species": "Ditto",
+    "hash": "12028e1e0e185c00"
+  },
+  {
+    "species": "Dragapult",
+    "hash": "2454344222229200"
+  },
+  {
+    "species": "Dragonite",
+    "hash": "4c68584640409000"
+  },
+  {
+    "species": "Drampa",
+    "hash": "28d0a8ca2e302000"
+  },
+  {
+    "species": "Emboar",
+    "hash": "888882120a606000"
+  },
+  {
+    "species": "Emolga",
+    "hash": "209c204440342400"
+  },
+  {
+    "species": "Empoleon",
+    "hash": "484ac44428202000"
+  },
+  {
+    "species": "Espathra",
+    "hash": "1090b45d99020604"
+  },
+  {
+    "species": "Espeon",
+    "hash": "8418181a06630200"
+  },
+  {
+    "species": "Excadrill",
+    "hash": "617a446838341000"
+  },
+  {
+    "species": "Farigiraf",
+    "hash": "944818280c030200"
+  },
+  {
+    "species": "Feraligatr",
+    "hash": "14b4905690401000"
+  },
+  {
+    "species": "Flapple",
+    "hash": "000018100c21b400"
+  },
+  {
+    "species": "Flareon",
+    "hash": "265b326548302000"
+  },
+  {
+    "species": "Floette-Eternal",
+    "hash": "020c2c1830180000"
+  },
+  {
+    "species": "Florges",
+    "hash": "0012231505261e00"
+  },
+  {
+    "species": "Forretress",
+    "hash": "58cc88aca8c86000"
+  },
+  {
+    "species": "Froslass",
+    "hash": "1494a02a14321200"
+  },
+  {
+    "species": "Furfrou",
+    "hash": "c8483326182a4600"
+  },
+  {
+    "species": "Gallade",
+    "hash": "85422420a8282810"
+  },
+  {
+    "species": "Garbodor",
+    "hash": "808ccc8a4a525000"
+  },
+  {
+    "species": "Garchomp",
+    "hash": "505032a4a8601000"
+  },
+  {
+    "species": "Gardevoir",
+    "hash": "0210202040501000"
+  },
+  {
+    "species": "Garganacl",
+    "hash": "24a4d92a12241810"
+  },
+  {
+    "species": "Gengar",
+    "hash": "d0808c88ac5c8000"
+  },
+  {
+    "species": "Glaceon",
+    "hash": "10443030285a1000"
+  },
+  {
+    "species": "Glalie",
+    "hash": "bca6342a88960000"
+  },
+  {
+    "species": "Glimmora",
+    "hash": "0824212633e50800"
+  },
+  {
+    "species": "Gliscor",
+    "hash": "0808209848b24a00"
+  },
+  {
+    "species": "Golurk",
+    "hash": "646848281624a410"
+  },
+  {
+    "species": "Goodra",
+    "hash": "58524c1c18dc3400"
+  },
+  {
+    "species": "Goodra-Hisui",
+    "hash": "48442a98829d4d10"
+  },
+  {
+    "species": "Gourgeist",
+    "hash": "081650c490401000"
+  },
+  {
+    "species": "Gourgeist-Large",
+    "hash": "0c17524a14080800"
+  },
+  {
+    "species": "Gourgeist-Small",
+    "hash": "0e354a1a14280810"
+  },
+  {
+    "species": "Gourgeist-Super",
+    "hash": "0c17524a14080800"
+  },
+  {
+    "species": "Greninja",
+    "hash": "2830102098182000"
+  },
+  {
+    "species": "Gyarados",
+    "hash": "4830242c28080000"
+  },
+  {
+    "species": "Hatterene",
+    "hash": "1c0e180c64d51000"
+  },
+  {
+    "species": "Hawlucha",
+    "hash": "20d088c234203000"
+  },
+  {
+    "species": "Heliolisk",
+    "hash": "142a161410080a00"
+  },
+  {
+    "species": "Heracross",
+    "hash": "489adc5020081000"
+  },
+  {
+    "species": "Hippowdon",
+    "hash": "c2abb12936261410"
+  },
+  {
+    "species": "Houndoom",
+    "hash": "5608ac9420083200"
+  },
+  {
+    "species": "Hydrapple",
+    "hash": "6643530804050100"
+  },
+  {
+    "species": "Hydreigon",
+    "hash": "10181a1443242400"
+  },
+  {
+    "species": "Incineroar",
+    "hash": "4050303028723000"
+  },
+  {
+    "species": "Infernape",
+    "hash": "2a58852424080000"
+  },
+  {
+    "species": "Jolteon",
+    "hash": "54a498aad6624000"
+  },
+  {
+    "species": "Kangaskhan",
+    "hash": "5090426664301000"
+  },
+  {
+    "species": "Kingambit",
+    "hash": "74b60c4908040400"
+  },
+  {
+    "species": "Kleavor",
+    "hash": "101159562c380800"
+  },
+  {
+    "species": "Klefki",
+    "hash": "c020a02860a02000"
+  },
+  {
+    "species": "Kommo-o",
+    "hash": "a244245010281000"
+  },
+  {
+    "species": "Krookodile",
+    "hash": "c69c485244241000"
+  },
+  {
+    "species": "Leafeon",
+    "hash": "9418145466662000"
+  },
+  {
+    "species": "Liepard",
+    "hash": "20d4941492004000"
+  },
+  {
+    "species": "Lopunny",
+    "hash": "1058312420b85000"
+  },
+  {
+    "species": "Lucario",
+    "hash": "c84c024aa8903020"
+  },
+  {
+    "species": "Luxray",
+    "hash": "58d88c90542a2400"
+  },
+  {
+    "species": "Lycanroc",
+    "hash": "20086064d6882c00"
+  },
+  {
+    "species": "Lycanroc-Dusk",
+    "hash": "20a8e4d4180a1200"
+  },
+  {
+    "species": "Lycanroc-Midnight",
+    "hash": "30a8a04823322800"
+  },
+  {
+    "species": "Machamp",
+    "hash": "90d0500420642600"
+  },
+  {
+    "species": "Mamoswine",
+    "hash": "54624b515048a000"
+  },
+  {
+    "species": "Manectric",
+    "hash": "34506854d0080800"
+  },
+  {
+    "species": "Maushold",
+    "hash": "9c20088a8080444a"
+  },
+  {
+    "species": "Medicham",
+    "hash": "b820804420281000"
+  },
+  {
+    "species": "Meganium",
+    "hash": "3434014848244400"
+  },
+  {
+    "species": "Meowscarada",
+    "hash": "0848aa570c12ca00"
+  },
+  {
+    "species": "Meowstic",
+    "hash": "28c8688044a4a500"
+  },
+  {
+    "species": "Meowstic-F",
+    "hash": "5040a8242a604300"
+  },
+  {
+    "species": "Milotic",
+    "hash": "a114a4a028181000"
+  },
+  {
+    "species": "Mimikyu",
+    "hash": "24345834a40c0800"
+  },
+  {
+    "species": "Morpeko",
+    "hash": "00262612040a0400"
+  },
+  {
+    "species": "Mr. Rime",
+    "hash": "24102c19c80a4800"
+  },
+  {
+    "species": "Mudsdale",
+    "hash": "535a424a35160800"
+  },
+  {
+    "species": "Ninetales",
+    "hash": "28924ae09a885a00"
+  },
+  {
+    "species": "Ninetales-Alola",
+    "hash": "28085064e4680808"
+  },
+  {
+    "species": "Noivern",
+    "hash": "000010d410000000"
+  },
+  {
+    "species": "Oranguru",
+    "hash": "d6f6a674a8a89000"
+  },
+  {
+    "species": "Orthworm",
+    "hash": "1050084820220904"
+  },
+  {
+    "species": "Palafin",
+    "hash": "211515050b031600"
+  },
+  {
+    "species": "Pangoro",
+    "hash": "8ce80484cc562000"
+  },
+  {
+    "species": "Passimian",
+    "hash": "884c64a698640800"
+  },
+  {
+    "species": "Pelipper",
+    "hash": "0088a06010100000"
+  },
+  {
+    "species": "Pidgeot",
+    "hash": "000050a0a8000000"
+  },
+  {
+    "species": "Pikachu",
+    "hash": "123628161a122200"
+  },
+  {
+    "species": "Pinsir",
+    "hash": "d8602c7070484800"
+  },
+  {
+    "species": "Politoed",
+    "hash": "62cd172e0e1c0200"
+  },
+  {
+    "species": "Polteageist",
+    "hash": "2854aa2a0e181000"
+  },
+  {
+    "species": "Primarina",
+    "hash": "6c48285060408000"
+  },
+  {
+    "species": "Quaquaval",
+    "hash": "08284a7683440000"
+  },
+  {
+    "species": "Raichu",
+    "hash": "1644064c50041200"
+  },
+  {
+    "species": "Raichu-Alola",
+    "hash": "50a0a0c040800000"
+  },
+  {
+    "species": "Rampardos",
+    "hash": "a820a44828122a00"
+  },
+  {
+    "species": "Reuniclus",
+    "hash": "3024ac04a2382800"
+  },
+  {
+    "species": "Rhyperior",
+    "hash": "cca08c4cea542000"
+  },
+  {
+    "species": "Roserade",
+    "hash": "50806428c8804000"
+  },
+  {
+    "species": "Rotom",
+    "hash": "0010505010101000"
+  },
+  {
+    "species": "Runerigus",
+    "hash": "085058194d464800"
+  },
+  {
+    "species": "Sableye",
+    "hash": "108c50a008500000"
+  },
+  {
+    "species": "Salazzle",
+    "hash": "2014080c14080a00"
+  },
+  {
+    "species": "Samurott",
+    "hash": "ac4c4c2c2c0a0100"
+  },
+  {
+    "species": "Samurott-Hisui",
+    "hash": "525c092622c54400"
+  },
+  {
+    "species": "Sandaconda",
+    "hash": "52a2cd1315141608"
+  },
+  {
+    "species": "Scizor",
+    "hash": "505024a260d00000"
+  },
+  {
+    "species": "Scovillain",
+    "hash": "a04080a030269800"
+  },
+  {
+    "species": "Serperior",
+    "hash": "8a28181040101000"
+  },
+  {
+    "species": "Sharpedo",
+    "hash": "1024402010081000"
+  },
+  {
+    "species": "Simipour",
+    "hash": "28382828d4a65020"
+  },
+  {
+    "species": "Simisage",
+    "hash": "20902898d0140800"
+  },
+  {
+    "species": "Simisear",
+    "hash": "4840c44094883000"
+  },
+  {
+    "species": "Sinistcha",
+    "hash": "1816360c18080000"
+  },
+  {
+    "species": "Skarmory",
+    "hash": "404030208c0a0800"
+  },
+  {
+    "species": "Skeledirge",
+    "hash": "254a4a0505424000"
+  },
+  {
+    "species": "Slowbro",
+    "hash": "1662b8522c480a00"
+  },
+  {
+    "species": "Slowbro-Galar",
+    "hash": "674db7191a2b2b00"
+  },
+  {
+    "species": "Slowking",
+    "hash": "a6544854545a2200"
+  },
+  {
+    "species": "Slowking-Galar",
+    "hash": "4a8e4a1257260600"
+  },
+  {
+    "species": "Slurpuff",
+    "hash": "8c9a824488582010"
+  },
+  {
+    "species": "Sneasler",
+    "hash": "a03028b828383400"
+  },
+  {
+    "species": "Snorlax",
+    "hash": "82ca028284444448"
+  },
+  {
+    "species": "Spiritomb",
+    "hash": "2038305280a8c000"
+  },
+  {
+    "species": "Starmie",
+    "hash": "9068e8e82198a000"
+  },
+  {
+    "species": "Steelix",
+    "hash": "e088302066482400"
+  },
+  {
+    "species": "Stunfisk",
+    "hash": "0301275b16040000"
+  },
+  {
+    "species": "Stunfisk-Galar",
+    "hash": "8b2614a898181000"
+  },
+  {
+    "species": "Sylveon",
+    "hash": "5448485018362400"
+  },
+  {
+    "species": "Talonflame",
+    "hash": "2828501800000000"
+  },
+  {
+    "species": "Tauros",
+    "hash": "242c322214200000"
+  },
+  {
+    "species": "Tauros-Paldea-Aqua",
+    "hash": "142a1a369dc40800"
+  },
+  {
+    "species": "Tauros-Paldea-Blaze",
+    "hash": "08080e1209820400"
+  },
+  {
+    "species": "Tauros-Paldea-Combat",
+    "hash": "050d0b0345812400"
+  },
+  {
+    "species": "Tinkaton",
+    "hash": "60a0125709030200"
+  },
+  {
+    "species": "Torkoal",
+    "hash": "9250b42204064000"
+  },
+  {
+    "species": "Torterra",
+    "hash": "d4cac254c0a0c000"
+  },
+  {
+    "species": "Toucannon",
+    "hash": "80c0804040342e10"
+  },
+  {
+    "species": "Toxapex",
+    "hash": "14d8905428640404"
+  },
+  {
+    "species": "Toxicroak",
+    "hash": "9090464ad0301000"
+  },
+  {
+    "species": "Trevenant",
+    "hash": "28a8202a24204000"
+  },
+  {
+    "species": "Tsareena",
+    "hash": "08ba8c424c282000"
+  },
+  {
+    "species": "Typhlosion",
+    "hash": "8204440c2a151200"
+  },
+  {
+    "species": "Typhlosion-Hisui",
+    "hash": "124404120a0b1800"
+  },
+  {
+    "species": "Tyranitar",
+    "hash": "50a0a808d8a0a800"
+  },
+  {
+    "species": "Tyrantrum",
+    "hash": "4848ca50345a2000"
+  },
+  {
+    "species": "Umbreon",
+    "hash": "68b0b8a834904100"
+  },
+  {
+    "species": "Vanilluxe",
+    "hash": "08180c0b0a020408"
+  },
+  {
+    "species": "Vaporeon",
+    "hash": "281a0a090d200000"
+  },
+  {
+    "species": "Venusaur",
+    "hash": "684cec5440885000"
+  },
+  {
+    "species": "Victreebel",
+    "hash": "1020182820302800"
+  },
+  {
+    "species": "Vivillon",
+    "hash": "28081c1664240400"
+  },
+  {
+    "species": "Volcarona",
+    "hash": "4850404050505000"
+  },
+  {
+    "species": "Watchog",
+    "hash": "1822222254925600"
+  },
+  {
+    "species": "Weavile",
+    "hash": "48c250c850288c20"
+  },
+  {
+    "species": "Whimsicott",
+    "hash": "3a37212323370200"
+  },
+  {
+    "species": "Wyrdeer",
+    "hash": "1d250d071c16a100"
+  },
+  {
+    "species": "Zoroark",
+    "hash": "888890b0d4946800"
+  },
+  {
+    "species": "Zoroark-Hisui",
+    "hash": "442a324248040800"
+  }
+]

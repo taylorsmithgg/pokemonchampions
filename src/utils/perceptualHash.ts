@@ -5,8 +5,7 @@
 // Extremely fast, handles minor compression/scaling well.
 // Perfect for matching game sprites against reference database.
 
-import { getAvailablePokemon } from '../data/champions';
-import { getSpriteUrl } from './sprites';
+import precomputedHashes from '../data/spriteHashDB.json';
 
 // ─── Hash computation ───────────────────────────────────────────
 
@@ -68,57 +67,25 @@ export interface SpriteHash {
 }
 
 let _hashDB: SpriteHash[] | null = null;
-let _hashLoading = false;
-let _hashProgress = 0;
 
-export function getHashLoadProgress(): number { return _hashProgress; }
+export function getHashLoadProgress(): number { return _hashDB ? 100 : 0; }
 export function isHashDBReady(): boolean { return _hashDB !== null; }
 
 /**
- * Load sprite images and compute dHash for each.
- * Builds the reference database for matching.
+ * Load hash DB from precomputed JSON — instant, no network requests.
  */
-export async function loadHashDB(maxSpecies = 250): Promise<SpriteHash[]> {
+export function loadHashDB(): SpriteHash[] {
   if (_hashDB) return _hashDB;
-  if (_hashLoading) {
-    while (_hashLoading) await new Promise(r => setTimeout(r, 100));
-    return _hashDB || [];
-  }
-  _hashLoading = true;
-  _hashProgress = 0;
-
-  const species = getAvailablePokemon().slice(0, maxSpecies);
-  const db: SpriteHash[] = [];
-  const batchSize = 20;
-
-  for (let i = 0; i < species.length; i += batchSize) {
-    const batch = species.slice(i, i + batchSize);
-    const results = await Promise.all(batch.map(s => loadSpriteHash(s)));
-    for (const r of results) if (r) db.push(r);
-    _hashProgress = Math.round(((i + batch.length) / species.length) * 100);
-  }
-
-  _hashDB = db;
-  _hashLoading = false;
-  _hashProgress = 100;
-  return db;
+  _hashDB = (precomputedHashes as { species: string; hash: string }[]).map(entry => ({
+    species: entry.species,
+    hash: hexToBigInt(entry.hash),
+  }));
+  console.log(`[pHash] Loaded ${_hashDB.length} precomputed hashes`);
+  return _hashDB;
 }
 
-function loadSpriteHash(species: string): Promise<SpriteHash | null> {
-  return new Promise(resolve => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      try {
-        const hash = computeDHash(img);
-        resolve({ species, hash });
-      } catch {
-        resolve(null);
-      }
-    };
-    img.onerror = () => resolve(null);
-    img.src = getSpriteUrl(species);
-  });
+function hexToBigInt(hex: string): bigint {
+  return BigInt('0x' + hex);
 }
 
 // ─── Matching ───────────────────────────────────────────────────

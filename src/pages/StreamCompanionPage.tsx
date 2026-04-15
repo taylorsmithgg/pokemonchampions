@@ -885,11 +885,9 @@ export function StreamCompanionPage() {
     setContextTeam(newTeam);
   }, [setContextTeam]);
 
-  // Preload pHash DB on mount — don't wait for Detect click
+  // Load pHash DB on mount — instant from precomputed JSON
   useEffect(() => {
-    import('../utils/perceptualHash').then(mod => {
-      mod.loadHashDB(250).then(db => console.log(`[pHash] Preloaded ${db.length} hashes`));
-    });
+    import('../utils/perceptualHash').then(mod => mod.loadHashDB());
   }, []);
 
   // ─── Auto-detection (OCR) handlers ─────────────────────────────
