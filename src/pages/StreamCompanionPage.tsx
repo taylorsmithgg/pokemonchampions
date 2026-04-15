@@ -1109,7 +1109,7 @@ export function StreamCompanionPage() {
 
     // Battle HP panels
     drawRegion(fw * 0.00, fh * 0.82, fw * 0.25, fh * 0.18, '#a855f7', 'YOUR HP');
-    drawRegion(fw * 0.68, fh * 0.00, fw * 0.32, fh * 0.18, '#f97316', 'OPP HP');
+    drawRegion(fw * 0.55, fh * 0.00, fw * 0.45, fh * 0.18, '#f97316', 'OPP HP');
 
     // Battle icon sprites
     drawRegion(0, fh * 0.85, fw * 0.08, fh * 0.10, '#a855f7', 'Icon', false);
@@ -1118,9 +1118,9 @@ export function StreamCompanionPage() {
     // Selection YOUR column
     drawRegion(fw * 0.00, fh * 0.07, fw * 0.23, fh * 0.88, '#06b6d4', 'YOUR TEXT');
 
-    // Selection OPP sprites
+    // Selection OPP sprites (wider scan)
     for (let i = 0; i < 6; i++) {
-      drawRegion(fw * 0.78, fh * (0.08 + i * 0.135), fw * 0.18, fh * 0.12, '#f43f5e', i === 0 ? 'OPP SPRITES' : '', false);
+      drawRegion(fw * 0.58, fh * (0.05 + i * 0.14), fw * 0.40, fh * 0.13, '#f43f5e', i === 0 ? 'OPP SPRITES' : '', false);
     }
 
     // YOUR icon sprites

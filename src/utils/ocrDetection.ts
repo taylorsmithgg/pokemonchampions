@@ -456,7 +456,7 @@ export async function detectPokemonFromFrame(
   // ── BATTLE SCREEN panels (HP bars at corners)
   await Promise.all([
     ocrPanel(w * 0.00, h * 0.82, w * 0.25, h * 1.00, 'left'),
-    ocrPanel(w * 0.68, h * 0.00, w * 1.00, h * 0.18, 'right'),
+    ocrPanel(w * 0.55, h * 0.00, w * 1.00, h * 0.18, 'right'),
   ]);
 
   // ── SELECTION SCREEN: left column has YOUR team names as white text
@@ -683,11 +683,13 @@ export async function detectPokemonFromFrame(
         }
       };
 
-      // Selection screen: 6 opponent slots in right column (x 78-96%)
+      // Selection screen: opponent right column — wider scan (x 58-98%)
+      // Game layout varies with ROI crop. Opponent sprites can be anywhere
+      // in the right 40% of the cropped frame.
       for (let i = 0; i < 6; i++) {
-        const slotY = ch * (0.08 + i * 0.135);
-        const slotH = ch * 0.12;
-        await matchRegion(cw * 0.78, slotY, cw * 0.18, slotH, 'right');
+        const slotY = ch * (0.05 + i * 0.14);
+        const slotH = ch * 0.13;
+        await matchRegion(cw * 0.58, slotY, cw * 0.40, slotH, 'right');
       }
 
       // Selection screen: 6 YOUR team icon sprites in left column
