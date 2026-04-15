@@ -6,6 +6,7 @@ import { Move } from '@smogon/calc';
 import { getPokemonData } from '../data/champions';
 import { NORMAL_TIER_LIST, MEGA_TIER_LIST } from '../data/tierlist';
 import { PRESETS } from '../data/presets';
+import { getMetaRanking } from '../data/pikalyticsMeta';
 import type { PokemonState } from '../types';
 
 // ─── Lead Scoring Criteria ───────────────────────────────────────────
@@ -265,10 +266,20 @@ export function suggestLeadPartners(pokemon: PokemonState): LeadScore[] {
   const relevantTiers = ['S', 'A+', 'A'];
   const seen = new Set<string>();
 
-  for (const entry of [...NORMAL_TIER_LIST, ...MEGA_TIER_LIST]) {
-    if (!relevantTiers.includes(entry.tier)) continue;
-    if (entry.name === pokemon.species) continue;
+  // Build the candidate pool from pikalytics tournament top picks first,
+  // then fall back to editorial tier list for picks not yet in tournament
+  // data. This prioritizes picks that win at the tournament level.
+  type Candidate = { name: string; isMega: boolean };
+  const tournamentCandidates: Candidate[] = getMetaRanking()
+    .filter(e => e.usagePercent >= 5 && e.species !== pokemon.species)
+    .map(e => ({ name: e.species, isMega: false }));
+  const tierCandidates: Candidate[] = [...NORMAL_TIER_LIST, ...MEGA_TIER_LIST]
+    .filter(e => relevantTiers.includes(e.tier) && e.name !== pokemon.species)
+    .map(e => ({ name: e.name, isMega: e.isMega || false }));
 
+  const candidates: Candidate[] = [...tournamentCandidates, ...tierCandidates];
+
+  for (const entry of candidates) {
     // For Megas, use the base species name for data lookup
     const speciesName = entry.isMega ? entry.name.replace('Mega ', '').replace(/ [XY]$/, '') : entry.name;
 

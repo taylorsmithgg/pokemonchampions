@@ -11,6 +11,7 @@
 
 import { getAvailablePokemon, getPokemonData, getTypeEffectiveness} from '../data/champions';
 import type { UsageStats } from '../data/liveData';
+import { getMetaUsage } from '../data/pikalyticsMeta';
 
 
 
@@ -71,11 +72,22 @@ export function deduceChampionsMeta(rawStats: UsageStats | null): DeducedTierEnt
     // 1. Raw BST contribution (normalized)
     score += Math.min(20, (bst - 400) / 10);
 
-    // 2. Raw usage from Smogon (if available and legal in Champions)
+    // 2a. Raw usage from Smogon VGC (if available and legal in Champions).
+    // Lower weight — VGC is a different format; signal is "transferable",
+    // not authoritative. Pikalytics tournament data below is ground truth.
     const rawUsage = rawStats?.pokemon?.[species]?.usage?.weighted || 0;
     if (rawUsage > 0) {
-      score += rawUsage * 40; // Up to ~16 points for top usage
-      reasons.push(`${(rawUsage * 100).toFixed(1)}% VGC usage (transferable skills/sets)`);
+      score += rawUsage * 20;
+      reasons.push(`${(rawUsage * 100).toFixed(1)}% VGC ladder usage (transferable signal)`);
+    }
+
+    // 2b. Pikalytics Champions tournament usage — direct evidence of
+    // what's winning. Weighted heavily because the format matches.
+    // Top picks (Sneasler 56%, Incineroar 54%) get up to ~28 points here.
+    const metaUsage = getMetaUsage(species);
+    if (metaUsage > 0) {
+      score += Math.min(28, metaUsage * 0.5);
+      reasons.push(`${metaUsage.toFixed(1)}% of top Champions tournament teams`);
     }
 
     // 3. Threat removal analysis — does this Pokemon benefit from removed threats?
@@ -205,8 +217,19 @@ export function deduceChampionsMeta(rawStats: UsageStats | null): DeducedTierEnt
     else if (score >= 15) tier = 'B';
     else tier = 'C';
 
-    // Only include Pokemon with some relevance
-    if (score < 8) continue;
+    // Tournament-data tier floor — empirical results override theory.
+    // If 30%+ of tournament teams run this, it's S regardless of what
+    // the heuristic score says. Prevents the engine from underranking
+    // proven picks (e.g. Sneasler when tier list lags behind results).
+    if (metaUsage >= 30 && tier !== 'S') tier = 'S';
+    else if (metaUsage >= 15 && tier !== 'S' && tier !== 'A+') tier = 'A+';
+    else if (metaUsage >= 5 && tier === 'B') tier = 'A';
+    else if (metaUsage >= 5 && tier === 'C') tier = 'A';
+
+    // Tournament-confirmed picks always pass the relevance gate, even if
+    // the theoretical score is low (e.g. Floette is a support pick that
+    // doesn't score well on raw stats but appears in 26% of top teams).
+    if (score < 8 && metaUsage < 5) continue;
 
     results.push({
       species,

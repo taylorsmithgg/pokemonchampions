@@ -8,6 +8,7 @@ import { getPokemonData, getAvailablePokemon, getTypeEffectiveness, getDefensive
 import { PRESETS } from '../data/presets';
 import { NORMAL_TIER_LIST } from '../data/tierlist';
 import { getCachedUsageStats, getLiveTeammates } from '../data/liveData';
+import { getMetaRanking } from '../data/pikalyticsMeta';
 import { analyzeTeamLineups, DEFAULT_FORMAT, type TeamFlexibilityReport, type BattleFormat } from './lineupAnalysis';
 import { buildMoveRoleSet, buildAbilitySet, PRIORITY_MOVES, PIVOT_MOVES as PIVOT_MOVE_SET, REDIRECT_MOVES } from '../data/moveIndex';
 import type { PokemonState } from '../types';
@@ -490,14 +491,20 @@ export function auditTeam(team: PokemonState[], format: BattleFormat = DEFAULT_F
 
   // ─── 5. META PREPAREDNESS ─────────────────────────────────────
 
-  // Derive meta threats dynamically from the tier list — S and A+
-  // tier Pokemon are the threats every team should prepare for.
-  // No hardcoded species: updating the tier list auto-updates the
-  // audit warnings.
-  const metaThreats = NORMAL_TIER_LIST
-    .filter(e => (e.tier === 'S' || e.tier === 'A+' || e.tier === 'A') && isChampionsPokemon(e.name))
-    .map(e => e.name);
-  for (const threat of metaThreats) {
+  // Threat list comes from pikalytics tournament top-team usage. Tier
+  // list is a fallback for picks not yet in tournament data. This means
+  // audit warnings track the actual meta — when Sneasler usage spikes,
+  // teams without a Sneasler answer get warned without any code change.
+  const tournamentThreats = getMetaRanking()
+    .filter(e => e.usagePercent >= 15 && isChampionsPokemon(e.species))
+    .map(e => ({ name: e.species, usage: e.usagePercent }));
+  const tierFallback = NORMAL_TIER_LIST
+    .filter(e => (e.tier === 'S' || e.tier === 'A+') && isChampionsPokemon(e.name))
+    .filter(e => !tournamentThreats.some(t => t.name === e.name))
+    .map(e => ({ name: e.name, usage: 0 }));
+  const metaThreats = [...tournamentThreats, ...tierFallback];
+
+  for (const { name: threat, usage } of metaThreats) {
     if (members.some(m => m.species === threat)) continue; // You have it
 
     const threatData = getPokemonData(threat);
@@ -518,12 +525,18 @@ export function auditTeam(team: PokemonState[], format: BattleFormat = DEFAULT_F
     });
 
     if (!canHit && members.length >= 3) {
+      // High-usage threats get severity bumped — a team that can't
+      // touch a 50%-usage Pokemon is broken, not just suboptimal.
+      const severity: Severity = usage >= 30 ? 'critical' : 'warning';
+      const usageContext = usage > 0
+        ? ` Run by ${usage.toFixed(1)}% of top tournament teams.`
+        : '';
       issues.push({
         id: `no-answer-${threat}`,
-        severity: 'warning',
+        severity,
         category: 'Meta',
         title: `No super-effective answer to ${threat}`,
-        detail: `${threat} is a top-tier meta threat and none of your current moves hit it super-effectively.`,
+        detail: `${threat} is a top-tier meta threat and none of your current moves hit it super-effectively.${usageContext}`,
         suggestion: `Ensure you have ${threatData.types.join('/')}-coverage moves or a Pokemon that checks ${threat}`,
       });
     }

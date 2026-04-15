@@ -9,6 +9,7 @@ import { getAvailablePokemon, getPokemonData, getTypeEffectiveness} from '../dat
 import { PRESETS } from '../data/presets';
 import { NORMAL_TIER_LIST } from '../data/tierlist';
 import { getRecommendations } from '../data/synergies';
+import { getMetaUsage, getMetaTeammates, isMetaRelevant } from '../data/pikalyticsMeta';
 import type { PokemonState } from '../types';
 import { createDefaultPokemonState } from '../types';
 import { analyzeTeamLineups, DEFAULT_FORMAT, type BattleFormat } from './lineupAnalysis';
@@ -50,14 +51,50 @@ function scoreCandidateForTeam(
   // Skip if already on team
   if (teamSpecies.has(candidateName)) return { species: candidateName, score: -999, reasons: [] };
 
-  // ─── 1. Tier bonus ────────────────────────────────────────────
-  const tierEntry = NORMAL_TIER_LIST.find(e => e.name === candidateName);
-  if (tierEntry) {
-    const tierScore: Record<string, number> = { S: 15, 'A+': 12, A: 9, B: 5, C: 2 };
-    score += tierScore[tierEntry.tier] || 0;
-    if (tierEntry.tier === 'S' || tierEntry.tier === 'A+') {
-      reasons.push(`${tierEntry.tier} tier — meta staple`);
+  // ─── 1. Meta viability bonus ──────────────────────────────────
+  // Pikalytics tournament usage takes precedence; fall back to editorial
+  // tier list when a Pokemon has no tournament results yet.
+  const metaUsage = getMetaUsage(candidateName);
+  if (metaUsage >= 30) {
+    score += 18;
+    reasons.push(`${metaUsage.toFixed(0)}% of top tournament teams — must-prep meta pick`);
+  } else if (metaUsage >= 15) {
+    score += 13;
+    reasons.push(`${metaUsage.toFixed(0)}% tournament usage — strong meta pick`);
+  } else if (metaUsage >= 5) {
+    score += 8;
+    reasons.push(`${metaUsage.toFixed(0)}% tournament usage`);
+  } else if (metaUsage >= 1) {
+    score += 4;
+  } else {
+    const tierEntry = NORMAL_TIER_LIST.find(e => e.name === candidateName);
+    if (tierEntry) {
+      const tierScore: Record<string, number> = { S: 12, 'A+': 9, A: 6, B: 3, C: 1 };
+      score += tierScore[tierEntry.tier] || 0;
+      if (tierEntry.tier === 'S' || tierEntry.tier === 'A+') {
+        reasons.push(`${tierEntry.tier} tier (editorial) — no tournament data yet`);
+      }
     }
+  }
+
+  // ─── 1b. Co-occurrence bonus ──────────────────────────────────
+  // Reward candidates that are proven partners with current team members.
+  // 40%+ co-occurrence with any team member = strong signal.
+  let bestCoOccurrence = { partner: '', percent: 0 };
+  for (const member of teamMembers) {
+    if (!member.species) continue;
+    const partners = getMetaTeammates(member.species, 50);
+    const match = partners.find(p => p.species === candidateName);
+    if (match && match.percent > bestCoOccurrence.percent) {
+      bestCoOccurrence = { partner: member.species, percent: match.percent };
+    }
+  }
+  if (bestCoOccurrence.percent >= 40) {
+    score += 12;
+    reasons.push(`Top tournament partner for ${bestCoOccurrence.partner} (${bestCoOccurrence.percent}% co-occur)`);
+  } else if (bestCoOccurrence.percent >= 20) {
+    score += 6;
+    reasons.push(`Common partner for ${bestCoOccurrence.partner} (${bestCoOccurrence.percent}% co-occur)`);
   }
 
   // ─── 2. Type coverage gaps ────────────────────────────────────
@@ -272,7 +309,7 @@ export function buildOptimalTeam(
 
   // Focus on Pokemon that have presets or are in the tier list (competitive viable)
   const viablePokemon = allPokemon.filter(name =>
-    PRESETS.some(p => p.species === name) || NORMAL_TIER_LIST.some(e => e.name === name)
+    isMetaRelevant(name) || PRESETS.some(p => p.species === name) || NORMAL_TIER_LIST.some(e => e.name === name)
   );
 
   for (let i = 0; i < slots; i++) {
@@ -317,7 +354,7 @@ export function suggestNextPick(
 ): CandidateScore[] {
   const allPokemon = getAvailablePokemon();
   const viable = allPokemon.filter(name =>
-    PRESETS.some(p => p.species === name) || NORMAL_TIER_LIST.some(e => e.name === name)
+    isMetaRelevant(name) || PRESETS.some(p => p.species === name) || NORMAL_TIER_LIST.some(e => e.name === name)
   );
 
   const scores = viable.map(name => scoreCandidateForTeam(name, currentTeam, format));
@@ -402,7 +439,7 @@ export function suggestReplacementsForSlot(
   const allPokemon = getAvailablePokemon();
   const viable = allPokemon.filter(name =>
     name !== currentSlot.species && (
-      PRESETS.some(p => p.species === name) || NORMAL_TIER_LIST.some(e => e.name === name)
+      isMetaRelevant(name) || PRESETS.some(p => p.species === name) || NORMAL_TIER_LIST.some(e => e.name === name)
     )
   );
 

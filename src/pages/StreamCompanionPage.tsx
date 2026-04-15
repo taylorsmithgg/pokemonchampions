@@ -555,7 +555,7 @@ export function StreamCompanionPage() {
   // Raw (uncropped) frame — used for region selection so user can pick from full screen
   const [lastRawFrameUrl, setLastRawFrameUrl] = useState<string | null>(null);
   const [scanCount, setScanCount] = useState(0);
-  const [showDebug, setShowDebug] = useState(true);
+  const [showDebug, setShowDebug] = useState(false);
   const scanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Cooldown after W/L to avoid re-detecting stale screen data
   const cooldownUntilRef = useRef<number>(0);
@@ -1158,9 +1158,11 @@ export function StreamCompanionPage() {
       }
     }
 
-    // OCR text — side from word position
+    // OCR text — ONLY from panel regions (conf >= 0.9) or selection column.
+    // Full-frame OCR picks up chat text ("aggron", "ditto" from viewers)
+    // which falsely adds to teams. Panel matches are pre-tagged with 0.9+.
     for (const m of result.matched) {
-      if (m.confidence < 0.6 || m.side === 'unknown') continue;
+      if (m.confidence < 0.85 || m.side === 'unknown') continue;
       if (dismissedSpecies.has(m.species)) continue;
       if (m.side === 'left' && !myTeamSet.has(m.species) && !oppTeamSet.has(m.species)) {
         newYours.push(m.species);

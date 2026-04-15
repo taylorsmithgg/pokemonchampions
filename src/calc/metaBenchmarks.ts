@@ -11,12 +11,20 @@ import { getMetaRanking, getMetaWeight, getTopItem } from '../data/pikalyticsMet
 import type { NatureName } from '../types';
 
 // ─── Meta Threat Pool ───────────────────────────────────────────────
-// Pull from tier list — S and A+ are mandatory checks, A is important
+// Primary source: pikalytics tournament top-team usage. Threats are
+// weighted by how often they actually show up in winning teams, not by
+// editorial tier ranking. Tier list + presets remain a fallback for
+// picks not yet in tournament data (Megas, new releases, theorymon).
+//
+// Weight scale (matches old tier convention):
+//   3 = S — ≥30% tournament usage (Sneasler, Incineroar)
+//   2 = A+ — 15-30% usage (Basculegion, Charizard)
+//   1 = A — 5-15% usage (Whimsicott, Tyranitar)
 
 interface MetaThreat {
   species: string;
   tier: string;
-  weight: number; // how important to account for (S=3, A+=2, A=1)
+  weight: number;
   nature: NatureName;
   sps: StatsTable;
   item: string;
@@ -24,50 +32,80 @@ interface MetaThreat {
   moves: string[];
 }
 
+function tierLabelFromWeight(w: number): string {
+  if (w >= 3) return 'S';
+  if (w >= 2) return 'A+';
+  if (w >= 1) return 'A';
+  return 'B';
+}
+
+function defaultThreatSpread(species: string, weight: number, tier: string): MetaThreat | null {
+  const data = getPokemonData(species);
+  if (!data) return null;
+  const bs = data.baseStats;
+  const isPhys = bs.atk > bs.spa;
+  return {
+    species,
+    tier,
+    weight,
+    nature: isPhys ? 'Adamant' : 'Modest',
+    sps: isPhys
+      ? { hp: 2, atk: 32, def: 0, spa: 0, spd: 0, spe: 32 }
+      : { hp: 2, atk: 0, def: 0, spa: 32, spd: 0, spe: 32 },
+    item: getTopItem(species) || 'Life Orb',
+    ability: (data.abilities?.[0] || '') as string,
+    moves: [],
+  };
+}
+
+function threatFromPreset(species: string, weight: number, tier: string): MetaThreat | null {
+  const preset = PRESETS.find(p => p.species === species);
+  if (!preset) return null;
+  // Override preset item with tournament-confirmed item when available —
+  // tournament players have already optimized item choice for the metagame.
+  const tournamentItem = getTopItem(species);
+  return {
+    species: preset.species,
+    tier,
+    weight,
+    nature: preset.nature,
+    sps: { ...preset.sps },
+    item: tournamentItem || preset.item,
+    ability: preset.ability,
+    moves: [...preset.moves],
+  };
+}
+
 function buildMetaThreats(): MetaThreat[] {
   const threats: MetaThreat[] = [];
+  const seen = new Set<string>();
+
+  // ─── Primary: pikalytics tournament data ──────────────────────────
+  for (const { species } of getMetaRanking()) {
+    const weight = getMetaWeight(species);
+    if (weight === 0) continue;  // below 5% usage — not a benchmark target
+    const tier = tierLabelFromWeight(weight);
+    const built = threatFromPreset(species, weight, tier) || defaultThreatSpread(species, weight, tier);
+    if (!built) continue;
+    threats.push(built);
+    seen.add(species);
+  }
+
+  // ─── Fallback: editorial tier list S/A+/A ─────────────────────────
+  // Catches Megas and rare picks that haven't shown up in pikalytics data
+  // yet. Tier weight used directly.
   const tierWeight: Record<string, number> = { S: 3, 'A+': 2, A: 1 };
   const relevantTiers = ['S', 'A+', 'A'];
 
   for (const entry of [...NORMAL_TIER_LIST, ...MEGA_TIER_LIST]) {
     if (!relevantTiers.includes(entry.tier)) continue;
-    // For Megas, use base species for data lookup
     const speciesLookup = entry.isMega ? entry.name.replace('Mega ', '') : entry.name;
-
-    // Use preset if available, otherwise generate a reasonable default
-    const preset = PRESETS.find(p => p.species === speciesLookup);
-
-    if (preset) {
-      threats.push({
-        species: preset.species,
-        tier: entry.tier,
-        weight: tierWeight[entry.tier] || 1,
-        nature: preset.nature,
-        sps: { ...preset.sps },
-        item: preset.item,
-        ability: preset.ability,
-        moves: [...preset.moves],
-      });
-    } else {
-      // Generate a reasonable default set from base stats
-      const data = getPokemonData(speciesLookup);
-      if (!data) continue;
-
-      const bs = data.baseStats;
-      const isPhys = bs.atk > bs.spa;
-      threats.push({
-        species: speciesLookup,
-        tier: entry.tier,
-        weight: tierWeight[entry.tier] || 1,
-        nature: isPhys ? 'Adamant' : 'Modest',
-        sps: isPhys
-          ? { hp: 2, atk: 32, def: 0, spa: 0, spd: 0, spe: 32 }
-          : { hp: 2, atk: 0, def: 0, spa: 32, spd: 0, spe: 32 },
-        item: 'Life Orb',
-        ability: (data.abilities?.[0] || '') as string,
-        moves: [],
-      });
-    }
+    if (seen.has(speciesLookup)) continue;
+    const weight = tierWeight[entry.tier] || 1;
+    const built = threatFromPreset(speciesLookup, weight, entry.tier) || defaultThreatSpread(speciesLookup, weight, entry.tier);
+    if (!built) continue;
+    threats.push(built);
+    seen.add(speciesLookup);
   }
 
   return threats;

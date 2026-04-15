@@ -137,7 +137,7 @@ export function matchRegionByHash(
   canvas: HTMLCanvasElement,
   region: { x: number; y: number; w: number; h: number },
   maxResults = 3,
-  maxDistance = 18,
+  maxDistance = 28,
 ): HashMatch[] {
   if (!_hashDB || _hashDB.length === 0) return [];
 
@@ -184,7 +184,7 @@ export function scanFrameWithHash(
   const seen = new Set<string>();
 
   for (const region of regions) {
-    const matches = matchRegionByHash(canvas, region, 1, 15);
+    const matches = matchRegionByHash(canvas, region, 1, 25);
     if (matches.length > 0 && !seen.has(matches[0].species)) {
       seen.add(matches[0].species);
       results.push({

@@ -12,6 +12,7 @@ import { getAvailablePokemon, getPokemonData, getDefensiveMultiplier } from '../
 import { NORMAL_TIER_LIST } from '../data/tierlist';
 import { PRESETS } from '../data/presets';
 import type { UsageStats, PokemonUsage } from '../data/liveData';
+import { getMetaUsage, getMetaTeammates } from '../data/pikalyticsMeta';
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -157,17 +158,34 @@ function scoreRoleValue(species: string, liveData?: PokemonUsage): number {
 }
 
 function scoreUsageSignal(species: string, liveStats?: UsageStats | null): number {
-  if (!liveStats?.pokemon?.[species]) return 0;
-  const usage = liveStats.pokemon[species].usage.weighted;
-  // Scale: 40%+ = 10, 20% = 7, 10% = 5, 5% = 3, 1% = 1
-  return Math.min(10, Math.round(usage * 25));
+  // Combine pikalytics tournament usage (Champions-specific, up to 14
+  // points) with Smogon ladder usage (transferable signal, up to 6
+  // points). Tournament data is the stronger signal so it dominates.
+  const tournamentUsage = getMetaUsage(species);
+  const tournamentScore = Math.min(14, tournamentUsage * 0.25);
+
+  let ladderScore = 0;
+  if (liveStats?.pokemon?.[species]) {
+    const usage = liveStats.pokemon[species].usage.weighted;
+    ladderScore = Math.min(6, usage * 15);
+  }
+  return Math.round(tournamentScore + ladderScore);
 }
 
 function scoreSynergyDensity(species: string, liveStats?: UsageStats | null, pool?: Set<string>): number {
+  // Pikalytics tournament co-occurrence is the stronger synergy signal —
+  // these are partners that actually won together. Ladder data is fallback.
+  const tournamentPartners = getMetaTeammates(species, 50);
+  let tournamentScore = 0;
+  for (const p of tournamentPartners) {
+    if (pool && !pool.has(p.species)) continue;
+    if (p.percent >= 40) tournamentScore += 3;
+    else if (p.percent >= 20) tournamentScore += 1.5;
+  }
+  if (tournamentScore > 0) return Math.min(10, Math.round(tournamentScore));
+
   if (!liveStats?.pokemon?.[species]) return 0;
   const teammates = liveStats.pokemon[species].teammates;
-
-  // Count strong partnerships (>20% pairing rate) with Champions-legal Pokemon
   let strongPartners = 0;
   for (const [partner, rate] of Object.entries(teammates)) {
     if (pool && !pool.has(partner)) continue;
