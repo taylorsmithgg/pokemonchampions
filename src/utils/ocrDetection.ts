@@ -7,8 +7,10 @@
 
 import { createWorker, type Worker, PSM } from 'tesseract.js';
 import { getAvailablePokemon } from '../data/champions';
-import { loadSpriteProfiles } from './screenCapture';
-import { loadModel, isModelReady, scanRegionsWithOnnx } from './onnxMatcher';
+import { loadSpriteProfiles, rankRegionWithSpriteProfiles } from './screenCapture';
+import { loadTemplates, isTemplateReady, rankRegionWithTemplates, scanRegionsWithTemplates } from './templateMatcher';
+import { loadModel, isModelReady as isOnnxModelReady, matchCanvasWithOnnx } from './onnxMatcher';
+import { isHashDBReady, loadHashDB, matchRegionByHash } from './perceptualHash';
 
 // ─── Worker management ──────────────────────────────────────────
 
@@ -42,8 +44,9 @@ export async function initOcrWorker(): Promise<void> {
     _workerReady = true;
     _loadProgress = 100;
 
-    // Preload perceptual hash DB + legacy sprite profiles (non-blocking)
-    loadModel();
+    // Preload sprite matchers + legacy sprite profiles (non-blocking)
+    loadTemplates();
+    loadModel().catch(() => {});
     loadSpriteProfiles(250).catch(() => {});
   } catch (err) {
     console.warn('[ocrDetection] Failed to init worker:', err);
@@ -145,13 +148,16 @@ function matchToken(raw: string): { species: string; confidence: number } | null
     }
   }
 
-  // 3. Levenshtein distance 2, but only for longer names (7+ chars)
-  if (clean.length >= 7) {
+  // 3. Levenshtein distance 2, but only for longer names (9+ chars)
+  // and the matched key must share the same first 2 chars to avoid
+  // false positives like "shocking" → "slowking"
+  if (clean.length >= 9) {
     let bestMatch: string | null = null;
     let bestDist = 3;
     for (const [key, species] of normMap) {
       if (Math.abs(key.length - clean.length) > 2) continue;
-      if (key.length < 5) continue;
+      if (key.length < 7) continue;
+      if (clean.slice(0, 2) !== key.slice(0, 2)) continue; // must share prefix
       const dist = levenshtein(clean, key);
       if (dist === 2 && dist < bestDist) {
         bestDist = dist;
@@ -219,7 +225,7 @@ function extractBattleLogSpecies(rawText: string): BattleLogMatch[] {
   const normMap = getSpeciesNormMap();
   for (const [key, species] of normMap) {
     // Only check JP keys (contains non-ASCII)
-    if (!/[^\x00-\x7F]/.test(key)) continue;
+    if (![...key].some(char => char.charCodeAt(0) > 127)) continue;
     if (seen.has(species)) continue;
     if (text.includes(key)) {
       seen.add(species);
@@ -272,8 +278,8 @@ export interface OcrMatch {
   token: string;
   confidence: number;
   side: 'left' | 'right' | 'unknown';
-  /** How the match was found */
-  method: 'token' | 'battlelog';
+  /** How the match was found: panel = HP bar region OCR, token = full-frame OCR */
+  method: 'panel' | 'token' | 'battlelog';
 }
 
 /** Whether OCR detected "opposing" / "opponent" text and where */
@@ -290,6 +296,8 @@ export interface SpriteMatch {
   confidence: number;
   x: number;
   y: number;
+  w?: number;
+  h?: number;
   /** Side from scan region — authoritative, no recalculation needed */
   side: 'left' | 'right';
 }
@@ -301,6 +309,10 @@ export interface OcrDetectionResult {
   tokens: string[];
   matched: OcrMatch[];
   spriteMatched: SpriteMatch[];
+  selectedRowIndices: number[];
+  hoveredRowIndex: number | null;
+  selectionCount: number | null;
+  selectionTarget: number | null;
   rejected: { token: string; reason: string }[];
   species: string[];
   durationMs: number;
@@ -312,6 +324,50 @@ export interface OcrDetectionResult {
   sideDetection: SideDetection;
   /** Pokemon found via battle log patterns — highest confidence */
   battleLogMatches: BattleLogMatch[];
+}
+
+type OcrWordBox = {
+  text: string;
+  bbox: { x0: number; y0: number; x1: number; y1: number };
+};
+
+function classifyResultText(raw: string): MatchResult {
+  const text = raw.toLowerCase().replace(/[^a-z]/g, '');
+  if (!text) return null;
+  if (text === 'won' || text === 'win' || text === 'victory') return 'win';
+  if (text === 'lost' || text === 'loss' || text === 'lose' || text === 'defeat') return 'loss';
+  return null;
+}
+
+function findLargeResultWord(
+  words: OcrWordBox[] | undefined,
+  frameWidth: number,
+  frameHeight: number,
+  options?: {
+    requireLeftSide?: boolean;
+    minWidthRatio?: number;
+    minHeightRatio?: number;
+  },
+): { result: MatchResult; raw: string; centerX: number } | null {
+  if (!words?.length) return null;
+  const requireLeftSide = options?.requireLeftSide ?? false;
+  const minWidthRatio = options?.minWidthRatio ?? 0.08;
+  const minHeightRatio = options?.minHeightRatio ?? 0.05;
+  const midX = frameWidth / 2;
+
+  for (const word of words) {
+    const result = classifyResultText(word.text);
+    if (!result) continue;
+    const bboxWidth = word.bbox.x1 - word.bbox.x0;
+    const bboxHeight = word.bbox.y1 - word.bbox.y0;
+    const centerX = (word.bbox.x0 + word.bbox.x1) / 2;
+    if (bboxWidth < frameWidth * minWidthRatio) continue;
+    if (bboxHeight < frameHeight * minHeightRatio) continue;
+    if (requireLeftSide && centerX >= midX) continue;
+    return { result, raw: word.text.trim(), centerX };
+  }
+
+  return null;
 }
 
 // ─── Screen context detection ───────────────────────────────────
@@ -452,6 +508,275 @@ function classifyScreen(
   return { context: 'unknown', debug: `Ambiguous (menu:${menuHits} battle:${battleHits} sprites:${spriteCount}) [${panels.debug}]` };
 }
 
+interface SelectionSpriteRegion {
+  slotIndex: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  side: 'left' | 'right';
+}
+
+interface RankedSelectionCandidate {
+  species: string;
+  confidence: number;
+  score: number;
+  supportCount: number;
+}
+
+interface SelectionSlotEvaluation {
+  region: SelectionSpriteRegion;
+  candidates: RankedSelectionCandidate[];
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+export const SELECTION_SLOT_CONFIGS: Array<{ side: 'left' | 'right'; x: number; y: number; w: number; h: number }> = [
+  { side: 'left', x: 0.232, y: 0.09, w: 0.065, h: 0.09 },
+  { side: 'left', x: 0.232, y: 0.205, w: 0.065, h: 0.09 },
+  { side: 'left', x: 0.232, y: 0.322, w: 0.065, h: 0.09 },
+  { side: 'left', x: 0.232, y: 0.439, w: 0.065, h: 0.09 },
+  { side: 'left', x: 0.232, y: 0.556, w: 0.065, h: 0.09 },
+  { side: 'left', x: 0.232, y: 0.673, w: 0.065, h: 0.09 },
+  { side: 'right', x: 0.836, y: 0.095, w: 0.06, h: 0.085 },
+  { side: 'right', x: 0.836, y: 0.212, w: 0.06, h: 0.085 },
+  { side: 'right', x: 0.836, y: 0.329, w: 0.06, h: 0.085 },
+  { side: 'right', x: 0.836, y: 0.446, w: 0.06, h: 0.085 },
+  { side: 'right', x: 0.836, y: 0.563, w: 0.06, h: 0.085 },
+  { side: 'right', x: 0.836, y: 0.68, w: 0.06, h: 0.085 },
+];
+
+function buildSelectionSpriteRegions(
+  width: number,
+  height: number,
+): SelectionSpriteRegion[] {
+  return SELECTION_SLOT_CONFIGS.map((config, slotIndex) => ({
+    slotIndex,
+    x: width * config.x,
+    y: height * config.y,
+    w: width * config.w,
+    h: height * config.h,
+    side: config.side,
+  }));
+}
+
+function cropRegionToCanvas(
+  canvas: HTMLCanvasElement,
+  region: { x: number; y: number; w: number; h: number },
+): HTMLCanvasElement {
+  const crop = document.createElement('canvas');
+  crop.width = Math.max(1, Math.round(region.w));
+  crop.height = Math.max(1, Math.round(region.h));
+  crop.getContext('2d')!.drawImage(
+    canvas,
+    Math.round(region.x),
+    Math.round(region.y),
+    crop.width,
+    crop.height,
+    0,
+    0,
+    crop.width,
+    crop.height,
+  );
+  return crop;
+}
+
+async function evaluateSelectionSlot(
+  canvas: HTMLCanvasElement,
+  region: SelectionSpriteRegion,
+): Promise<SelectionSlotEvaluation> {
+  const crop = cropRegionToCanvas(canvas, region);
+  const combined = new Map<string, { score: number; confidence: number; support: Set<string> }>();
+
+  const addCandidate = (
+    species: string,
+    matcher: 'onnx' | 'template' | 'hash' | 'profile',
+    contribution: number,
+    confidence: number,
+  ) => {
+    const existing = combined.get(species) ?? { score: 0, confidence: 0, support: new Set<string>() };
+    existing.score += contribution;
+    existing.confidence = Math.max(existing.confidence, confidence);
+    existing.support.add(matcher);
+    combined.set(species, existing);
+  };
+
+  if (isOnnxModelReady()) {
+    const onnxMatches = await matchCanvasWithOnnx(crop, 4, 0.5);
+    onnxMatches.forEach((match, index) => {
+      const rankPenalty = 1 - index * 0.12;
+      addCandidate(
+        match.species,
+        'onnx',
+        0.62 * match.confidence * rankPenalty,
+        clamp01((match.similarity - 0.5) / 0.32),
+      );
+    });
+  }
+
+  const profileMatches = await rankRegionWithSpriteProfiles(canvas, region, 5);
+  profileMatches.forEach((match, index) => {
+    const rankPenalty = 1 - index * 0.08;
+    addCandidate(match.species, 'profile', 0.9 * match.confidence * rankPenalty, match.confidence);
+  });
+
+  if (isTemplateReady()) {
+    const templateMatches = rankRegionWithTemplates(canvas, region, 5);
+    templateMatches.forEach((match, index) => {
+      const confidence = clamp01((match.score - 0.2) / 0.45);
+      const rankPenalty = 1 - index * 0.1;
+      addCandidate(match.species, 'template', 0.34 * confidence * rankPenalty, confidence);
+    });
+  }
+
+  if (isHashDBReady()) {
+    const hashMatches = matchRegionByHash(canvas, region, 5, 18);
+    hashMatches.forEach((match, index) => {
+      const rankPenalty = 1 - index * 0.1;
+      addCandidate(match.species, 'hash', 0.2 * clamp01(match.confidence) * rankPenalty, clamp01(match.confidence));
+    });
+  }
+
+  const candidates = [...combined.entries()]
+    .map(([species, entry]) => {
+      const supportBonus = entry.support.size >= 2 ? 0.12 * (entry.support.size - 1) : 0;
+      const score = entry.score + supportBonus;
+      return {
+        species,
+        score,
+        confidence: clamp01(Math.max(entry.confidence, score)),
+        supportCount: entry.support.size,
+      };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 4);
+
+  return { region, candidates };
+}
+
+function resolveSelectionSlotMatchesForSide(slotEvaluations: SelectionSlotEvaluation[]): SpriteMatch[] {
+  const assignments = new Map<number, RankedSelectionCandidate>();
+  const usedSpecies = new Set<string>();
+  const slotOrder = slotEvaluations
+    .map((slot, index) => ({ index, score: slot.candidates[0]?.score ?? -1 }))
+    .sort((a, b) => b.score - a.score);
+
+  const tryAssign = (minScore: number, allowSingleMatcher: boolean) => {
+    for (const { index } of slotOrder) {
+      if (assignments.has(index)) continue;
+      const candidate = slotEvaluations[index].candidates.find(entry => {
+        if (usedSpecies.has(entry.species)) return false;
+        if (entry.score < minScore) return false;
+        if (!allowSingleMatcher && entry.supportCount < 2 && entry.confidence < 0.8) return false;
+        return true;
+      });
+      if (!candidate) continue;
+      assignments.set(index, candidate);
+      usedSpecies.add(candidate.species);
+    }
+  };
+
+  tryAssign(0.58, false);
+  tryAssign(0.5, true);
+
+  const matches: SpriteMatch[] = [];
+  slotEvaluations.forEach((slot, index) => {
+    const candidate = assignments.get(index);
+    if (!candidate) return;
+    matches.push({
+      species: candidate.species,
+      confidence: candidate.confidence,
+      x: slot.region.x,
+      y: slot.region.y,
+      w: slot.region.w,
+      h: slot.region.h,
+      side: slot.region.side,
+    });
+  });
+  return matches;
+}
+
+function resolveSelectionSlotMatches(slotEvaluations: SelectionSlotEvaluation[]): SpriteMatch[] {
+  const leftSlots = slotEvaluations.filter(slot => slot.region.side === 'left');
+  const rightSlots = slotEvaluations.filter(slot => slot.region.side === 'right');
+  return [
+    ...resolveSelectionSlotMatchesForSide(leftSlots),
+    ...resolveSelectionSlotMatchesForSide(rightSlots),
+  ];
+}
+
+async function detectSelectionLineupBySprites(canvas: HTMLCanvasElement): Promise<SpriteMatch[]> {
+  const evaluations = await Promise.all(
+    buildSelectionSpriteRegions(canvas.width, canvas.height).map(region => evaluateSelectionSlot(canvas, region))
+  );
+  return resolveSelectionSlotMatches(evaluations);
+}
+
+function extractSelectionProgress(rawText: string): {
+  selectionCount: number | null;
+  selectionTarget: number | null;
+} {
+  const normalized = rawText
+    .replace(/[|\\]/g, '/')
+    .replace(/[Oo]/g, '0')
+    .replace(/[Il]/g, '1');
+
+  const counterMatch = normalized.match(/([0-6])\s*\/\s*([34])/);
+  const headerMatch = normalized.match(/select\s*([34])\s*pok(?:e|é)mon/i);
+
+  const selectionCount = counterMatch ? Number(counterMatch[1]) : null;
+  const selectionTarget = counterMatch
+    ? Number(counterMatch[2])
+    : headerMatch
+      ? Number(headerMatch[1])
+      : null;
+
+  return { selectionCount, selectionTarget };
+}
+
+function detectHoveredPreviewRow(canvas: HTMLCanvasElement): number | null {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  const { width, height } = canvas;
+  const x = 0;
+  const w = Math.round(width * 0.06);
+  const bandHeight = Math.round(height * 0.10);
+  const rowCenters = Array.from({ length: 6 }, (_, i) => height * (0.184 + i * 0.118));
+
+  let bestIndex: number | null = null;
+  let bestScore = 0;
+  let bestArea = 1;
+
+  for (let i = 0; i < rowCenters.length; i++) {
+    const y = Math.max(0, Math.round(rowCenters[i] - bandHeight / 2));
+    const h = Math.min(height - y, bandHeight);
+    if (w < 8 || h < 8 || x + w > width) continue;
+
+    const data = ctx.getImageData(x, y, w, h).data;
+    let score = 0;
+
+    for (let p = 0; p < w * h; p++) {
+      const r = data[p * 4];
+      const g = data[p * 4 + 1];
+      const b = data[p * 4 + 2];
+      if (r > 160 && g > 140 && b < 120) {
+        score += Math.max(0, Math.min(r, g) - b);
+      }
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestArea = w * h;
+      bestIndex = i;
+    }
+  }
+
+  return bestScore / bestArea > 10 ? bestIndex : null;
+}
+
 /**
  * Run TARGETED OCR on HP bar panel regions + full-frame fallback.
  * Panel OCR is fast (small crops) and reliable (fixed positions).
@@ -462,15 +787,16 @@ export async function detectPokemonFromFrame(
   const t0 = performance.now();
 
   const emptySide: SideDetection = { hasOpposingLabel: false, opposingSide: 'unknown', debug: '' };
-  if (!_worker || !_workerReady) {
-    return { rawText: '', tokens: [], matched: [], spriteMatched: [], rejected: [], species: [], durationMs: 0, bestPass: 'none', matchResult: null, matchResultDebug: '', screenContext: 'unknown', screenContextDebug: '', sideDetection: emptySide, battleLogMatches: [] };
-  }
+  if (!isTemplateReady()) void loadTemplates();
+  if (!isOnnxModelReady()) void loadModel().catch(() => {});
+  if (!isHashDBReady()) loadHashDB();
 
   // ── FAST PANEL OCR ──
   // HP bar panels are at fixed positions. OCR just those regions first.
   // Bottom-left panel (YOUR mon): x 2-40%, y 60-85%
   // Top-right panel (OPP mon): x 55-98%, y 10-40%
   // Much faster than full-frame OCR and gives exact side assignment.
+  const canUseOcr = Boolean(_worker && _workerReady);
   const panelMatches: OcrMatch[] = [];
   const w = canvas.width, h = canvas.height;
 
@@ -484,22 +810,25 @@ export async function detectPokemonFromFrame(
     // semi-transparent panel. Use lower threshold (100) to catch colored text.
     const processed = preprocessPanelText(crop);
     try {
-      const { data } = await _worker!.recognize(processed);
+      if (!_worker) return;
+      const { data } = await _worker.recognize(processed);
       const tokens = tokenize(data.text);
       for (const token of tokens) {
         const result = matchToken(token);
         if (result && result.confidence >= 0.6) {
-          panelMatches.push({ ...result, token, side, method: 'token' });
+          panelMatches.push({ ...result, token, side, method: 'panel' });
         }
       }
     } catch { /* panel OCR failed, continue with full-frame */ }
   };
 
   // ── BATTLE SCREEN panels (HP bars at corners)
-  await Promise.all([
-    ocrPanel(w * 0.00, h * 0.82, w * 0.25, h * 1.00, 'left'),
-    ocrPanel(w * 0.55, h * 0.00, w * 1.00, h * 0.18, 'right'),
-  ]);
+  if (canUseOcr) {
+    await Promise.all([
+      ocrPanel(w * 0.00, h * 0.82, w * 0.25, h * 1.00, 'left'),
+      ocrPanel(w * 0.55, h * 0.00, w * 1.00, h * 0.18, 'right'),
+    ]);
+  }
 
   // ── SELECTION SCREEN: left column has YOUR team names as white text
   // on colored panels. Run OCR on the full left column with a HIGH
@@ -525,17 +854,63 @@ export async function detectPokemonFromFrame(
     }
     pctx.putImageData(id, 0, 0);
     try {
-      const { data } = await _worker!.recognize(pc);
+      if (!_worker) return;
+      const { data } = await _worker.recognize(pc);
       const tokens = tokenize(data.text);
       for (const token of tokens) {
         const result = matchToken(token);
         if (result && result.confidence >= 0.6) {
-          panelMatches.push({ ...result, token, side: 'left', method: 'token' });
+          panelMatches.push({ ...result, token, side: 'left', method: 'panel' });
         }
       }
     } catch { /* selection OCR failed */ }
   };
-  await ocrSelectionColumn();
+  if (canUseOcr) {
+    await ocrSelectionColumn();
+  }
+
+  // ── TARGETED W/L DETECTION ──
+  // Results screen shows "WON!" / "LOST" in large decorative gold text.
+  // Left half = player result. Run dedicated OCR with multiple preprocessing
+  // passes on the left-center region to catch stylized game fonts.
+  let earlyMatchResult: MatchResult = null;
+  let earlyMatchDebug = '';
+  const ocrWinLoss = async () => {
+    // Scan left 48% of frame, middle vertical band (y 25-80%)
+    const lx = Math.round(w * 0.02), ly = Math.round(h * 0.25);
+    const lw2 = Math.round(w * 0.46), lh2 = Math.round(h * 0.55);
+    if (lw2 < 30 || lh2 < 30) return;
+    const crop = document.createElement('canvas');
+    crop.width = lw2; crop.height = lh2;
+    crop.getContext('2d')!.drawImage(canvas, lx, ly, lw2, lh2, 0, 0, lw2, lh2);
+
+    // Multiple preprocessing passes — decorative gold font needs different thresholds
+    const passes = [
+      preprocessHighContrast(crop),
+      preprocessGoldText(crop),  // Gold/yellow text isolation
+      preprocessGrayscale(crop),
+    ];
+
+    for (const processed of passes) {
+      if (earlyMatchResult) break;
+      try {
+        if (!_worker) return;
+        const { data } = await _worker.recognize(processed);
+        const words = (data as unknown as { words?: OcrWordBox[] }).words;
+        const match = findLargeResultWord(words, processed.width, processed.height, {
+          minWidthRatio: 0.16,
+          minHeightRatio: 0.12,
+        });
+        if (match) {
+          earlyMatchResult = match.result;
+          earlyMatchDebug = `W/L panel: "${match.raw}" large-word`;
+        }
+      } catch { /* W/L OCR failed */ }
+    }
+  };
+  if (canUseOcr) {
+    await ocrWinLoss();
+  }
 
   // Crop out the right 25% of the frame — this is where Twitch chat
   // typically sits. Chat text generates massive OCR noise (usernames,
@@ -564,121 +939,67 @@ export async function detectPokemonFromFrame(
   let allRawText = '';
   let allTokens: string[] = [];
   let bestPassName = 'raw';
-  let bestPassCount = 0;
 
   // Match result detection: look for "Won"/"Lost" with position info
   let matchResult: MatchResult = null;
   let matchResultDebug = '';
   let sideDetection: SideDetection = { ...emptySide };
 
-  for (const pass of passes) {
-    const { data } = await _worker.recognize(pass.canvas);
-    const rawText = data.text;
-    const tokens = tokenize(rawText);
+  if (canUseOcr && _worker) {
+    for (const pass of passes) {
+      const { data } = await _worker.recognize(pass.canvas);
+      const rawText = data.text;
+      const tokens = tokenize(rawText);
+      const frameWidth = scaled.width;
+      const midX = frameWidth / 2;
 
-    // Build word position map for this pass
-    const wordPositions = new Map<string, { x: number; side: 'left' | 'right' }>();
-    const frameWidth = scaled.width;
-    const midX = frameWidth / 2;
-
-    const words = (data as unknown as { words?: { text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }[] }).words;
-    if (words) {
-      for (const word of words) {
-        const centerX = (word.bbox.x0 + word.bbox.x1) / 2;
-        wordPositions.set(word.text.toLowerCase(), {
-          x: centerX,
-          side: centerX < midX ? 'left' : 'right',
-        });
-      }
-
+      const words = (data as unknown as { words?: { text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }[] }).words;
+      if (words) {
       // Detect "opposing" / "opponent" label
-      if (!sideDetection.hasOpposingLabel) {
-        for (const word of words) {
-          const t = word.text.toLowerCase().replace(/[^a-z]/g, '');
-          if (t === 'opposing' || t === 'opponent' || t === 'opponents' || t === 'foe' || t === 'enemy') {
-            const centerX = (word.bbox.x0 + word.bbox.x1) / 2;
-            const side = centerX < midX ? 'left' : 'right';
-            sideDetection = {
-              hasOpposingLabel: true,
-              opposingSide: side,
-              debug: `"${word.text}" at x=${Math.round(centerX)} → opponent is on ${side} side (pass: ${pass.name})`,
-            };
-            break;
+        if (!sideDetection.hasOpposingLabel) {
+          for (const word of words) {
+            const t = word.text.toLowerCase().replace(/[^a-z]/g, '');
+            if (t === 'opposing' || t === 'opponent' || t === 'opponents' || t === 'foe' || t === 'enemy') {
+              const centerX = (word.bbox.x0 + word.bbox.x1) / 2;
+              const side = centerX < midX ? 'left' : 'right';
+              sideDetection = {
+                hasOpposingLabel: true,
+                opposingSide: side,
+                debug: `"${word.text}" at x=${Math.round(centerX)} → opponent is on ${side} side (pass: ${pass.name})`,
+              };
+              break;
+            }
           }
         }
       }
-    }
 
-    let passMatchCount = 0;
-    for (const token of tokens) {
-      const result = matchToken(token);
-      if (result && !allMatched.has(result.species)) {
-        // Determine which side this token is on
-        const pos = wordPositions.get(token.toLowerCase());
-        const side = pos?.side ?? 'unknown';
-        allMatched.set(result.species, { ...result, token, side, method: 'token' });
-        passMatchCount++;
-      } else if (!result && token.length >= 4 && /^[A-Za-z]+$/.test(token)) {
-        const clean = token.toLowerCase().replace(/[^a-z]/g, '');
-        if (clean.length >= 4 && !allRejected.some(r => r.token === token)) {
-          allRejected.push({ token, reason: `No species match (pass: ${pass.name})` });
-        }
-      }
-    }
+      // Full-frame OCR is NOT used for species matching — chat overlays,
+      // stream text, and usernames produce too many false positives.
+      // Species detection comes from: panel OCR (HP bars) + battle log only.
+      // Full-frame OCR is used for: W/L, screen context, battle log, side labels.
 
-    // Detect match result from word-level bounding boxes.
-    // The game shows "Won"/"Lost" — left is player's result, right is opponent's.
-    // Use scaled frame width for correct midpoint (OCR ran on scaled canvas).
-    const words2 = (data as unknown as { words?: { text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }[] }).words;
-    if (words2) {
-      const scaledMidX = scaled.width / 2;
-
-      for (const word of words2) {
-        const raw = word.text.trim();
-        const text = raw.toLowerCase().replace(/[^a-z]/g, '');
-
-        // Fuzzy match: OCR may misread game fonts
-        const isWon = text === 'won' || text === 'win' || text === 'victory'
-          || text === 'woni' || text === 'wonl' || text === 'w0n'
-          || (text.length >= 3 && text.length <= 5 && levenshtein(text, 'won') <= 1)
-          || (text.length >= 5 && text.length <= 8 && levenshtein(text, 'victory') <= 2);
-
-        const isLost = text === 'lost' || text === 'loss' || text === 'defeat'
-          || text === 'lose' || text === 'lostl' || text === 'l0st'
-          || (text.length >= 4 && text.length <= 5 && levenshtein(text, 'lost') <= 1)
-          || (text.length >= 5 && text.length <= 7 && levenshtein(text, 'defeat') <= 2);
-
-        if (isWon || isLost) {
-          const bbox = word.bbox;
-          const wordCenterX = (bbox.x0 + bbox.x1) / 2;
-          const isLeftSide = wordCenterX < scaledMidX;
-
-          // ONLY accept results from LEFT half of screen.
-          // Right-side / center text is unreliable — splash screens,
-          // transitions, and overlays can show "Won"/"Lost" anywhere.
-          // Left-half results screen is the authoritative source.
-          if (!isLeftSide) continue;
-
-          const newDebug = `"${raw}" at x=${Math.round(wordCenterX)} LEFT, pass: ${pass.name}`;
-          const newResult = isWon ? 'win' : 'loss';
-
-          matchResult = newResult as MatchResult;
-          matchResultDebug = newDebug;
+      // Detect match result from word-level bounding boxes.
+      // The game shows "Won"/"Lost" — left is player's result, right is opponent's.
+      // Use scaled frame width for correct midpoint (OCR ran on scaled canvas).
+      const words2 = (data as unknown as { words?: { text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }[] }).words;
+      if (words2) {
+        const match = findLargeResultWord(words2 as OcrWordBox[], scaled.width, scaled.height, {
+          requireLeftSide: true,
+          minWidthRatio: 0.08,
+          minHeightRatio: 0.05,
+        });
+        if (match) {
+          matchResult = match.result;
+          matchResultDebug = `"${match.raw}" at x=${Math.round(match.centerX)} LEFT, pass: ${pass.name}`;
           break;
         }
       }
-    }
 
-    if (passMatchCount > bestPassCount) {
-      bestPassCount = passMatchCount;
-      bestPassName = pass.name;
-      allRawText = rawText;
-      allTokens = tokens;
-    }
-
-    if (!allRawText && rawText.trim()) {
-      allRawText = rawText;
-      allTokens = tokens;
+      if (!allRawText && rawText.trim()) {
+        allRawText = rawText;
+        allTokens = tokens;
+        bestPassName = pass.name;
+      }
     }
   }
 
@@ -701,49 +1022,89 @@ export async function detectPokemonFromFrame(
 
   const matched = [...allMatched.values()].sort((a, b) => b.confidence - a.confidence);
 
-  // ── ONNX MobileNetV2 sprite classification ──
-  // Neural features bridge 2D↔3D visual gap. Cosine similarity matching.
-  const spriteMatched: SpriteMatch[] = [];
-  const cw = cropped.width, ch = cropped.height;
-  try {
-    if (isModelReady()) {
-      const regions: { x: number; y: number; w: number; h: number; side: 'left' | 'right' }[] = [];
+  // ── SPRITE MATCHING ──
+  // Preview lineup detection is visual-only and ignores nickname text.
+  const battleSpriteRegions = [
+    { x: w * 0.00, y: h * 0.52, w: w * 0.20, h: h * 0.40, side: 'left' as const },
+    { x: w * 0.26, y: h * 0.45, w: w * 0.42, h: h * 0.50, side: 'left' as const },
+    { x: w * 0.22, y: h * 0.16, w: w * 0.28, h: h * 0.42, side: 'right' as const },
+    { x: w * 0.72, y: h * 0.15, w: w * 0.25, h: h * 0.46, side: 'right' as const },
+  ];
+  const selectionTokenSet = new Set(
+    allTokens.map(t => t.toLowerCase().replace(/[^a-z]/g, ''))
+  );
+  const selectionProgress = extractSelectionProgress(allRawText);
+  const looksLikeSelectionScreen =
+    selectionTokenSet.has('select') ||
+    selectionTokenSet.has('send') ||
+    selectionTokenSet.has('seleziona') ||
+    selectionTokenSet.has('ranked') ||
+    selectionTokenSet.has('single') ||
+    selectionTokenSet.has('double') ||
+    (selectionTokenSet.has('pokemon') && selectionTokenSet.has('lotta')) ||
+    (selectionTokenSet.has('standing') && selectionTokenSet.has('by')) ||
+    selectionProgress.selectionTarget !== null;
+  const selectionSpriteMatches = await detectSelectionLineupBySprites(canvas);
+  const hasVisualSelectionLineup = selectionSpriteMatches.length >= 4;
+  const hoveredRowIndex = (looksLikeSelectionScreen || hasVisualSelectionLineup)
+    ? detectHoveredPreviewRow(canvas)
+    : null;
+  const selectedRowIndices: number[] = [];
+  const selectionCount = looksLikeSelectionScreen ? selectionProgress.selectionCount : null;
+  const selectionTarget = looksLikeSelectionScreen ? selectionProgress.selectionTarget : null;
 
-      // Selection screen: opponent right column (x 58-98%, 6 slots)
-      for (let i = 0; i < 6; i++) {
-        regions.push({ x: cw * 0.58, y: ch * (0.05 + i * 0.14), w: cw * 0.40, h: ch * 0.13, side: 'right' });
-      }
-      // Selection screen: YOUR icon sprites (x 1-7%, 6 slots)
-      for (let i = 0; i < 6; i++) {
-        regions.push({ x: cw * 0.01, y: ch * (0.08 + i * 0.145), w: cw * 0.07, h: ch * 0.11, side: 'left' });
-      }
-      // Battle: HP panel icon sprites
-      regions.push({ x: 0, y: ch * 0.85, w: cw * 0.08, h: ch * 0.10, side: 'left' });
-      regions.push({ x: cw * 0.88, y: 0, w: cw * 0.10, h: ch * 0.10, side: 'right' });
-
-      const onnxMatches = await scanRegionsWithOnnx(cropped, regions);
-      for (const m of onnxMatches) {
-        spriteMatched.push({
-          species: m.species,
-          confidence: m.confidence,
-          x: m.x,
-          y: m.y,
-          side: m.side,
-        });
-      }
+  const spriteByKey = new Map<string, SpriteMatch>();
+  const addSpriteMatch = (match: SpriteMatch) => {
+    const key = `${match.side}:${match.species}`;
+    const existing = spriteByKey.get(key);
+    if (!existing || match.confidence > existing.confidence) {
+      spriteByKey.set(key, match);
     }
-  } catch { /* sprite detection is best-effort */ }
+  };
+
+  if (hasVisualSelectionLineup) {
+    for (const match of selectionSpriteMatches) {
+      addSpriteMatch(match);
+    }
+  }
+
+  if (isTemplateReady()) {
+    const templateMatches = await scanRegionsWithTemplates(
+      canvas,
+      hasVisualSelectionLineup || looksLikeSelectionScreen ? [] : battleSpriteRegions,
+    );
+    for (const match of templateMatches) {
+      addSpriteMatch({
+        species: match.species,
+        confidence: match.confidence,
+        x: match.x,
+        y: match.y,
+        side: match.side,
+      });
+    }
+  }
+
+  const spriteMatched = [...spriteByKey.values()];
+  const effectiveMatched = (looksLikeSelectionScreen || hasVisualSelectionLineup)
+    ? matched.filter(m => m.method !== 'panel')
+    : matched;
 
   // Detect battle UI panels at bottom-left + top-right
   // (standard HP/Pokemon panels in every battle screen, arena-independent)
   const panels = detectBattlePanels(cropped);
 
   const allSeenTokens = [...new Set([...allTokens, ...allRejected.map(r => r.token)])];
-  const { context: screenContext, debug: screenContextDebug } = classifyScreen(
-    allSeenTokens,
-    spriteMatched.length,
-    panels,
-  );
+  const screenContextInfo = (hasVisualSelectionLineup || looksLikeSelectionScreen)
+    ? {
+        context: 'battle' as const,
+        debug: `Selection screen (${selectionSpriteMatches.length}/6 sprite slots, target:${selectionProgress.selectionTarget ?? '-'})`,
+      }
+    : classifyScreen(
+        allSeenTokens,
+        spriteMatched.length,
+        panels,
+      );
+  const { context: screenContext, debug: screenContextDebug } = screenContextInfo;
 
   if (screenContext === 'menu') {
     return {
@@ -751,6 +1112,10 @@ export async function detectPokemonFromFrame(
       tokens: allTokens,
       matched: [],
       spriteMatched: [],
+      selectedRowIndices,
+      hoveredRowIndex,
+      selectionCount,
+      selectionTarget,
       rejected: allRejected.slice(0, 10),
       species: [],
       durationMs: Math.round(performance.now() - t0),
@@ -765,10 +1130,10 @@ export async function detectPokemonFromFrame(
   }
 
   // Merge OCR + sprite detections — deduplicate, prefer higher confidence
-  const ocrSpecies = new Set(matched.map(m => m.species));
+  const ocrSpecies = new Set(effectiveMatched.map(m => m.species));
   const spriteOnly = spriteMatched.filter(s => !ocrSpecies.has(s.species));
   const allSpecies = [
-    ...matched.map(m => m.species),
+    ...effectiveMatched.map(m => m.species),
     ...spriteOnly.map(s => s.species),
   ];
   // Deduplicate
@@ -777,14 +1142,18 @@ export async function detectPokemonFromFrame(
   return {
     rawText: allRawText,
     tokens: allTokens,
-    matched,
+    matched: effectiveMatched,
     spriteMatched,
+    selectedRowIndices,
+    hoveredRowIndex,
+    selectionCount,
+    selectionTarget,
     rejected: allRejected.slice(0, 10),
     species: uniqueSpecies,
     durationMs: Math.round(performance.now() - t0),
     bestPass: bestPassName,
-    matchResult,
-    matchResultDebug,
+    matchResult: matchResult ?? earlyMatchResult,
+    matchResultDebug: matchResultDebug || earlyMatchDebug,
     screenContext,
     screenContextDebug,
     sideDetection,
@@ -795,8 +1164,8 @@ export async function detectPokemonFromFrame(
 /** Tokenize OCR text into potential Pokemon name candidates. */
 function tokenize(text: string): string[] {
   return text
-    .split(/[\s,;:|/\\()\[\]{}<>_@#$%^&*!?~`"+=]+/)
-    .map(t => t.trim().replace(/^[.\-]+|[.\-]+$/g, ''))
+    .split(/[\s,;:|/\\(){}<>_@#$%^&*!?~`"+=[\]]+/)
+    .map(t => t.trim().replace(/^[.-]+|[.-]+$/g, ''))
     .filter(t => {
       if (t.length < 3) return false;
       if (!/[a-zA-Z]{3,}/.test(t)) return false;
@@ -813,13 +1182,78 @@ function tokenize(text: string): string[] {
 
 // ─── Preprocessing strategies ───────────────────────────────────
 
+function detectLetterboxedGameWindow(canvas: HTMLCanvasElement): { x: number; y: number; w: number; h: number } | null {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const fw = canvas.width, fh = canvas.height;
+
+  const sampleXStep = Math.max(6, Math.round(fw / 240));
+  const sampleYStep = Math.max(6, Math.round(fh / 135));
+  const isActivePixel = (r: number, g: number, b: number) => {
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    return lum > 22 || (max - min) > 18;
+  };
+
+  const rowActivity = (y: number) => {
+    const yy = Math.max(0, Math.min(fh - 1, y));
+    const data = ctx.getImageData(0, yy, fw, 1).data;
+    let active = 0;
+    let total = 0;
+    for (let x = 0; x < fw; x += sampleXStep) {
+      const i = x * 4;
+      if (isActivePixel(data[i], data[i + 1], data[i + 2])) active++;
+      total++;
+    }
+    return active / Math.max(1, total);
+  };
+
+  const colActivity = (x: number) => {
+    const xx = Math.max(0, Math.min(fw - 1, x));
+    const data = ctx.getImageData(xx, 0, 1, fh).data;
+    let active = 0;
+    let total = 0;
+    for (let y = 0; y < fh; y += sampleYStep) {
+      const i = y * 4;
+      if (isActivePixel(data[i], data[i + 1], data[i + 2])) active++;
+      total++;
+    }
+    return active / Math.max(1, total);
+  };
+
+  const edgeThreshold = 0.12;
+  let top = 0;
+  while (top < fh * 0.25 && rowActivity(top) < edgeThreshold) top += sampleYStep;
+  let bottom = fh - 1;
+  while (bottom > fh * 0.75 && rowActivity(bottom) < edgeThreshold) bottom -= sampleYStep;
+  let left = 0;
+  while (left < fw * 0.25 && colActivity(left) < edgeThreshold) left += sampleXStep;
+  let right = fw - 1;
+  while (right > fw * 0.75 && colActivity(right) < edgeThreshold) right -= sampleXStep;
+
+  if (right <= left || bottom <= top) return null;
+
+  const x = left / fw;
+  const y = top / fh;
+  const w = (right - left + 1) / fw;
+  const h = (bottom - top + 1) / fh;
+  const trimmedEnough = x > 0.015 || y > 0.015 || (1 - (x + w)) > 0.015 || (1 - (y + h)) > 0.015;
+  const aspect = w / Math.max(h, 0.001);
+  if (!trimmedEnough || w < 0.45 || h < 0.45 || aspect < 1.45 || aspect > 2.1) return null;
+
+  return { x, y, w, h };
+}
+
 /**
  * Auto-detect game window inside a stream overlay.
- * Uses COLOR VARIANCE per cell — game content (sprites, effects, UI chrome)
- * has HIGH variance. Static app UI, webcam borders, chat = lower variance.
- * Finds the largest high-variance rectangle.
+ * First trims obvious black bars / letterboxing, then falls back to a
+ * variance-based search for stream layouts with extra overlays.
  */
 export function autoDetectGameWindow(canvas: HTMLCanvasElement): { x: number; y: number; w: number; h: number } | null {
+  const letterboxed = detectLetterboxedGameWindow(canvas);
+  if (letterboxed) return letterboxed;
+
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
   const fw = canvas.width, fh = canvas.height;
@@ -990,6 +1424,39 @@ function preprocessGrayscale(source: HTMLCanvasElement): HTMLCanvasElement {
 }
 
 /**
+ * Gold/yellow text isolation — for "WON!" / "LOST" decorative game fonts.
+ * Gold text has high R, high G, low B. Isolate pixels where R+G >> B
+ * and overall brightness is moderate-to-high.
+ */
+function preprocessGoldText(source: HTMLCanvasElement): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = source.width;
+  canvas.height = source.height;
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(source, 0, 0);
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const d = imageData.data;
+
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
+    // Gold/yellow: R > 150, G > 120, B < 100, and bright enough
+    // Also catch white text (all channels > 180)
+    const isGold = r > 150 && g > 120 && b < 100 && brightness > 100;
+    const isWhite = r > 180 && g > 180 && b > 180;
+    if (isGold || isWhite) {
+      d[i] = d[i + 1] = d[i + 2] = 0; // text → black
+    } else {
+      d[i] = d[i + 1] = d[i + 2] = 255; // bg → white
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  return canvas;
+}
+
+/**
  * Panel-specific preprocess: game UI name text is bright/colored on
  * dark semi-transparent bg. Lower threshold (100) + saturation boost
  * to catch colored text (blue Kingambit label, green Victreebel, etc).
@@ -1027,7 +1494,7 @@ let _videoEl: HTMLVideoElement | null = null;
 
 export async function startCapture(): Promise<MediaStream> {
   const stream = await navigator.mediaDevices.getDisplayMedia({
-    video: { frameRate: 2 },
+    video: { frameRate: 60 },
     audio: false,
   });
   _captureStream = stream;

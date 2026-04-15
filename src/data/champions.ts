@@ -170,6 +170,19 @@ export function isChampionsPokemon(name: string): boolean {
   if (!name) return false;
   if (CHAMPIONS_POKEMON_SET.has(name)) return true;
 
+  // Regional display-name format (e.g., "Alolan Ninetales")
+  const regionalDisplayMatch = name.match(/^(Alolan|Galarian|Hisuian|Paldean)\s+(.+)$/);
+  if (regionalDisplayMatch) {
+    const regionSuffix: Record<string, string> = {
+      Alolan: 'Alola',
+      Galarian: 'Galar',
+      Hisuian: 'Hisui',
+      Paldean: 'Paldea',
+    };
+    const canonicalName = `${regionalDisplayMatch[2]}-${regionSuffix[regionalDisplayMatch[1]]}`;
+    if (CHAMPIONS_POKEMON_SET.has(canonicalName)) return true;
+  }
+
   // Mega forms (Foo-Mega, Foo-Mega-X, Foo-Mega-Y)
   const megaMatch = name.match(/^(.+?)-Mega(?:-[XY])?$/);
   if (megaMatch) {
@@ -185,7 +198,12 @@ export function isChampionsPokemon(name: string): boolean {
 
   // "Mega Foo" / "Mega Foo X" display-name format (used in tier list)
   const megaDisplayMatch = name.match(/^Mega (.+?)(?: [XY])?$/);
-  if (megaDisplayMatch && CHAMPIONS_MEGA_SET.has(megaDisplayMatch[1])) return true;
+  if (megaDisplayMatch) {
+    if (CHAMPIONS_MEGA_SET.has(megaDisplayMatch[1])) return true;
+    for (const entry of CHAMPIONS_MEGA_SET) {
+      if (entry.startsWith(`${megaDisplayMatch[1]}-`)) return true;
+    }
+  }
 
   // Rotom appliance forms — Rotom itself is whitelisted, these are
   // in-battle transformations of the base species.

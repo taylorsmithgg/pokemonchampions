@@ -18,8 +18,21 @@ import {
   getCaptureStream,
   detectPokemonFromFrame,
   autoDetectGameWindow,
+  SELECTION_SLOT_CONFIGS,
   type OcrDetectionResult,
 } from '../utils/ocrDetection';
+
+// Expose detection functions for reference image testing (dev only)
+if (import.meta.env.DEV) {
+  import('../utils/onnxMatcher').then(onnx => {
+    (window as unknown as Record<string, unknown>).__ocrDetection = {
+      initOcrWorker,
+      isOcrReady,
+      detectPokemonFromFrame,
+      isModelReady: onnx.isModelReady,
+    };
+  });
+}
 import {
   saveFrame,
   compressFrame,
@@ -443,6 +456,10 @@ function DebugSection({ title, defaultOpen = false, children }: { title: string;
   );
 }
 
+const PREVIEW_DEBUG_REGIONS = SELECTION_SLOT_CONFIGS;
+
+const TEAM_LOCK_CONFIDENCE = 0.4;
+
 // ─── Main Component ──────────────────────────────────────────────
 
 export function StreamCompanionPage() {
@@ -508,6 +525,13 @@ export function StreamCompanionPage() {
       return saved ? JSON.parse(saved) : null;
     } catch { return null; }
   });
+  const [lastAnalysisRegion, setLastAnalysisRegion] = useState<{
+    source: 'manual' | 'auto' | 'full';
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  } | null>(null);
   const [regionSelecting, setRegionSelecting] = useState(false);
   const [regionDragStart, setRegionDragStart] = useState<{ x: number; y: number } | null>(null);
   const [regionDragEnd, setRegionDragEnd] = useState<{ x: number; y: number } | null>(null);
@@ -522,9 +546,16 @@ export function StreamCompanionPage() {
   // Active battlers (during battle)
   const [activeYour, setActiveYour] = useState<string | null>(null);
   const [activeOpp, setActiveOpp] = useState<string | null>(null);
+  const [selectedBring, setSelectedBring] = useState<string[]>([]);
   // Match ID for keyframe tagging
   const currentMatchIdRef = useRef<string>('');
+  const pendingAutoResultRef = useRef<{ result: 'win' | 'loss'; seenCount: number } | null>(null);
   const previewFrameIdRef = useRef<string>('');
+  const previewSelectionRef = useRef<{
+    count: number | null;
+    hoveredRowIndex: number | null;
+    target: number | null;
+  }>({ count: null, hoveredRowIndex: null, target: null });
   // Cache stats
   const [cacheStats, setCacheStats] = useState<{ frames: number; bytes: number }>({ frames: 0, bytes: 0 });
 
@@ -544,6 +575,7 @@ export function StreamCompanionPage() {
           if (payload.matchStartTime !== undefined) setMatchStartTime(payload.matchStartTime);
           if (payload.activeYour !== undefined) setActiveYour(payload.activeYour);
           if (payload.activeOpp !== undefined) setActiveOpp(payload.activeOpp);
+          if (payload.selectedBring !== undefined) setSelectedBring(payload.selectedBring);
         }
       };
       // Request initial state
@@ -561,6 +593,7 @@ export function StreamCompanionPage() {
               matchStartTime,
               activeYour,
               activeOpp,
+              selectedBring,
             },
           });
         }
@@ -568,7 +601,7 @@ export function StreamCompanionPage() {
     }
     return () => channel.close();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOverlayWindow]);
+  }, [isOverlayWindow, opponentTeam, history, lastResult, matchStartTime, activeYour, activeOpp, selectedBring]);
 
   // Host: broadcast state changes to pop-out windows
   useEffect(() => {
@@ -582,9 +615,10 @@ export function StreamCompanionPage() {
         matchStartTime,
         activeYour,
         activeOpp,
+        selectedBring,
       },
     });
-  }, [opponentTeam, history, lastResult, matchStartTime, activeYour, activeOpp, isOverlayWindow]);
+  }, [opponentTeam, history, lastResult, matchStartTime, activeYour, activeOpp, selectedBring, isOverlayWindow]);
 
   // Persist history
   useEffect(() => { saveHistory(history); }, [history]);
@@ -721,7 +755,9 @@ export function StreamCompanionPage() {
       durationMs: matchStartTime ? Date.now() - matchStartTime : undefined,
       previewFrameId: previewFrameIdRef.current || undefined,
       resultFrameId,
-      bringOrder: orderedBringList.slice(0, 4).map(b => b.species),
+      bringOrder: selectedBring.length > 0
+        ? [...selectedBring]
+        : orderedBringList.slice(0, 4).map(b => b.species),
     };
     setHistory(prev => [record, ...prev]);
     setLastResult(result);
@@ -734,6 +770,7 @@ export function StreamCompanionPage() {
     // Results screens linger and would otherwise leak sprites/votes
     // into the next match's preview accumulation.
     cooldownUntilRef.current = Date.now() + 12000;
+    pendingAutoResultRef.current = null;
     // Clear dismissed list for fresh game
     setDismissedSpecies(new Set());
     // Reset phase machine — ready for next match's team preview
@@ -743,11 +780,13 @@ export function StreamCompanionPage() {
     
     currentMatchIdRef.current = '';
     previewFrameIdRef.current = '';
+    previewSelectionRef.current = { count: null, hoveredRowIndex: null, target: null };
     setActiveYour(null);
     setActiveOpp(null);
+    setSelectedBring([]);
 
     setTimeout(() => setLastResult(null), 3000);
-  }, [filledOpponents, filledMyTeam, archetypes, matchStartTime, orderedBringList]);
+  }, [filledOpponents, filledMyTeam, archetypes, matchStartTime, orderedBringList, selectedBring]);
 
   const deleteMatch = useCallback((id: string) => {
     setHistory(prev => prev.filter(h => h.id !== id));
@@ -766,7 +805,7 @@ export function StreamCompanionPage() {
   // Full session reset — clears EVERYTHING for starting fresh
   const resetSession = useCallback(() => {
     setOpponentTeam([]);
-    handleSetMyTeam([]);
+    setContextTeam(Array.from({ length: 6 }, () => createDefaultPokemonState()));
     setHistory([]);
     setGamePhase('idle');
     setMatchStartTime(null);
@@ -774,8 +813,12 @@ export function StreamCompanionPage() {
     setLastResult(null);
     setLastOcrResult(null);
     setLastFrameUrl(null);
+    setLastAnalysisRegion(null);
     setScanCount(0);
+    pendingAutoResultRef.current = null;
     setDismissedSpecies(new Set());
+    setSelectedBring([]);
+    previewSelectionRef.current = { count: null, hoveredRowIndex: null, target: null };
     cooldownUntilRef.current = 0;
     
     
@@ -783,7 +826,7 @@ export function StreamCompanionPage() {
     
     setCaptureRegion(null);
     saveHistory([]);
-  }, []);
+  }, [setContextTeam]);
 
   const handleExportArchive = useCallback(async () => {
     const bundle = await exportArchive(history);
@@ -802,6 +845,23 @@ export function StreamCompanionPage() {
     }
   }, []);
 
+  const resetLiveDetectionState = useCallback(() => {
+    setLastOcrResult(null);
+    setLastFrameUrl(null);
+    setLastRawFrameUrl(null);
+    setLastAnalysisRegion(null);
+    setOpponentTeam([]);
+    setSelectedBring([]);
+    setScanCount(0);
+    pendingAutoResultRef.current = null;
+    previewSelectionRef.current = { count: null, hoveredRowIndex: null, target: null };
+  }, []);
+
+  const applyCaptureRegion = useCallback((region: { x: number; y: number; w: number; h: number } | null) => {
+    setCaptureRegion(region);
+    resetLiveDetectionState();
+  }, [resetLiveDetectionState]);
+
 
   // Set your team from species names — each gets a full resolved build
   const handleSetMyTeam = useCallback((speciesList: string[]) => {
@@ -814,29 +874,39 @@ export function StreamCompanionPage() {
     setContextTeam(newTeam);
   }, [setContextTeam]);
 
+  useEffect(() => {
+    setSelectedBring(prev => prev.filter(species => filledMyTeam.includes(species)));
+  }, [filledMyTeam]);
+
   // Load pHash DB on mount — instant from precomputed JSON
   useEffect(() => {
     import('../utils/perceptualHash').then(mod => mod.loadHashDB());
-  }, []);
+    import('../utils/templateMatcher').then(mod => mod.loadTemplates());
+    import('../utils/onnxMatcher').then(mod => mod.loadModel().catch(() => {}));
+  }, [handleSetMyTeam, resetLiveDetectionState]);
 
   // ─── Auto-detection (OCR) handlers ─────────────────────────────
 
   const handleStartDetection = useCallback(async () => {
-    // Step 1: Init OCR if needed
+    // OCR is optional for roster detection, so warm it up in the background.
     if (!isOcrReady()) {
       setOcrLoading(true);
-      await initOcrWorker();
-      setOcrReady(true);
-      setOcrLoading(false);
+      initOcrWorker()
+        .then(() => setOcrReady(true))
+        .catch(() => {})
+        .finally(() => setOcrLoading(false));
     }
 
-    // Step 2: Start screen capture (skip if already active)
+    // Start screen capture immediately even if OCR is still loading.
     try {
       if (!isCaptureActive()) await startCapture();
       setDetecting(true);
       setScanCount(0);
       setLastOcrResult(null);
       setLastFrameUrl(null);
+      setLastAnalysisRegion(null);
+      pendingAutoResultRef.current = null;
+      previewSelectionRef.current = { count: null, hoveredRowIndex: null, target: null };
     } catch {
       // User cancelled screen share dialog
     }
@@ -845,6 +915,9 @@ export function StreamCompanionPage() {
   const handleStopDetection = useCallback(() => {
     stopCapture();
     setDetecting(false);
+    setLastAnalysisRegion(null);
+    pendingAutoResultRef.current = null;
+    previewSelectionRef.current = { count: null, hoveredRowIndex: null, target: null };
     if (scanIntervalRef.current) {
       clearInterval(scanIntervalRef.current);
       scanIntervalRef.current = null;
@@ -853,7 +926,7 @@ export function StreamCompanionPage() {
 
   // Single scan pass — filters out your team, respects cooldown
   const runScan = useCallback(async () => {
-    if (!isCaptureActive() || !isOcrReady()) {
+    if (!isCaptureActive()) {
       if (!isCaptureActive()) setDetecting(false);
       return;
     }
@@ -873,17 +946,26 @@ export function StreamCompanionPage() {
       setLastRawFrameUrl(rawFrame.toDataURL('image/jpeg', 0.55));
     }
 
-    // Crop to game window BEFORE analysis.
-    // Priority: 1) user-drawn ROI, 2) auto-detected game window, 3) full frame
+    // Crop to the analyzed game window BEFORE detection.
+    // Priority: 1) user-drawn ROI, 2) auto-detected letterbox/game window, 3) full frame.
     let frame = rawFrame;
-    const region = captureRegion ?? autoDetectGameWindow(rawFrame);
-    if (region) {
-      const { x, y, w, h } = region;
+    const detectedRegion = captureRegion ?? autoDetectGameWindow(rawFrame);
+    const analysisRegion = captureRegion
+      ? { source: 'manual' as const, ...captureRegion }
+      : detectedRegion
+        ? { source: 'auto' as const, ...detectedRegion }
+        : { source: 'full' as const, x: 0, y: 0, w: 1, h: 1 };
+    setLastAnalysisRegion(analysisRegion);
+
+    let regionPx = { x: 0, y: 0, w: rawFrame.width, h: rawFrame.height };
+    if (detectedRegion) {
+      const { x, y, w, h } = detectedRegion;
       const sx = Math.round(rawFrame.width * x);
       const sy = Math.round(rawFrame.height * y);
       const sw = Math.round(rawFrame.width * w);
       const sh = Math.round(rawFrame.height * h);
       if (sw > 100 && sh > 100) {
+        regionPx = { x: sx, y: sy, w: sw, h: sh };
         const cropped = document.createElement('canvas');
         cropped.width = sw; cropped.height = sh;
         cropped.getContext('2d')!.drawImage(rawFrame, sx, sy, sw, sh, 0, 0, sw, sh);
@@ -895,52 +977,125 @@ export function StreamCompanionPage() {
     setLastOcrResult(result);
     setScanCount(prev => prev + 1);
 
-    // Annotated preview
+    const isSelectionScreen = result.screenContext === 'battle' && (
+      result.selectionTarget !== null ||
+      result.selectionCount !== null ||
+      result.hoveredRowIndex !== null ||
+      result.screenContextDebug.toLowerCase().includes('select')
+    );
+
+    if (isSelectionScreen) {
+      const previousSelection = previewSelectionRef.current;
+      const nextCount = result.selectionCount;
+      const nextTarget = result.selectionTarget ?? previousSelection.target;
+      const nextHoveredRowIndex = result.hoveredRowIndex;
+      const effectiveCount = nextCount ?? previousSelection.count;
+      const effectiveHoveredRowIndex = nextHoveredRowIndex ?? previousSelection.hoveredRowIndex;
+
+      if (nextTarget !== null && previousSelection.target !== null && nextTarget !== previousSelection.target) {
+        setSelectedBring([]);
+      }
+
+      if (nextCount === 0 && (previousSelection.count !== 0 || selectedBring.length > 0)) {
+        setSelectedBring([]);
+      } else if (nextCount !== null && previousSelection.count !== null) {
+        if (nextCount > previousSelection.count) {
+          const committedRowIndex = previousSelection.hoveredRowIndex ?? nextHoveredRowIndex;
+          const committedSpecies = committedRowIndex !== null ? filledMyTeam[committedRowIndex] : null;
+          if (committedSpecies) {
+            setSelectedBring(prev => {
+              if (prev.includes(committedSpecies)) return prev;
+              const updated = [...prev, committedSpecies];
+              return nextTarget !== null ? updated.slice(0, nextTarget) : updated;
+            });
+          }
+        } else if (nextCount < previousSelection.count) {
+          setSelectedBring(prev => prev.slice(0, nextCount));
+        }
+      }
+
+      previewSelectionRef.current = {
+        count: effectiveCount,
+        hoveredRowIndex: effectiveHoveredRowIndex,
+        target: nextTarget ?? null,
+      };
+    } else {
+      previewSelectionRef.current = { count: null, hoveredRowIndex: null, target: null };
+    }
+
+    // Debug overlay — draw in RAW frame coordinates so it stays aligned
+    // with the live uncropped video preview.
     const annotated = document.createElement('canvas');
-    annotated.width = frame.width;
-    annotated.height = frame.height;
+    annotated.width = rawFrame.width;
+    annotated.height = rawFrame.height;
     const actx = annotated.getContext('2d')!;
-    actx.drawImage(frame, 0, 0);
+    actx.clearRect(0, 0, annotated.width, annotated.height);
+
+    const scaleX = regionPx.w / Math.max(1, frame.width);
+    const scaleY = regionPx.h / Math.max(1, frame.height);
+    const mapRect = (x: number, y: number, w: number, h: number) => ({
+      x: regionPx.x + x * scaleX,
+      y: regionPx.y + y * scaleY,
+      w: w * scaleX,
+      h: h * scaleY,
+    });
 
     const myTeamViz = new Set(filledMyTeam);
     for (const species of filledMyTeam) myTeamViz.add(species.split('-')[0]);
 
     // X-axis split: left = yours, right = opponent
-    const midX = frame.width / 2;
+    const midX = regionPx.x + regionPx.w / 2;
 
     // Vertical midline guide (X-axis split for team assignment)
     actx.strokeStyle = 'rgba(255,255,255,0.2)';
     actx.lineWidth = 2;
     actx.beginPath();
-    actx.moveTo(midX, 0); actx.lineTo(midX, frame.height);
+    actx.moveTo(midX, regionPx.y); actx.lineTo(midX, regionPx.y + regionPx.h);
     actx.stroke();
     // Labels
     actx.fillStyle = 'rgba(0,0,0,0.6)';
-    actx.fillRect(midX - 85, 4, 80, 16);
-    actx.fillRect(midX + 5, 4, 80, 16);
+    actx.fillRect(midX - 85, Math.max(4, regionPx.y + 4), 80, 16);
+    actx.fillRect(midX + 5, Math.max(4, regionPx.y + 4), 80, 16);
     actx.font = 'bold 11px system-ui';
-    actx.fillStyle = '#38bdf8'; actx.fillText('◄ YOURS', midX - 82, 16);
-    actx.fillStyle = '#f97316'; actx.fillText('OPPONENT ►', midX + 8, 16);
+    actx.fillStyle = '#38bdf8'; actx.fillText('◄ YOURS', midX - 82, Math.max(16, regionPx.y + 16));
+    actx.fillStyle = '#f97316'; actx.fillText('OPPONENT ►', midX + 8, Math.max(16, regionPx.y + 16));
+
+    if (analysisRegion.source !== 'full') {
+      actx.strokeStyle = analysisRegion.source === 'manual' ? '#10b981' : '#22c55e';
+      actx.lineWidth = 2;
+      actx.setLineDash([8, 4]);
+      actx.strokeRect(regionPx.x, regionPx.y, regionPx.w, regionPx.h);
+      actx.setLineDash([]);
+      const roiLabel = analysisRegion.source === 'manual' ? 'MANUAL ROI' : 'AUTO ROI';
+      actx.fillStyle = 'rgba(0,0,0,0.8)';
+      actx.fillRect(regionPx.x, Math.max(0, regionPx.y - 18), 72, 16);
+      actx.fillStyle = analysisRegion.source === 'manual' ? '#10b981' : '#22c55e';
+      actx.fillText(roiLabel, regionPx.x + 4, Math.max(12, regionPx.y - 6));
+    }
 
     // Sprite detection boxes — side from scan region
     for (const s of (result.spriteMatched ?? [])) {
       const isYours = myTeamViz.has(s.species);
       const color = isYours ? '#38bdf8' : s.side === 'right' ? '#f97316' : '#eab308';
       const tag = isYours ? 'YOURS' : s.side === 'right' ? 'OPP' : 'YOURS?';
-      // Glow fill
+      const mapped = mapRect(
+        s.x,
+        s.y,
+        Math.max(20, Math.round(s.w ?? 80)),
+        Math.max(20, Math.round(s.h ?? 80)),
+      );
       actx.fillStyle = color + '20';
-      actx.fillRect(s.x, s.y, 80, 80);
-      // Thick border
-      actx.strokeStyle = color; actx.lineWidth = 4;
-      actx.strokeRect(s.x, s.y, 80, 80);
-      // Label with background
-      const label = `${s.species} ${Math.round(s.confidence * 100)}% [${tag}]`;
+      actx.fillRect(mapped.x, mapped.y, mapped.w, mapped.h);
+      actx.strokeStyle = color;
+      actx.lineWidth = 4;
+      actx.strokeRect(mapped.x, mapped.y, mapped.w, mapped.h);
+      const label = `SPRITE ${s.species} ${Math.round(s.confidence * 100)}% [${tag}]`;
       actx.font = 'bold 13px system-ui';
       const lw = actx.measureText(label).width + 10;
       actx.fillStyle = 'rgba(0,0,0,0.85)';
-      actx.fillRect(s.x, s.y - 22, lw, 22);
+      actx.fillRect(mapped.x, mapped.y - 22, lw, 22);
       actx.fillStyle = color;
-      actx.fillText(label, s.x + 5, s.y - 5);
+      actx.fillText(label, mapped.x + 5, mapped.y - 5);
     }
 
     // OCR text listing
@@ -948,99 +1103,82 @@ export function StreamCompanionPage() {
       const isYours = myTeamViz.has(m.species);
       const color = isYours ? '#38bdf8' : '#22c55e';
       actx.fillStyle = 'rgba(0,0,0,0.7)';
-      const y = 20 + result.matched.indexOf(m) * 16;
-      actx.fillRect(8, y - 12, 280, 14);
+      const y = regionPx.y + 20 + result.matched.indexOf(m) * 16;
+      actx.fillRect(regionPx.x + 8, y - 12, 280, 14);
       actx.fillStyle = color;
       actx.font = 'bold 11px system-ui';
-      actx.fillText(`OCR ${m.species} ${Math.round(m.confidence * 100)}% [${m.side}]`, 10, y);
+      actx.fillText(`OCR ${m.species} ${Math.round(m.confidence * 100)}% [${m.side}]`, regionPx.x + 10, y);
     }
 
     // Battle log
     for (const blm of (result.battleLogMatches ?? [])) {
       const color = blm.isOpponent ? '#ef4444' : '#38bdf8';
       const idx = (result.battleLogMatches ?? []).indexOf(blm);
-      const y = frame.height - 20 - idx * 16;
+      const y = regionPx.y + regionPx.h - 20 - idx * 16;
       actx.fillStyle = 'rgba(0,0,0,0.7)';
-      actx.fillRect(8, y - 12, 300, 14);
+      actx.fillRect(regionPx.x + 8, y - 12, 300, 14);
       actx.fillStyle = color;
       actx.font = 'bold 11px system-ui';
-      actx.fillText(`LOG ${blm.pattern}`, 10, y);
+      actx.fillText(`LOG ${blm.pattern}`, regionPx.x + 10, y);
     }
 
     // ── Draw all scan region boundaries — thick, bright, labeled ──
     const fw = frame.width, fh = frame.height;
 
     const drawRegion = (x: number, y: number, w: number, h: number, color: string, label: string, fill = true) => {
-      if (fill) { actx.fillStyle = color + '15'; actx.fillRect(x, y, w, h); }
+      const mapped = mapRect(x, y, w, h);
+      if (fill) { actx.fillStyle = color + '15'; actx.fillRect(mapped.x, mapped.y, mapped.w, mapped.h); }
       actx.strokeStyle = color; actx.lineWidth = 3; actx.setLineDash([6, 3]);
-      actx.strokeRect(x, y, w, h);
+      actx.strokeRect(mapped.x, mapped.y, mapped.w, mapped.h);
       actx.setLineDash([]);
       if (label) {
         actx.fillStyle = 'rgba(0,0,0,0.8)';
         actx.font = 'bold 11px system-ui';
         const tw = actx.measureText(label).width + 8;
-        actx.fillRect(x, y, tw, 16);
+        actx.fillRect(mapped.x, mapped.y, tw, 16);
         actx.fillStyle = color;
-        actx.fillText(label, x + 4, y + 12);
+        actx.fillText(label, mapped.x + 4, mapped.y + 12);
       }
     };
 
-    // Battle HP panels
-    drawRegion(fw * 0.00, fh * 0.82, fw * 0.25, fh * 0.18, '#a855f7', 'YOUR HP');
-    drawRegion(fw * 0.55, fh * 0.00, fw * 0.45, fh * 0.18, '#f97316', 'OPP HP');
+    // ── ACTIVE SCAN REGIONS — only draw regions that are actually scanned ──
 
-    // Battle icon sprites
-    drawRegion(0, fh * 0.85, fw * 0.08, fh * 0.10, '#a855f7', 'Icon', false);
-    drawRegion(fw * 0.88, 0, fw * 0.10, fh * 0.10, '#f97316', 'Icon', false);
+    PREVIEW_DEBUG_REGIONS.forEach((region, index) => {
+      const label = index === 0 ? 'PREVIEW L' : index === 6 ? 'PREVIEW R' : '';
+      drawRegion(
+        fw * region.x,
+        fh * region.y,
+        fw * region.w,
+        fh * region.h,
+        region.side === 'left' ? '#38bdf8' : '#f43f5e',
+        label,
+        false,
+      );
+    });
+    // Battle screen — doubles-aware active Pokemon sprite regions
+    drawRegion(fw * 0.00, fh * 0.52, fw * 0.20, fh * 0.40, '#a855f7', 'YOUR L', false);
+    drawRegion(fw * 0.26, fh * 0.45, fw * 0.42, fh * 0.50, '#8b5cf6', 'YOUR R', false);
+    drawRegion(fw * 0.22, fh * 0.16, fw * 0.28, fh * 0.42, '#fb7185', 'OPP L', false);
+    drawRegion(fw * 0.72, fh * 0.15, fw * 0.25, fh * 0.46, '#f97316', 'OPP R', false);
+    // W/L detection region
+    drawRegion(fw * 0.02, fh * 0.25, fw * 0.46, fh * 0.55, '#22c55e', 'W/L', false);
 
-    // Selection YOUR column
-    drawRegion(fw * 0.00, fh * 0.07, fw * 0.23, fh * 0.88, '#06b6d4', 'YOUR TEXT');
-
-    // Selection OPP sprites (wider scan)
-    for (let i = 0; i < 6; i++) {
-      drawRegion(fw * 0.58, fh * (0.05 + i * 0.14), fw * 0.40, fh * 0.13, '#f43f5e', i === 0 ? 'OPP SPRITES' : '', false);
-    }
-
-    // YOUR icon sprites
-    for (let i = 0; i < 6; i++) {
-      drawRegion(fw * 0.01, fh * (0.08 + i * 0.145), fw * 0.07, fh * 0.11, '#06b6d4', '', false);
-    }
-
-    // Auto-detected game window (if applicable)
-    if (!captureRegion) {
-      const autoWin = autoDetectGameWindow(rawFrame);
-      if (autoWin) {
-        // Draw on raw frame coordinates scaled to cropped frame
-        actx.strokeStyle = '#fbbf24';
-        actx.lineWidth = 2;
-        actx.setLineDash([8, 4]);
-        // autoWin is pct of rawFrame, but we're drawing on cropped frame
-        // Just show a label instead
-        actx.fillStyle = 'rgba(0,0,0,0.7)';
-        actx.fillRect(4, fh - 18, 220, 16);
-        actx.fillStyle = '#fbbf24';
-        actx.font = 'bold 10px system-ui';
-        actx.fillText(`Auto-window: ${Math.round(autoWin.x*100)},${Math.round(autoWin.y*100)} ${Math.round(autoWin.w*100)}×${Math.round(autoWin.h*100)}%`, 6, fh - 6);
-        actx.setLineDash([]);
-      }
-    }
-
-    // Legend
-    actx.fillStyle = 'rgba(0,0,0,0.7)';
-    actx.fillRect(fw - 230, 5, 225, 90);
-    actx.font = 'bold 10px system-ui';
-    actx.fillStyle = '#38bdf8'; actx.fillText('■ Your team (bottom)', fw - 220, 18);
-    actx.fillStyle = '#f97316'; actx.fillText('■ Opponent (top)', fw - 220, 32);
-    actx.fillStyle = '#a855f7'; actx.fillText('┈ Battle HP panels', fw - 220, 46);
-    actx.fillStyle = '#06b6d4'; actx.fillText('┈ Selection YOUR slots', fw - 220, 60);
-    actx.fillStyle = '#f43f5e'; actx.fillText('┈ Selection OPP slots', fw - 220, 74);
-    actx.fillStyle = '#fbbf24'; actx.fillText('┈ Auto game window', fw - 220, 88);
-
-    setLastFrameUrl(annotated.toDataURL('image/jpeg', 0.6));
+    setLastFrameUrl(annotated.toDataURL('image/png'));
 
     // Auto-record match result — results screen is authoritative,
     // takes precedence over screen-context classification.
     if (result.matchResult) {
+      const pending = pendingAutoResultRef.current;
+      if (!pending || pending.result !== result.matchResult) {
+        pendingAutoResultRef.current = { result: result.matchResult, seenCount: 1 };
+        return;
+      }
+      const nextSeenCount = pending.seenCount + 1;
+      if (nextSeenCount < 2) {
+        pendingAutoResultRef.current = { result: result.matchResult, seenCount: nextSeenCount };
+        return;
+      }
+      pendingAutoResultRef.current = null;
       const matchId = currentMatchIdRef.current || 'unknown';
       const frameId = `${matchId}-result-${Date.now()}`;
       saveFrame({
@@ -1060,6 +1198,7 @@ export function StreamCompanionPage() {
       recordMatch(result.matchResult, frameId);
       return;
     }
+    pendingAutoResultRef.current = null;
 
     // Skip menu frames AFTER W/L check (results screen wins)
     if (result.screenContext === 'menu') return;
@@ -1083,25 +1222,12 @@ export function StreamCompanionPage() {
 
     // Sprites (pHash) — side comes from scan region
     for (const s of (result.spriteMatched ?? [])) {
-      if (s.confidence < 0.2) continue;
+      if (s.confidence < TEAM_LOCK_CONFIDENCE) continue;
       if (dismissedSpecies.has(s.species)) continue;
       if (s.side === 'left' && !myTeamSet.has(s.species) && !oppTeamSet.has(s.species)) {
         newYours.push(s.species);
       } else if (s.side === 'right' && !oppTeamSet.has(s.species) && !myTeamSet.has(s.species)) {
         newOpps.push(s.species);
-      }
-    }
-
-    // OCR disabled for team assignment — nicknames make species ID unreliable.
-    // pHash sprites + battle log only.
-
-    // Battle log — "Opposing X" = opponent, "Go! X" = yours
-    for (const blm of (result.battleLogMatches ?? [])) {
-      if (dismissedSpecies.has(blm.species)) continue;
-      if (blm.isOpponent && !oppTeamSet.has(blm.species) && !myTeamSet.has(blm.species)) {
-        newOpps.push(blm.species);
-      } else if (!blm.isOpponent && !myTeamSet.has(blm.species) && !oppTeamSet.has(blm.species)) {
-        newYours.push(blm.species);
       }
     }
 
@@ -1138,19 +1264,20 @@ export function StreamCompanionPage() {
         else if (!blm.isOpponent && filledMyTeam.includes(blm.species)) setActiveYour(blm.species);
       }
     }
-  }, [filledMyTeam, filledOpponents, recordMatch, handleSetMyTeam, dismissedSpecies, captureRegion]);
+  }, [filledMyTeam, filledOpponents, recordMatch, handleSetMyTeam, dismissedSpecies, captureRegion, selectedBring, lastRawFrameUrl, regionSelecting]);
 
   // Attach capture stream to live video element for smooth preview
   useEffect(() => {
-    if (detecting && liveVideoRef.current) {
+    const liveVideo = liveVideoRef.current;
+    if (detecting && liveVideo) {
       const stream = getCaptureStream();
       if (stream) {
-        liveVideoRef.current.srcObject = stream;
-        liveVideoRef.current.play().catch(() => {});
+        liveVideo.srcObject = stream;
+        liveVideo.play().catch(() => {});
       }
     }
     return () => {
-      if (liveVideoRef.current) liveVideoRef.current.srcObject = null;
+      if (liveVideo) liveVideo.srcObject = null;
     };
   }, [detecting]);
 
@@ -1265,23 +1392,33 @@ export function StreamCompanionPage() {
             <div className="flex gap-1">
               {filledMyTeam.map(species => {
                 const isActive = activeYour === species;
+                const isSelected = selectedBring.includes(species);
                 return (
                   <div key={species} className="flex flex-col items-center group">
                     <div
-                      className={`relative w-14 h-14 flex items-center justify-center rounded-lg transition-all ${isActive ? 'scale-110' : 'opacity-60'}`}
+                      className={`relative w-14 h-14 flex items-center justify-center rounded-lg transition-all ${(isActive || isSelected) ? 'scale-110' : 'opacity-60'}`}
                       style={{
                         background: isActive
                           ? 'radial-gradient(circle, rgba(0,117,190,0.6) 0%, transparent 70%)'
-                          : 'radial-gradient(circle, rgba(0,117,190,0.18) 0%, transparent 70%)',
-                        boxShadow: isActive ? '0 0 16px rgba(0,117,190,0.7)' : 'none',
+                          : isSelected
+                            ? 'radial-gradient(circle, rgba(16,185,129,0.55) 0%, transparent 70%)'
+                            : 'radial-gradient(circle, rgba(0,117,190,0.18) 0%, transparent 70%)',
+                        boxShadow: isActive
+                          ? '0 0 16px rgba(0,117,190,0.7)'
+                          : isSelected
+                            ? '0 0 14px rgba(16,185,129,0.55)'
+                            : 'none',
                       }}
                     >
                       <Sprite species={species} size="lg" />
                       {isActive && (
                         <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
                       )}
+                      {!isActive && isSelected && (
+                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      )}
                     </div>
-                    <span className={`text-[8px] font-semibold truncate max-w-[60px] ${isActive ? 'text-sky-300' : 'text-white/50'}`}>{species}</span>
+                    <span className={`text-[8px] font-semibold truncate max-w-[60px] ${isActive ? 'text-sky-300' : isSelected ? 'text-emerald-300' : 'text-white/50'}`}>{species}</span>
                   </div>
                 );
               })}
@@ -1749,32 +1886,85 @@ export function StreamCompanionPage() {
         </div>
       )}
 
-      {/* ═══ GAME WINDOW ═══ */}
-      {detecting && (() => {
-        return (
-          <div className="rounded-xl overflow-hidden border border-poke-border">
-            <div className="relative bg-black" onMouseDown={regionSelecting ? (e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); const p = { x: (e.clientX-r.left)/r.width, y: (e.clientY-r.top)/r.height }; setRegionDragStart(p); setRegionDragEnd(p); } : undefined} onMouseMove={regionSelecting && regionDragStart ? (e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); setRegionDragEnd({ x: (e.clientX-r.left)/r.width, y: (e.clientY-r.top)/r.height }); } : undefined} onMouseUp={regionSelecting && regionDragStart && regionDragEnd ? () => { const x0=Math.min(regionDragStart!.x,regionDragEnd!.x),y0=Math.min(regionDragStart!.y,regionDragEnd!.y),x1=Math.max(regionDragStart!.x,regionDragEnd!.x),y1=Math.max(regionDragStart!.y,regionDragEnd!.y); if((x1-x0)>0.05&&(y1-y0)>0.05)setCaptureRegion({x:x0,y:y0,w:x1-x0,h:y1-y0}); setRegionSelecting(false);setRegionDragStart(null);setRegionDragEnd(null); } : undefined} style={{ cursor: regionSelecting ? 'crosshair' : 'default', userSelect: 'none' }}>
-              {!regionSelecting && !showDebug && <video ref={liveVideoRef} autoPlay muted playsInline className="w-full h-auto block" style={{ pointerEvents: 'none' }} />}
-              {(regionSelecting || showDebug) && <img src={(regionSelecting ? (lastRawFrameUrl ?? lastFrameUrl) : lastFrameUrl) ?? undefined} alt="" className="w-full h-auto block" draggable={false} style={{ pointerEvents: 'none' }} />}
-              {regionSelecting && <div className="absolute inset-0 bg-black/30 pointer-events-none flex items-center justify-center"><span className="text-white/80 text-sm font-bold bg-black/50 px-4 py-2 rounded-lg">Drag to select game area</span></div>}
-              {regionSelecting && regionDragStart && regionDragEnd && <div className="absolute border-2 border-emerald-400 bg-emerald-400/15 rounded pointer-events-none" style={{ left:`${Math.min(regionDragStart.x,regionDragEnd.x)*100}%`,top:`${Math.min(regionDragStart.y,regionDragEnd.y)*100}%`,width:`${Math.abs(regionDragEnd.x-regionDragStart.x)*100}%`,height:`${Math.abs(regionDragEnd.y-regionDragStart.y)*100}%` }} />}
+      {/* ═══ GAME WINDOW — always smooth video, debug overlaid ═══ */}
+      {detecting && (
+        <div className="rounded-xl overflow-hidden border border-poke-border">
+          <div
+            className="relative bg-black"
+            onMouseDown={regionSelecting ? (e) => {
+              const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              const p = { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
+              setRegionDragStart(p); setRegionDragEnd(p);
+            } : undefined}
+            onMouseMove={regionSelecting && regionDragStart ? (e) => {
+              const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              setRegionDragEnd({ x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height });
+            } : undefined}
+            onMouseUp={regionSelecting && regionDragStart && regionDragEnd ? () => {
+              const x0 = Math.min(regionDragStart!.x, regionDragEnd!.x), y0 = Math.min(regionDragStart!.y, regionDragEnd!.y);
+              const x1 = Math.max(regionDragStart!.x, regionDragEnd!.x), y1 = Math.max(regionDragStart!.y, regionDragEnd!.y);
+              if ((x1 - x0) > 0.05 && (y1 - y0) > 0.05) {
+                applyCaptureRegion({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+              }
+              setRegionSelecting(false); setRegionDragStart(null); setRegionDragEnd(null);
+            } : undefined}
+            style={{ cursor: regionSelecting ? 'crosshair' : 'default', userSelect: 'none' }}
+          >
+            {/* Live video — ALWAYS mounted, never unmounted */}
+            <video ref={liveVideoRef} autoPlay muted playsInline className="w-full h-auto block" style={{ pointerEvents: 'none' }} />
+            {/* Debug overlay — transparent annotations on top of live video */}
+            {showDebug && lastFrameUrl && !regionSelecting && (
+              <img src={lastFrameUrl} alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none" />
+            )}
+            {/* ROI selection: semi-transparent overlay on the LIVE video — user can see what they're selecting */}
+            {regionSelecting && (
+              <div className="absolute inset-0 bg-black/40 pointer-events-none">
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-black/70 px-4 py-2 rounded-lg border border-emerald-500/30">
+                  <span className="text-emerald-400 text-sm font-bold">Drag to select the game area</span>
+                  <span className="text-slate-400 text-xs ml-2">(for overlay streams where the game is in a sub-window)</span>
+                </div>
+              </div>
+            )}
+            {/* Active ROI drag rectangle */}
+            {regionSelecting && regionDragStart && regionDragEnd && (
+              <div className="absolute border-2 border-emerald-400 bg-emerald-400/10 rounded pointer-events-none" style={{
+                left: `${Math.min(regionDragStart.x, regionDragEnd.x) * 100}%`,
+                top: `${Math.min(regionDragStart.y, regionDragEnd.y) * 100}%`,
+                width: `${Math.abs(regionDragEnd.x - regionDragStart.x) * 100}%`,
+                height: `${Math.abs(regionDragEnd.y - regionDragStart.y) * 100}%`,
+              }} />
+            )}
+            {/* Show current ROI outline when not selecting (so user knows what area is active) */}
+            {!regionSelecting && captureRegion && captureRegion.w < 0.85 && (
+              <div className="absolute border-2 border-dashed border-emerald-500/40 rounded pointer-events-none" style={{
+                left: `${captureRegion.x * 100}%`,
+                top: `${captureRegion.y * 100}%`,
+                width: `${captureRegion.w * 100}%`,
+                height: `${captureRegion.h * 100}%`,
+              }}>
+                <span className="absolute -top-5 left-1 text-[9px] text-emerald-500/60 font-bold">ROI</span>
+              </div>
+            )}
+          </div>
+          {/* Bottom control bar */}
+          <div className="flex items-center justify-between px-3 py-1.5 bg-poke-darker">
+            <div className="flex items-center gap-2 text-[10px]">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-slate-500">{captureRegion && captureRegion.w < 0.85 ? `ROI ${Math.round(captureRegion.w * 100)}×${Math.round(captureRegion.h * 100)}%` : 'Full screen'}</span>
+              {lastOcrResult && <span className="text-slate-600">#{scanCount} · {lastOcrResult.durationMs}ms</span>}
             </div>
-            <div className="flex items-center justify-between px-3 py-1.5 bg-poke-darker">
-              <div className="flex items-center gap-2 text-[10px]">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-slate-500">{captureRegion && captureRegion.w < 0.85 ? `ROI ${Math.round(captureRegion.w*100)}×${Math.round(captureRegion.h*100)}%` : 'Full screen'}</span>
-                {lastOcrResult && <span className="text-slate-600">{lastOcrResult.spriteMatched?.length ?? 0}I · #{scanCount}</span>}
-              </div>
-              <div className="flex items-center gap-1">
-                <button onClick={() => { setRegionSelecting(true); setRegionDragStart(null); setRegionDragEnd(null); }} className="text-[10px] px-2 py-0.5 rounded bg-poke-surface border border-poke-border text-slate-400 hover:text-emerald-400 transition-colors">{captureRegion ? 'Redraw' : 'Set ROI'}</button>
-                {captureRegion && <button onClick={() => setCaptureRegion(null)} className="text-[10px] px-2 py-0.5 rounded bg-poke-surface border border-poke-border text-slate-400 hover:text-red-400 transition-colors">Clear</button>}
-                <button onClick={() => setShowDebug(!showDebug)} className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${showDebug ? 'bg-violet-500/15 border-violet-500/30 text-violet-400' : 'bg-poke-surface border-poke-border text-slate-500'}`}>{showDebug ? 'Live' : 'Debug'}</button>
-                <button onClick={handleStopDetection} className="text-[10px] px-2 py-0.5 rounded bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors">Stop</button>
-              </div>
+            <div className="flex items-center gap-1">
+              {regionSelecting
+                ? <button onClick={() => { setRegionSelecting(false); setRegionDragStart(null); setRegionDragEnd(null); }} className="text-[10px] px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400 hover:bg-amber-500/25 transition-colors">Cancel ROI</button>
+                : <button onClick={() => { setRegionSelecting(true); setRegionDragStart(null); setRegionDragEnd(null); }} className="text-[10px] px-2 py-0.5 rounded bg-poke-surface border border-poke-border text-slate-400 hover:text-emerald-400 transition-colors">{captureRegion && captureRegion.w < 0.85 ? 'Redraw ROI' : 'Crop Game Area'}</button>
+              }
+              {captureRegion && captureRegion.w < 0.85 && !regionSelecting && <button onClick={() => applyCaptureRegion(null)} className="text-[10px] px-2 py-0.5 rounded bg-poke-surface border border-poke-border text-slate-400 hover:text-red-400 transition-colors">Reset to Full</button>}
+              <button onClick={() => setShowDebug(!showDebug)} className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${showDebug ? 'bg-violet-500/15 border-violet-500/30 text-violet-400' : 'bg-poke-surface border-poke-border text-slate-500'}`}>{showDebug ? 'Hide Debug' : 'Debug'}</button>
+              <button onClick={handleStopDetection} className="text-[10px] px-2 py-0.5 rounded bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors">Stop</button>
             </div>
           </div>
-        );
-      })()}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
       {/* Left column: stream, debug, opponent input */}
@@ -1861,7 +2051,7 @@ export function StreamCompanionPage() {
             <button onClick={handleStartDetection} disabled={ocrLoading} className={`w-full py-2 rounded-lg border text-xs font-bold transition-colors flex items-center justify-center gap-2 ${
               ocrLoading ? 'border-poke-border bg-poke-surface text-slate-600 cursor-wait' : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
             }`}>
-              {ocrLoading ? 'Loading model...' : 'Share Screen to Start Detection'}
+              {ocrLoading ? 'OCR warming up...' : 'Share Screen to Start Detection'}
             </button>
           ) : (
             <button onClick={handleStopDetection} className="w-full py-2 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 text-xs font-bold hover:bg-red-500/20 transition-colors flex items-center justify-center gap-2">
@@ -1915,6 +2105,36 @@ export function StreamCompanionPage() {
         {/* ═══ DEBUG SECTIONS — collapsible details ═══ */}
         {showDebug && lastOcrResult && (detecting || lastOcrResult) && (
           <div className="px-3 pb-3 space-y-1">
+            {(() => {
+              const frameSprites = lastOcrResult.spriteMatched ?? [];
+              const frameLeftSprites = frameSprites.filter(s => s.side === 'left');
+              const frameRightSprites = frameSprites.filter(s => s.side === 'right');
+              const framePanelMatches = lastOcrResult.matched.filter(m => m.method === 'panel');
+              return (
+                <DebugSection
+                  title={`State — ${lastOcrResult.screenContext} · ${frameLeftSprites.length}L ${frameRightSprites.length}R sprites · ${framePanelMatches.length} panel OCR`}
+                  defaultOpen
+                >
+                  <div className="grid grid-cols-2 gap-2 text-[10px]">
+                    <div className="rounded border border-poke-border/30 bg-poke-surface/40 p-2">
+                      <div className="text-slate-500 uppercase tracking-wider font-bold mb-1 text-[9px]">Frame</div>
+                      <div className="text-white">Context: <span className="text-slate-400">{lastOcrResult.screenContextDebug}</span></div>
+                      <div className="text-white">Region: <span className="text-slate-400">{lastAnalysisRegion ? `${lastAnalysisRegion.source} ${Math.round(lastAnalysisRegion.w * 100)}x${Math.round(lastAnalysisRegion.h * 100)}% @ ${Math.round(lastAnalysisRegion.x * 100)},${Math.round(lastAnalysisRegion.y * 100)}` : 'full 100x100%'}</span></div>
+                      <div className="text-white">Selection: <span className="text-slate-400">{lastOcrResult.selectionCount ?? '-'} / {lastOcrResult.selectionTarget ?? '-'}</span></div>
+                      <div className="text-white">Hover Row: <span className="text-slate-400">{lastOcrResult.hoveredRowIndex ?? '-'}</span></div>
+                      <div className="text-white">Scan Time: <span className="text-slate-400">{lastOcrResult.durationMs}ms</span></div>
+                    </div>
+                    <div className="rounded border border-poke-border/30 bg-poke-surface/40 p-2">
+                      <div className="text-slate-500 uppercase tracking-wider font-bold mb-1 text-[9px]">Team State</div>
+                      <div className="text-white">Your Team: <span className="text-slate-400">{filledMyTeam.length}/6</span></div>
+                      <div className="text-white">Opponent Team: <span className="text-slate-400">{filledOpponents.length}/6</span></div>
+                      <div className="text-white">Selected Bring: <span className="text-slate-400">{selectedBring.length > 0 ? selectedBring.join(', ') : '(none)'}</span></div>
+                      <div className="text-white">Scan #: <span className="text-slate-400">{scanCount}</span></div>
+                    </div>
+                  </div>
+                </DebugSection>
+              );
+            })()}
 
             {/* Section: Battle Log Matches — highest confidence */}
             {(lastOcrResult.battleLogMatches?.length ?? 0) > 0 && (
@@ -1936,24 +2156,25 @@ export function StreamCompanionPage() {
               </DebugSection>
             )}
 
-            {/* Section: Detections — merged text + sprite matches */}
-            <DebugSection title={`Detections — ${lastOcrResult.matched.length}T ${lastOcrResult.spriteMatched?.length ?? 0}I`} defaultOpen={lastOcrResult.matched.length > 0 || (lastOcrResult.spriteMatched?.length ?? 0) > 0}>
+            {/* Section: Detections — frame-local truth */}
+            <DebugSection title={`Frame Detections — ${lastOcrResult.spriteMatched?.length ?? 0} sprites · ${lastOcrResult.matched.length} OCR`} defaultOpen={lastOcrResult.matched.length > 0 || (lastOcrResult.spriteMatched?.length ?? 0) > 0}>
               {/* Text matches */}
               {lastOcrResult.matched.length > 0 && (
                 <div className="flex gap-1.5 flex-wrap mb-1.5">
                   {lastOcrResult.matched.map(m => {
-                    const isMyTeam = filledMyTeam.includes(m.species);
-                    const isTracked = filledOpponents.includes(m.species);
+                    const sideTone = m.side === 'left'
+                      ? 'bg-sky-500/10 border-sky-500/20'
+                      : m.side === 'right'
+                        ? 'bg-red-500/10 border-red-500/20'
+                        : 'bg-poke-gold/10 border-poke-gold/20';
+                    const sideLabel = m.side === 'left' ? 'LEFT' : m.side === 'right' ? 'RIGHT' : 'UNKNOWN';
                     return (
-                      <div key={`ocr-${m.species}`} className={`flex items-center gap-1 px-1.5 py-0.5 rounded border ${
-                        isMyTeam ? 'bg-sky-500/10 border-sky-500/20' : isTracked ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-poke-gold/10 border-poke-gold/20'
-                      }`}>
+                      <div key={`ocr-${m.species}-${m.token}`} className={`flex items-center gap-1 px-1.5 py-0.5 rounded border ${sideTone}`}>
                         <Sprite species={m.species} size="sm" />
                         <span className="text-[10px] text-white font-medium">{m.species}</span>
-                        <span className={`text-[8px] font-bold px-1 rounded ${
-                          isMyTeam ? 'bg-sky-500/20 text-sky-400' : isTracked ? 'bg-emerald-500/20 text-emerald-400' : 'bg-poke-gold/20 text-poke-gold'
-                        }`}>{isMyTeam ? 'YOURS' : isTracked ? 'TRACKED' : 'NEW'}</span>
-                        <span className="text-[9px] text-slate-600">"{m.token}" {Math.round(m.confidence * 100)}%{m.side !== 'unknown' ? ` [${m.side}]` : ''}</span>
+                        <span className="text-[8px] font-bold px-1 rounded bg-poke-surface text-slate-300">{m.method.toUpperCase()}</span>
+                        <span className="text-[8px] font-bold px-1 rounded bg-poke-surface text-slate-300">{sideLabel}</span>
+                        <span className="text-[9px] text-slate-600">"{m.token}" {Math.round(m.confidence * 100)}%</span>
                       </div>
                     );
                   })}
@@ -1963,18 +2184,20 @@ export function StreamCompanionPage() {
               {(lastOcrResult.spriteMatched?.length ?? 0) > 0 && (
                 <div className="flex gap-1.5 flex-wrap">
                   {lastOcrResult.spriteMatched!.map(s => {
-                    const isMyTeam = filledMyTeam.includes(s.species);
-                    const fromOcr = lastOcrResult.matched.some(m => m.species === s.species);
+                    const lockEligible = s.confidence >= TEAM_LOCK_CONFIDENCE;
+                    const trackedSide = s.side === 'left'
+                      ? filledMyTeam.includes(s.species) ? 'TRACKED LEFT' : lockEligible ? 'LEFT LOCKABLE' : 'LEFT LOW'
+                      : filledOpponents.includes(s.species) ? 'TRACKED RIGHT' : lockEligible ? 'RIGHT LOCKABLE' : 'RIGHT LOW';
+                    const sideTone = s.side === 'left'
+                      ? 'bg-sky-500/10 border-sky-500/20'
+                      : 'bg-red-500/10 border-red-500/20';
                     return (
-                      <div key={`spr-${s.species}`} className={`flex items-center gap-1 px-1.5 py-0.5 rounded border ${
-                        isMyTeam ? 'bg-sky-500/10 border-sky-500/20' : fromOcr ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-violet-500/10 border-violet-500/20'
-                      }`}>
+                      <div key={`spr-${s.side}-${s.species}-${Math.round(s.x)}-${Math.round(s.y)}`} className={`flex items-center gap-1 px-1.5 py-0.5 rounded border ${sideTone}`}>
                         <Sprite species={s.species} size="sm" />
                         <span className="text-[10px] text-white font-medium">{s.species}</span>
-                        <span className={`text-[8px] font-bold px-1 rounded ${
-                          isMyTeam ? 'bg-sky-500/20 text-sky-400' : fromOcr ? 'bg-emerald-500/20 text-emerald-400' : 'bg-violet-500/20 text-violet-400'
-                        }`}>{isMyTeam ? 'YOURS' : fromOcr ? 'OCR+ICON' : 'ICON'}</span>
-                        <span className="text-[9px] text-slate-600">{Math.round(s.confidence * 100)}% @ ({Math.round(s.x)},{Math.round(s.y)})</span>
+                        <span className="text-[8px] font-bold px-1 rounded bg-violet-500/20 text-violet-300">SPRITE</span>
+                        <span className="text-[8px] font-bold px-1 rounded bg-poke-surface text-slate-300">{trackedSide}</span>
+                        <span className="text-[9px] text-slate-600">{Math.round(s.confidence * 100)}% @ ({Math.round(s.x)},{Math.round(s.y)}) {s.w && s.h ? `${Math.round(s.w)}x${Math.round(s.h)}` : ''}</span>
                       </div>
                     );
                   })}
@@ -1985,20 +2208,40 @@ export function StreamCompanionPage() {
               )}
             </DebugSection>
 
-            {/* Section: Accumulated Opponents */}
-            <DebugSection title={`Opponent Accumulator — ${filledOpponents.length}/6`} defaultOpen={filledOpponents.length > 0}>
-              {filledOpponents.length > 0 ? (
-                <div className="flex gap-1.5 flex-wrap">
-                  {filledOpponents.map(s => (
-                    <div key={s} className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/20">
-                      <Sprite species={s} size="sm" />
-                      <span className="text-[10px] text-white">{s}</span>
+            {/* Section: Accumulated Teams */}
+            <DebugSection title={`Tracked Teams — ${filledMyTeam.length} left · ${filledOpponents.length} right`} defaultOpen={filledMyTeam.length > 0 || filledOpponents.length > 0}>
+              <div className="space-y-2">
+                <div>
+                  <div className="text-[9px] text-slate-500 uppercase tracking-wider font-bold mb-1">Your Team</div>
+                  {filledMyTeam.length > 0 ? (
+                    <div className="flex gap-1.5 flex-wrap">
+                      {filledMyTeam.map(s => (
+                        <div key={`left-${s}`} className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-sky-500/10 border border-sky-500/20">
+                          <Sprite species={s} size="sm" />
+                          <span className="text-[10px] text-white">{s}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  ) : (
+                    <div className="text-[10px] text-slate-600">No left-side team accumulated yet</div>
+                  )}
                 </div>
-              ) : (
-                <div className="text-[10px] text-slate-600">No opponents accumulated yet</div>
-              )}
+                <div>
+                  <div className="text-[9px] text-slate-500 uppercase tracking-wider font-bold mb-1">Opponent Team</div>
+                  {filledOpponents.length > 0 ? (
+                    <div className="flex gap-1.5 flex-wrap">
+                      {filledOpponents.map(s => (
+                        <div key={`right-${s}`} className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/20">
+                          <Sprite species={s} size="sm" />
+                          <span className="text-[10px] text-white">{s}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-[10px] text-slate-600">No right-side team accumulated yet</div>
+                  )}
+                </div>
+              </div>
             </DebugSection>
 
             {/* Section: Raw Data — merged near misses + raw OCR */}

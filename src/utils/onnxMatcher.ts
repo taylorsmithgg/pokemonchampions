@@ -30,7 +30,7 @@ export async function loadModel(): Promise<void> {
   try {
     // Use WASM backend (works everywhere, no WebGL quirks)
     ort.env.wasm.numThreads = 1;
-    const modelUrl = import.meta.env.BASE_URL + 'models/mobilenetv2-7.onnx';
+    const modelUrl = import.meta.env.BASE_URL + 'models/mobilenetv2-features.onnx';
     _session = await ort.InferenceSession.create(modelUrl, {
       executionProviders: ['wasm'],
     });
@@ -99,19 +99,49 @@ export interface OnnxMatch {
   confidence: number;
 }
 
-export function matchEmbedding(features: number[], topN = 3, minSimilarity = 0.3): OnnxMatch[] {
+export function rankEmbeddingMatches(features: number[], topN = 5, minSimilarity = 0.5): OnnxMatch[] {
   const scores = _refEmbeddings.map(ref => ({
     species: ref.species,
     similarity: cosineSimilarity(features, ref.embedding),
   }));
   scores.sort((a, b) => b.similarity - a.similarity);
+
   return scores
+    .filter(score => score.similarity >= minSimilarity)
     .slice(0, topN)
-    .filter(s => s.similarity >= minSimilarity)
-    .map(s => ({
-      ...s,
-      confidence: Math.max(0, Math.min(1, (s.similarity - 0.3) / 0.5)), // 0.3→0, 0.8→1
+    .map(score => ({
+      species: score.species,
+      similarity: score.similarity,
+      confidence: Math.max(0, Math.min(1, (score.similarity - 0.5) / 0.35)),
     }));
+}
+
+export function matchEmbedding(features: number[], topN = 1, minSimilarity = 0.6): OnnxMatch[] {
+  const ranked = rankEmbeddingMatches(features, Math.max(2, topN), minSimilarity);
+  // Gap check: top match must be clearly better than runner-up
+  const top = ranked[0];
+  const second = ranked[1];
+  if (!top || top.similarity < minSimilarity) return [];
+  const gap = second ? top.similarity - second.similarity : 0.5;
+  // Reject if gap is too small (ambiguous — could be noise)
+  if (gap < 0.02) return [];
+
+  return [{
+    species: top.species,
+    similarity: top.similarity,
+    // Confidence from similarity + gap. 0.6→low, 0.85+→high
+    confidence: Math.max(0, Math.min(1, (top.similarity - 0.5) / 0.35 * (1 + gap * 3))),
+  }];
+}
+
+export async function matchCanvasWithOnnx(
+  canvas: HTMLCanvasElement,
+  topN = 5,
+  minSimilarity = 0.5,
+): Promise<OnnxMatch[]> {
+  const features = await extractFeatures(canvas);
+  if (!features) return [];
+  return rankEmbeddingMatches(features, topN, minSimilarity);
 }
 
 // ─── Region Scan ────────────────────────────────────────────────
@@ -147,7 +177,7 @@ export async function scanRegionsWithOnnx(
     const features = await extractFeatures(crop);
     if (!features) continue;
 
-    const matches = matchEmbedding(features, 1, 0.35);
+    const matches = matchEmbedding(features, 1, 0.6);
     for (const m of matches) {
       if (!seen.has(m.species)) {
         seen.add(m.species);

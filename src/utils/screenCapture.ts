@@ -89,6 +89,12 @@ interface SpriteProfile {
   templateH: number;
 }
 
+export interface SpriteProfileCandidate {
+  species: string;
+  score: number;
+  confidence: number;
+}
+
 let _spriteProfiles: SpriteProfile[] | null = null;
 let _profilesLoading = false;
 let _profilesProgress = 0;
@@ -291,6 +297,58 @@ export async function addTrainedProfile(
     templateH: th,
   });
   _trainedRegions.set(species, existing + 1);
+}
+
+export async function rankRegionWithSpriteProfiles(
+  canvas: HTMLCanvasElement,
+  region: { x: number; y: number; w: number; h: number },
+  topN: number = 5,
+): Promise<SpriteProfileCandidate[]> {
+  const profiles = await loadSpriteProfiles();
+  if (profiles.length === 0) return [];
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return [];
+
+  const rw = Math.max(1, Math.round(region.w));
+  const rh = Math.max(1, Math.round(region.h));
+  if (rw < 16 || rh < 16) return [];
+
+  const regionImgData = ctx.getImageData(Math.round(region.x), Math.round(region.y), rw, rh);
+  const regionHist = buildHsvHistogram(regionImgData.data, 2);
+
+  const miniCanvas = document.createElement('canvas');
+  miniCanvas.width = 32;
+  miniCanvas.height = 32;
+  const miniCtx = miniCanvas.getContext('2d');
+  if (!miniCtx) return [];
+
+  const tmpCanvas = document.createElement('canvas');
+  tmpCanvas.width = rw;
+  tmpCanvas.height = rh;
+  tmpCanvas.getContext('2d')!.putImageData(regionImgData, 0, 0);
+  miniCtx.drawImage(tmpCanvas, 0, 0, 32, 32);
+  const miniData = miniCtx.getImageData(0, 0, 32, 32);
+
+  const bestBySpecies = new Map<string, number>();
+  for (const profile of profiles) {
+    const histScore = histogramSimilarity(regionHist, profile.histogram);
+    const templateScore = templateMatchScore(miniData.data, profile.templateData);
+    const finalScore = histScore * 0.15 + templateScore * 0.85;
+    const existing = bestBySpecies.get(profile.species) ?? -1;
+    if (finalScore > existing) {
+      bestBySpecies.set(profile.species, finalScore);
+    }
+  }
+
+  return [...bestBySpecies.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, topN)
+    .map(([species, score]) => ({
+      species,
+      score,
+      confidence: Math.max(0, Math.min(1, score * 2.5)),
+    }));
 }
 
 export function getTrainedSampleCount(): Record<string, number> {

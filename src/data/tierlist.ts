@@ -133,14 +133,6 @@ const NORMAL_TIER_LIST_RAW: TierEntry[] = [
     types: ['Water', 'Dark'],
     note: 'Top speed tier, Protean STAB on every move.',
   },
-  {
-    name: 'Amoonguss',
-    tier: 'A+',
-    roles: ['Redirector', 'Support'],
-    types: ['Grass', 'Poison'],
-    note: 'Rage Powder + Spore + Regenerator. VGC staple.',
-  },
-
   // A Tier
   {
     name: 'Corviknight',
@@ -184,21 +176,6 @@ const NORMAL_TIER_LIST_RAW: TierEntry[] = [
     types: ['Fighting', 'Poison'],
     note: 'Unburden + Close Combat. Fast and hard-hitting.',
   },
-  {
-    name: 'Gholdengo',
-    tier: 'A',
-    roles: ['Special Sweeper'],
-    types: ['Steel', 'Ghost'],
-    note: 'Good as Gold blocks all status moves. Make It Rain power.',
-  },
-  {
-    name: 'Rillaboom',
-    tier: 'A',
-    roles: ['Physical Sweeper', 'Terrain Setter'],
-    types: ['Grass'],
-    note: 'Grassy Surge + priority Grassy Glide. Fake Out support.',
-  },
-
   // B Tier
   {
     name: 'Whimsicott',
@@ -269,13 +246,6 @@ const NORMAL_TIER_LIST_RAW: TierEntry[] = [
     roles: ['Rain Setter', 'Support'],
     types: ['Water', 'Flying'],
     note: 'Drizzle rain setter. U-Turn pivoting.',
-  },
-  {
-    name: 'Kingdra',
-    tier: 'B',
-    roles: ['Special Sweeper'],
-    types: ['Water', 'Dragon'],
-    note: 'Swift Swim doubles Speed in rain. Muddy Water spread.',
   },
   {
     name: 'Arcanine',

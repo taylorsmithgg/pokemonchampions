@@ -6,7 +6,6 @@ import { StatPointAllocator } from './StatPointAllocator';
 import { TypeBadge } from './TypeBadge';
 import { GenBadge } from './GenBadge';
 import {
-  getAvailablePokemon,
   getAvailableMoves,
   getAvailableItems,
   getAvailableAbilities,
@@ -33,6 +32,7 @@ import type { PokemonState, NatureName } from '../types';
 import { createDefaultPokemonState, CHAMPIONS_LEVEL } from '../types';
 import { usePokemonActions } from '../contexts/PokemonActions';
 import { PokeballMini } from './PokeballSpinner';
+import { getPokemonSelectPool } from '../data/pokemonSelect';
 
 function getMoveInfo(moveName: string): { type: string; category: string; bp: number } | null {
   if (!moveName) return null;
@@ -348,7 +348,7 @@ export function PokemonPanel({ state, onChange, side, teammateItems = [], teamma
   const { addToTeam } = usePokemonActions();
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const pokemon = getAvailablePokemon();
+  const pokemon = useMemo(() => getPokemonSelectPool(), []);
   const allMoves = useMemo(() => getAvailableMoves(), []);
   const allItems = useMemo(() => getAvailableItems(), []);
   const speciesAbilities = useMemo(() => {

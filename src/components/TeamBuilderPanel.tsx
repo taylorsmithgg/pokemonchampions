@@ -17,7 +17,6 @@ import { getRecommendations, type SynergyReason } from '../data/synergies';
 import { TeamStoragePanel } from './TeamStoragePanel';
 import { PokeballSpinner, PokeballMini } from './PokeballSpinner';
 import {
-  getAvailablePokemon,
   getAvailableMoves,
   getAvailableItems,
   getAvailableAbilities,
@@ -37,6 +36,7 @@ import { useLiveData } from '../hooks/useLiveData';
 import { importShowdownSet } from '../utils/importExport';
 import type { PokemonState, NatureName } from '../types';
 import { createDefaultPokemonState } from '../types';
+import { getPokemonSelectPool } from '../data/pokemonSelect';
 
 interface TeamBuilderPanelProps {
   team: PokemonState[];
@@ -92,11 +92,11 @@ function TeamSlot({
   onAutoFill: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  // Sort Pokemon by how well they fit the current team composition.
-  // Filter out species already on the team to enforce no duplicates.
+  // Sort Pokemon by how well they fit the current team composition,
+  // but always start from the same canonical Champions pool as the
+  // calculator and quick team inputs.
   const allPokemon = useMemo(() => {
-    const teamSpecies = new Set(team.filter(t => t.species && t.species !== pokemon.species).map(t => t.species));
-    const all = getAvailablePokemon().filter(s => !teamSpecies.has(s));
+    const all = getPokemonSelectPool();
     const picks = suggestNextPick(team, 50, format);
     const scoreMap = new Map(picks.map(p => [p.species, p.score]));
 

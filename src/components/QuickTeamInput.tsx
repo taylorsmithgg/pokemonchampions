@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
-import { getAvailablePokemon } from '../data/champions';
 import { Sprite } from './Sprite';
+import { getPokemonSelectPool } from '../data/pokemonSelect';
 
 interface QuickTeamInputProps {
   value: string[];
@@ -15,7 +15,7 @@ export function QuickTeamInput({ value, onChange, maxSlots = 6 }: QuickTeamInput
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
-  const allPokemon = useMemo(() => getAvailablePokemon(), []);
+  const allPokemon = useMemo(() => getPokemonSelectPool(), []);
 
   // Build a lowercase lookup once
   const pokemonLower = useMemo(

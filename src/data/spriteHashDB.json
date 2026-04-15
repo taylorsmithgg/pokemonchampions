@@ -1,830 +1,1070 @@
 [
   {
     "species": "Abomasnow",
-    "hash": "5a0c0c8850203000"
+    "hash": "cca486944c682800"
+  },
+  {
+    "species": "Abomasnow-Mega",
+    "hash": "87cccce4c4ccd800"
   },
   {
     "species": "Absol",
-    "hash": "401844804c220410"
+    "hash": "5870606848dc9c18"
+  },
+  {
+    "species": "Absol-Mega",
+    "hash": "18606830f4b4b49c"
   },
   {
     "species": "Aegislash-Shield",
-    "hash": "084c1556da040800"
+    "hash": "1850d4e8d4783010"
   },
   {
     "species": "Aerodactyl",
-    "hash": "0000001808404000"
+    "hash": "2038f4d46466c203"
+  },
+  {
+    "species": "Aerodactyl-Mega",
+    "hash": "00101818e8cbc340"
   },
   {
     "species": "Aggron",
-    "hash": "ace8b4a448100000"
+    "hash": "ccd4b1e074721010"
+  },
+  {
+    "species": "Aggron-Mega",
+    "hash": "8c8d65c8ccb41200"
   },
   {
     "species": "Alakazam",
-    "hash": "442a95938d0c2800"
+    "hash": "dcd8caa2a4c9e0d8"
+  },
+  {
+    "species": "Alakazam-Mega",
+    "hash": "f0f0ccaeba95485a"
   },
   {
     "species": "Alcremie",
-    "hash": "9c0c496e045cb810"
+    "hash": "2068506c68380000"
   },
   {
     "species": "Altaria",
-    "hash": "0060288e26441000"
+    "hash": "0870c83219323000"
+  },
+  {
+    "species": "Altaria-Mega",
+    "hash": "303030f0f092b8e2"
   },
   {
     "species": "Ampharos",
-    "hash": "2884222010141000"
+    "hash": "3434649418181c34"
+  },
+  {
+    "species": "Ampharos-Mega",
+    "hash": "3030645468283034"
   },
   {
     "species": "Appletun",
-    "hash": "265667452f000000"
+    "hash": "f870704c70284000"
   },
   {
     "species": "Araquanid",
-    "hash": "808292b428600c00"
+    "hash": "809bb2ba988c0000"
   },
   {
     "species": "Arbok",
-    "hash": "c018184880502800"
+    "hash": "e0cce2f0c8e4e030"
   },
   {
     "species": "Arcanine",
-    "hash": "b4ea52a28cae5200"
+    "hash": "32787272f6d2d268"
   },
   {
     "species": "Arcanine-Hisui",
-    "hash": "9ac880b4a8d48800"
+    "hash": "24f4c0c8c8ccb808"
   },
   {
     "species": "Archaludon",
-    "hash": "222a15254d1c8000"
+    "hash": "6c706c78d8bab238"
   },
   {
     "species": "Ariados",
-    "hash": "52c2942048480000"
+    "hash": "aabae06048480000"
   },
   {
     "species": "Armarouge",
-    "hash": "2232145b81323800"
+    "hash": "6068786870703010"
   },
   {
     "species": "Aromatisse",
-    "hash": "40248650a484a480"
+    "hash": "7064cce868684000"
   },
   {
     "species": "Audino",
-    "hash": "408048c8489a4800"
+    "hash": "38686468ecf86800"
   },
   {
     "species": "Aurorus",
-    "hash": "4088402830485200"
+    "hash": "6040604030302834"
   },
   {
     "species": "Avalugg",
-    "hash": "736a6c5458783020"
+    "hash": "c3c6a49892e00000"
   },
   {
     "species": "Avalugg-Hisui",
-    "hash": "23614583872b0600"
+    "hash": "999c9c84e0000000"
   },
   {
     "species": "Azumarill",
-    "hash": "4018e89080202000"
+    "hash": "28e8cab878686420"
   },
   {
     "species": "Banette",
-    "hash": "5288689cc0802800"
+    "hash": "70b498e464381800"
+  },
+  {
+    "species": "Banette-Mega",
+    "hash": "b0e8f4e020301000"
   },
   {
     "species": "Basculegion",
-    "hash": "18180c5050101000"
+    "hash": "20b8ded6cc603010"
   },
   {
     "species": "Bastiodon",
-    "hash": "5068646444646000"
+    "hash": "d4ac28e868782400"
   },
   {
     "species": "Beartic",
-    "hash": "641448080c301000"
+    "hash": "d8b0c848dcb2b230"
   },
   {
     "species": "Beedrill",
-    "hash": "8460203418080000"
+    "hash": "547030f2b498ac84"
+  },
+  {
+    "species": "Beedrill-Mega",
+    "hash": "985051eaf0e8b0e8"
   },
   {
     "species": "Bellibolt",
-    "hash": "abd1c5cd625a2400"
+    "hash": "c0eca6e6f0fc6030"
   },
   {
     "species": "Blastoise",
-    "hash": "10109844a4ae0800"
+    "hash": "c8d8c8a4a494ba30"
+  },
+  {
+    "species": "Blastoise-Mega",
+    "hash": "d8c89ef868301818"
   },
   {
     "species": "Camerupt",
-    "hash": "b090105008c8b020"
+    "hash": "b4c89492b8c4d060"
+  },
+  {
+    "species": "Camerupt-Mega",
+    "hash": "f482c2c26a7c3000"
   },
   {
     "species": "Castform",
-    "hash": "5048384014203000"
+    "hash": "0030287068303000"
   },
   {
     "species": "Ceruledge",
-    "hash": "249152322c140000"
+    "hash": "a0d0783830301008"
   },
   {
     "species": "Chandelure",
-    "hash": "2490242020202000"
+    "hash": "96ba2a32b2302020"
+  },
+  {
+    "species": "Chandelure-Mega",
+    "hash": "f0e8f85870303010"
   },
   {
     "species": "Charizard",
-    "hash": "a828101028400000"
+    "hash": "6464d4f4cec20000"
+  },
+  {
+    "species": "Charizard-Mega-X",
+    "hash": "68e8a8cce8180800"
+  },
+  {
+    "species": "Charizard-Mega-Y",
+    "hash": "18347220a5ce6400"
   },
   {
     "species": "Chesnaught",
-    "hash": "90d06262b0a01000"
+    "hash": "4809b3e0c8d88c00"
+  },
+  {
+    "species": "Chesnaught-Mega",
+    "hash": "6099d3b2e4583200"
   },
   {
     "species": "Chimecho",
-    "hash": "8048201008360808"
+    "hash": "3070303030383010"
+  },
+  {
+    "species": "Chimecho-Mega",
+    "hash": "69cdacc870d4c683"
   },
   {
     "species": "Clawitzer",
-    "hash": "2450402020200000"
+    "hash": "00cdd4b0e870c000"
   },
   {
     "species": "Clefable",
-    "hash": "04460706468a2100"
+    "hash": "30e4c6ce8eda8000"
+  },
+  {
+    "species": "Clefable-Mega",
+    "hash": "000078e4e48a0000"
   },
   {
     "species": "Cofagrigus",
-    "hash": "b191303432424000"
+    "hash": "00a21663b4a48400"
   },
   {
     "species": "Conkeldurr",
-    "hash": "24444464b00ca000"
+    "hash": "82c696b2aa960000"
   },
   {
     "species": "Corviknight",
-    "hash": "00202020c8040000"
+    "hash": "cc686870746c7010"
   },
   {
     "species": "Crabominable",
-    "hash": "44a44e0ec0a00000"
+    "hash": "e2d2d3c088000000"
+  },
+  {
+    "species": "Crabominable-Mega",
+    "hash": "6464c8d8cccccece"
   },
   {
     "species": "Decidueye",
-    "hash": "0430885444342000"
+    "hash": "70d4747860383830"
   },
   {
     "species": "Decidueye-Hisui",
-    "hash": "121446593a400c00"
+    "hash": "2078306470783030"
   },
   {
     "species": "Dedenne",
-    "hash": "204460261436b400"
+    "hash": "3064e4d864000000"
   },
   {
     "species": "Delphox",
-    "hash": "00488c58305c9000"
+    "hash": "60e8f8b830e86820"
+  },
+  {
+    "species": "Delphox-Mega",
+    "hash": "70f8f8d4d0a9a861"
   },
   {
     "species": "Diggersby",
-    "hash": "5040409444228800"
+    "hash": "606068b6c6cc0000"
   },
   {
     "species": "Ditto",
-    "hash": "12028e1e0e185c00"
+    "hash": "e0c2c4d878080000"
   },
   {
     "species": "Dragapult",
-    "hash": "2454344222229200"
+    "hash": "1834362222f1e828"
   },
   {
     "species": "Dragonite",
-    "hash": "4c68584640409000"
+    "hash": "6c7c64e4ced45030"
+  },
+  {
+    "species": "Dragonite-Mega",
+    "hash": "00606860e9f3d422"
   },
   {
     "species": "Drampa",
-    "hash": "28d0a8ca2e302000"
+    "hash": "00c6b2d6c6e83000"
+  },
+  {
+    "species": "Drampa-Mega",
+    "hash": "64e8e86038383010"
   },
   {
     "species": "Emboar",
-    "hash": "888882120a606000"
+    "hash": "ccc8c9aeaef87054"
+  },
+  {
+    "species": "Emboar-Mega",
+    "hash": "68f8e46478d4d2c0"
   },
   {
     "species": "Emolga",
-    "hash": "209c204440342400"
+    "hash": "0060486468786800"
   },
   {
     "species": "Empoleon",
-    "hash": "484ac44428202000"
+    "hash": "28aaec6c70303030"
   },
   {
     "species": "Espathra",
-    "hash": "1090b45d99020604"
+    "hash": "70d0f0e8cc4c3c0c"
   },
   {
     "species": "Espeon",
-    "hash": "8418181a06630200"
+    "hash": "38303078d2c20000"
   },
   {
     "species": "Excadrill",
-    "hash": "617a446838341000"
+    "hash": "a0aae83030180000"
+  },
+  {
+    "species": "Excadrill-Mega",
+    "hash": "c4a2cc6060000000"
   },
   {
     "species": "Farigiraf",
-    "hash": "944818280c030200"
+    "hash": "6060606030181818"
   },
   {
     "species": "Feraligatr",
-    "hash": "14b4905690401000"
+    "hash": "cecc8c88e6f43828"
+  },
+  {
+    "species": "Feraligatr-Mega",
+    "hash": "68e8ecf03070f070"
   },
   {
     "species": "Flapple",
-    "hash": "000018100c21b400"
+    "hash": "000038f0f8680000"
   },
   {
     "species": "Flareon",
-    "hash": "265b326548302000"
+    "hash": "3420e8e8d4666220"
   },
   {
     "species": "Floette-Eternal",
-    "hash": "020c2c1830180000"
+    "hash": "004838f830380800"
+  },
+  {
+    "species": "Floette-Mega",
+    "hash": "0018181bf8de0700"
   },
   {
     "species": "Florges",
-    "hash": "0012231505261e00"
+    "hash": "183868d8a8343030"
   },
   {
     "species": "Forretress",
-    "hash": "58cc88aca8c86000"
+    "hash": "0070ccd4c4e47000"
   },
   {
     "species": "Froslass",
-    "hash": "1494a02a14321200"
+    "hash": "30c8d074303c3434"
+  },
+  {
+    "species": "Froslass-Mega",
+    "hash": "e8e0386068703838"
   },
   {
     "species": "Furfrou",
-    "hash": "c8483326182a4600"
+    "hash": "7060686878283808"
   },
   {
     "species": "Gallade",
-    "hash": "85422420a8282810"
+    "hash": "6c6c283870301010"
+  },
+  {
+    "species": "Gallade-Mega",
+    "hash": "4864bcd8f0707060"
   },
   {
     "species": "Garbodor",
-    "hash": "808ccc8a4a525000"
+    "hash": "c8acacead2d2d000"
   },
   {
     "species": "Garchomp",
-    "hash": "505032a4a8601000"
+    "hash": "4048f9aab4c09034"
+  },
+  {
+    "species": "Garchomp-Mega",
+    "hash": "cccc696bd6ea7060"
   },
   {
     "species": "Gardevoir",
-    "hash": "0210202040501000"
+    "hash": "6ce8343418181818"
+  },
+  {
+    "species": "Gardevoir-Mega",
+    "hash": "70d4d4d4c4303070"
   },
   {
     "species": "Garganacl",
-    "hash": "24a4d92a12241810"
+    "hash": "92b6b0e89290d030"
   },
   {
     "species": "Gengar",
-    "hash": "d0808c88ac5c8000"
+    "hash": "4468c4cee46cd480"
+  },
+  {
+    "species": "Gengar-Mega",
+    "hash": "86c4cce8d0d08c00"
   },
   {
     "species": "Glaceon",
-    "hash": "10443030285a1000"
+    "hash": "3838386cdc968000"
   },
   {
     "species": "Glalie",
-    "hash": "bca6342a88960000"
+    "hash": "30f0d6a2caca9603"
+  },
+  {
+    "species": "Glalie-Mega",
+    "hash": "f0ecf8a6b4c8c88c"
   },
   {
     "species": "Glimmora",
-    "hash": "0824212633e50800"
+    "hash": "0070f8dad8f87000"
+  },
+  {
+    "species": "Glimmora-Mega",
+    "hash": "30c8c6eae2c6c8b0"
   },
   {
     "species": "Gliscor",
-    "hash": "0808209848b24a00"
+    "hash": "183020e8acacec6c"
   },
   {
     "species": "Golurk",
-    "hash": "646848281624a410"
+    "hash": "6470c8acbcf4ec96"
+  },
+  {
+    "species": "Golurk-Mega",
+    "hash": "7458d2e8ececcc86"
   },
   {
     "species": "Goodra",
-    "hash": "58524c1c18dc3400"
+    "hash": "2078506850506030"
   },
   {
     "species": "Goodra-Hisui",
-    "hash": "48442a98829d4d10"
+    "hash": "2878687058486430"
   },
   {
     "species": "Gourgeist",
-    "hash": "081650c490401000"
+    "hash": "3068786868303010"
   },
   {
     "species": "Gourgeist-Large",
-    "hash": "0c17524a14080800"
+    "hash": "60ec786868303010"
   },
   {
     "species": "Gourgeist-Small",
-    "hash": "0e354a1a14280810"
-  },
-  {
-    "species": "Gourgeist-Super",
-    "hash": "0c17524a14080800"
+    "hash": "2060786838301010"
   },
   {
     "species": "Greninja",
-    "hash": "2830102098182000"
+    "hash": "6c64393834240000"
+  },
+  {
+    "species": "Greninja-Mega",
+    "hash": "103030303030d0a4"
   },
   {
     "species": "Gyarados",
-    "hash": "4830242c28080000"
+    "hash": "90b1eadeda5e0a0a"
+  },
+  {
+    "species": "Gyarados-Mega",
+    "hash": "0034e4bc70746c00"
   },
   {
     "species": "Hatterene",
-    "hash": "1c0e180c64d51000"
+    "hash": "2860203020686830"
   },
   {
     "species": "Hawlucha",
-    "hash": "20d088c234203000"
+    "hash": "a8c8ecb230000000"
+  },
+  {
+    "species": "Hawlucha-Mega",
+    "hash": "78e8ccd2b1100000"
   },
   {
     "species": "Heliolisk",
-    "hash": "142a161410080a00"
+    "hash": "6868783830383010"
   },
   {
     "species": "Heracross",
-    "hash": "489adc5020081000"
+    "hash": "4cb1eae830181c14"
+  },
+  {
+    "species": "Heracross-Mega",
+    "hash": "80caf47030301808"
   },
   {
     "species": "Hippowdon",
-    "hash": "c2abb12936261410"
+    "hash": "e4989896c4f00000"
   },
   {
     "species": "Houndoom",
-    "hash": "5608ac9420083200"
+    "hash": "345050687858d440"
+  },
+  {
+    "species": "Houndoom-Mega",
+    "hash": "6860602068783010"
   },
   {
     "species": "Hydrapple",
-    "hash": "6643530804050100"
+    "hash": "7070383010181810"
   },
   {
     "species": "Hydreigon",
-    "hash": "10181a1443242400"
+    "hash": "1030323c32e4aec3"
   },
   {
     "species": "Incineroar",
-    "hash": "4050303028723000"
+    "hash": "cc6831b8aa711000"
   },
   {
     "species": "Infernape",
-    "hash": "2a58852424080000"
+    "hash": "706c5460da903070"
   },
   {
     "species": "Jolteon",
-    "hash": "54a498aad6624000"
+    "hash": "ec4c4cd4f4643200"
   },
   {
     "species": "Kangaskhan",
-    "hash": "5090426664301000"
+    "hash": "6474c6c4e6743878"
+  },
+  {
+    "species": "Kangaskhan-Mega",
+    "hash": "65ecc6c666783838"
   },
   {
     "species": "Kingambit",
-    "hash": "74b60c4908040400"
+    "hash": "7070d068d0981808"
   },
   {
     "species": "Kleavor",
-    "hash": "101159562c380800"
+    "hash": "8694d4d4f0606020"
   },
   {
     "species": "Klefki",
-    "hash": "c020a02860a02000"
+    "hash": "0030307070301000"
   },
   {
     "species": "Kommo-o",
-    "hash": "a244245010281000"
+    "hash": "cc6ae8f0d098d818"
   },
   {
     "species": "Krookodile",
-    "hash": "c69c485244241000"
+    "hash": "8c88c8cec8a0b0b0"
   },
   {
     "species": "Leafeon",
-    "hash": "9418145466662000"
+    "hash": "28706cc8d4ce8000"
   },
   {
     "species": "Liepard",
-    "hash": "20d4941492004000"
+    "hash": "d070607078506020"
   },
   {
     "species": "Lopunny",
-    "hash": "1058312420b85000"
+    "hash": "30f0b0f070787008"
+  },
+  {
+    "species": "Lopunny-Mega",
+    "hash": "30b09292d4f86030"
   },
   {
     "species": "Lucario",
-    "hash": "c84c024aa8903020"
+    "hash": "6828706860301010"
+  },
+  {
+    "species": "Lucario-Mega",
+    "hash": "6868626868603010"
   },
   {
     "species": "Luxray",
-    "hash": "58d88c90542a2400"
+    "hash": "78f8a8a4f4742c0d"
   },
   {
     "species": "Lycanroc",
-    "hash": "20086064d6882c00"
+    "hash": "1870f0a4e4781c00"
   },
   {
     "species": "Lycanroc-Dusk",
-    "hash": "20a8e4d4180a1200"
+    "hash": "7870f0f460381800"
   },
   {
     "species": "Lycanroc-Midnight",
-    "hash": "30a8a04823322800"
+    "hash": "d468783830301800"
   },
   {
     "species": "Machamp",
-    "hash": "90d0500420642600"
+    "hash": "584870e0ccf0d4c6"
   },
   {
     "species": "Mamoswine",
-    "hash": "54624b515048a000"
+    "hash": "cc998d8494c87000"
   },
   {
     "species": "Manectric",
-    "hash": "34506854d0080800"
+    "hash": "7458d87864341808"
+  },
+  {
+    "species": "Manectric-Mega",
+    "hash": "60e8e8c0c4d850c0"
   },
   {
     "species": "Maushold",
-    "hash": "9c20088a8080444a"
+    "hash": "e8e8567400000000"
   },
   {
     "species": "Medicham",
-    "hash": "b820804420281000"
+    "hash": "306060f4f0301010"
+  },
+  {
+    "species": "Medicham-Mega",
+    "hash": "38383078b9da9a00"
   },
   {
     "species": "Meganium",
-    "hash": "3434014848244400"
+    "hash": "685048e870181810"
+  },
+  {
+    "species": "Meganium-Mega",
+    "hash": "e8d0d8fcfce87034"
   },
   {
     "species": "Meowscarada",
-    "hash": "0848aa570c12ca00"
+    "hash": "1810d0ccd8303030"
   },
   {
     "species": "Meowstic",
-    "hash": "28c8688044a4a500"
+    "hash": "5070e0e8746c4400"
   },
   {
     "species": "Meowstic-F",
-    "hash": "5040a8242a604300"
+    "hash": "c8b0f07438242400"
+  },
+  {
+    "species": "Meowstic-Mega",
+    "hash": "2060706038706868"
   },
   {
     "species": "Milotic",
-    "hash": "a114a4a028181000"
+    "hash": "66f2a49494d0644c"
   },
   {
     "species": "Mimikyu",
-    "hash": "24345834a40c0800"
+    "hash": "3470e07810100000"
   },
   {
     "species": "Morpeko",
-    "hash": "00262612040a0400"
+    "hash": "6868686868680000"
   },
   {
     "species": "Mr. Rime",
-    "hash": "24102c19c80a4800"
+    "hash": "a8b0e8e8f2ecd240"
   },
   {
     "species": "Mudsdale",
-    "hash": "535a424a35160800"
+    "hash": "f0e8e8e470381c0c"
   },
   {
     "species": "Ninetales",
-    "hash": "28924ae09a885a00"
+    "hash": "9494c8b49cdc6c30"
   },
   {
     "species": "Ninetales-Alola",
-    "hash": "28085064e4680808"
+    "hash": "2c28bce6b8f80800"
   },
   {
     "species": "Noivern",
-    "hash": "000010d410000000"
+    "hash": "64d2e6d818140000"
   },
   {
     "species": "Oranguru",
-    "hash": "d6f6a674a8a89000"
+    "hash": "607472e4e4e46000"
   },
   {
     "species": "Orthworm",
-    "hash": "1050084820220904"
+    "hash": "f0e0d034303c3438"
   },
   {
     "species": "Palafin",
-    "hash": "211515050b031600"
-  },
-  {
-    "species": "Pangoro",
-    "hash": "8ce80484cc562000"
+    "hash": "006266f6d6fe3800"
   },
   {
     "species": "Passimian",
-    "hash": "884c64a698640800"
+    "hash": "38c4dcc8ece43818"
   },
   {
     "species": "Pelipper",
-    "hash": "0088a06010100000"
+    "hash": "0028b0a266783800"
   },
   {
     "species": "Pidgeot",
-    "hash": "000050a0a8000000"
+    "hash": "3070f2c3fcf0380c"
+  },
+  {
+    "species": "Pidgeot-Mega",
+    "hash": "000030f2cad02000"
   },
   {
     "species": "Pikachu",
-    "hash": "123628161a122200"
+    "hash": "1c34f0d814362000"
   },
   {
     "species": "Pinsir",
-    "hash": "d8602c7070484800"
+    "hash": "d8f290ea68680000"
+  },
+  {
+    "species": "Pinsir-Mega",
+    "hash": "0068b2ecd8787400"
   },
   {
     "species": "Politoed",
-    "hash": "62cd172e0e1c0200"
+    "hash": "ccc8ccec60701808"
   },
   {
     "species": "Polteageist",
-    "hash": "2854aa2a0e181000"
+    "hash": "0030e0a4f0381800"
   },
   {
     "species": "Primarina",
-    "hash": "6c48285060408000"
+    "hash": "7084766068606040"
   },
   {
     "species": "Quaquaval",
-    "hash": "08284a7683440000"
+    "hash": "30f0d87070723030"
   },
   {
     "species": "Raichu",
-    "hash": "1644064c50041200"
+    "hash": "14f494b8d472301c"
   },
   {
     "species": "Raichu-Alola",
-    "hash": "50a0a0c040800000"
+    "hash": "d872d3dad0d09090"
   },
   {
     "species": "Rampardos",
-    "hash": "a820a44828122a00"
+    "hash": "6c68f4d8b8382808"
   },
   {
     "species": "Reuniclus",
-    "hash": "3024ac04a2382800"
+    "hash": "001030e8ceae0200"
   },
   {
     "species": "Rhyperior",
-    "hash": "cca08c4cea542000"
+    "hash": "ccccc6c4d4a4b400"
   },
   {
     "species": "Roserade",
-    "hash": "50806428c8804000"
+    "hash": "f0c0e03468447020"
   },
   {
     "species": "Rotom",
-    "hash": "0010505010101000"
+    "hash": "0000d4f030100000"
+  },
+  {
+    "species": "Rotom-Fan",
+    "hash": "001030f0f0301000"
+  },
+  {
+    "species": "Rotom-Frost",
+    "hash": "00003068e0b20000"
+  },
+  {
+    "species": "Rotom-Heat",
+    "hash": "000070e0e8f40000"
+  },
+  {
+    "species": "Rotom-Mow",
+    "hash": "0020e8e870303000"
+  },
+  {
+    "species": "Rotom-Wash",
+    "hash": "0000f0f860300000"
   },
   {
     "species": "Runerigus",
-    "hash": "085058194d464800"
+    "hash": "f8d992d090000000"
   },
   {
     "species": "Sableye",
-    "hash": "108c50a008500000"
+    "hash": "60646068d8484800"
+  },
+  {
+    "species": "Sableye-Mega",
+    "hash": "1c3870f0aa5a1616"
   },
   {
     "species": "Salazzle",
-    "hash": "2014080c14080a00"
+    "hash": "c4c4747838181808"
   },
   {
     "species": "Samurott",
-    "hash": "ac4c4c2c2c0a0100"
+    "hash": "ccf8c8e2d8b41406"
   },
   {
     "species": "Samurott-Hisui",
-    "hash": "525c092622c54400"
+    "hash": "c4ece0d0ccd4381a"
   },
   {
     "species": "Sandaconda",
-    "hash": "52a2cd1315141608"
+    "hash": "78eec6b7e4e46438"
   },
   {
     "species": "Scizor",
-    "hash": "505024a260d00000"
+    "hash": "4848e8f4d0e0f0b0"
+  },
+  {
+    "species": "Scizor-Mega",
+    "hash": "6868aab2e860f0b0"
   },
   {
     "species": "Scovillain",
-    "hash": "a04080a030269800"
+    "hash": "d0d0e0e4ecccc440"
+  },
+  {
+    "species": "Scovillain-Mega",
+    "hash": "d8e8c0e0a49c8818"
   },
   {
     "species": "Serperior",
-    "hash": "8a28181040101000"
+    "hash": "e4dee8b0a8f03070"
   },
   {
     "species": "Sharpedo",
-    "hash": "1024402010081000"
+    "hash": "1018f0f430181810"
+  },
+  {
+    "species": "Sharpedo-Mega",
+    "hash": "181cf2b238181010"
   },
   {
     "species": "Simipour",
-    "hash": "28382828d4a65020"
+    "hash": "6868c8e8ccec7020"
   },
   {
     "species": "Simisage",
-    "hash": "20902898d0140800"
+    "hash": "687868c8d0101808"
   },
   {
     "species": "Simisear",
-    "hash": "4840c44094883000"
-  },
-  {
-    "species": "Sinistcha",
-    "hash": "1816360c18080000"
+    "hash": "68e84cc8cce83010"
   },
   {
     "species": "Skarmory",
-    "hash": "404030208c0a0800"
+    "hash": "28303868e4ce8d0c"
+  },
+  {
+    "species": "Skarmory-Mega",
+    "hash": "68e8e0e0b0983838"
   },
   {
     "species": "Skeledirge",
-    "hash": "254a4a0505424000"
+    "hash": "a68caab400000000"
   },
   {
     "species": "Slowbro",
-    "hash": "1662b8522c480a00"
+    "hash": "dae295b6c80c0000"
   },
   {
     "species": "Slowbro-Galar",
-    "hash": "674db7191a2b2b00"
+    "hash": "6458dc6470242c28"
+  },
+  {
+    "species": "Slowbro-Mega",
+    "hash": "e0e0c8c8ccc4c870"
   },
   {
     "species": "Slowking",
-    "hash": "a6544854545a2200"
+    "hash": "64ece474686868b0"
   },
   {
     "species": "Slowking-Galar",
-    "hash": "4a8e4a1257260600"
+    "hash": "6868c87078683010"
   },
   {
     "species": "Slurpuff",
-    "hash": "8c9a824488582010"
+    "hash": "68c8e4a468303000"
   },
   {
     "species": "Sneasler",
-    "hash": "a03028b828383400"
+    "hash": "3030386870706024"
   },
   {
     "species": "Snorlax",
-    "hash": "82ca028284444448"
+    "hash": "eccc8682c6cc6868"
   },
   {
     "species": "Spiritomb",
-    "hash": "2038305280a8c000"
+    "hash": "707070f8f0e87818"
   },
   {
     "species": "Starmie",
-    "hash": "9068e8e82198a000"
+    "hash": "54f0d0d8e8501000"
+  },
+  {
+    "species": "Starmie-Mega",
+    "hash": "ccc868e8d4e87050"
   },
   {
     "species": "Steelix",
-    "hash": "e088302066482400"
+    "hash": "e0e030e0f07aea34"
+  },
+  {
+    "species": "Steelix-Mega",
+    "hash": "e4c4e0e876f8c8ca"
   },
   {
     "species": "Stunfisk",
-    "hash": "0301275b16040000"
+    "hash": "78eeaa6830000000"
   },
   {
     "species": "Stunfisk-Galar",
-    "hash": "8b2614a898181000"
+    "hash": "b0cc687010000000"
   },
   {
     "species": "Sylveon",
-    "hash": "5448485018362400"
+    "hash": "3030686078386820"
   },
   {
     "species": "Talonflame",
-    "hash": "2828501800000000"
+    "hash": "1030e070301c1810"
   },
   {
     "species": "Tauros",
-    "hash": "242c322214200000"
+    "hash": "505058f8d2d4a080"
   },
   {
     "species": "Tauros-Paldea-Aqua",
-    "hash": "142a1a369dc40800"
+    "hash": "705078f0a4980000"
   },
   {
     "species": "Tauros-Paldea-Blaze",
-    "hash": "08080e1209820400"
+    "hash": "78d8f060f8909000"
   },
   {
     "species": "Tauros-Paldea-Combat",
-    "hash": "050d0b0345812400"
+    "hash": "105078f8f4f8a880"
   },
   {
     "species": "Tinkaton",
-    "hash": "60a0125709030200"
+    "hash": "3cdcc49098f86000"
   },
   {
     "species": "Torkoal",
-    "hash": "9250b42204064000"
+    "hash": "f4c470f078583000"
   },
   {
     "species": "Torterra",
-    "hash": "d4cac254c0a0c000"
+    "hash": "e6cec6c2e4e080c0"
   },
   {
     "species": "Toucannon",
-    "hash": "80c0804040342e10"
+    "hash": "60c0c0cb566e2800"
   },
   {
     "species": "Toxapex",
-    "hash": "14d8905428640404"
+    "hash": "86baf060642c0000"
   },
   {
     "species": "Toxicroak",
-    "hash": "9090464ad0301000"
+    "hash": "9c98d066f4b01800"
   },
   {
     "species": "Trevenant",
-    "hash": "28a8202a24204000"
+    "hash": "24d4e8d6d4706800"
   },
   {
     "species": "Tsareena",
-    "hash": "08ba8c424c282000"
+    "hash": "10d8f86030303018"
   },
   {
     "species": "Typhlosion",
-    "hash": "8204440c2a151200"
+    "hash": "6c786c646cd4f868"
   },
   {
     "species": "Typhlosion-Hisui",
-    "hash": "124404120a0b1800"
+    "hash": "6c78684878347030"
   },
   {
     "species": "Tyranitar",
-    "hash": "50a0a808d8a0a800"
+    "hash": "646cc8ecd4e07030"
+  },
+  {
+    "species": "Tyranitar-Mega",
+    "hash": "64786c74d8d89808"
   },
   {
     "species": "Tyrantrum",
-    "hash": "4848ca50345a2000"
+    "hash": "c86878e0b6f4784c"
   },
   {
     "species": "Umbreon",
-    "hash": "68b0b8a834904100"
+    "hash": "78707068c4e42600"
   },
   {
     "species": "Vanilluxe",
-    "hash": "08180c0b0a020408"
+    "hash": "1030e098aa94c478"
   },
   {
     "species": "Vaporeon",
-    "hash": "281a0a090d200000"
+    "hash": "94d4f43e34040000"
   },
   {
     "species": "Venusaur",
-    "hash": "684cec5440885000"
+    "hash": "dca49ce4f0e83000"
+  },
+  {
+    "species": "Venusaur-Mega",
+    "hash": "cccce5d868100000"
   },
   {
     "species": "Victreebel",
-    "hash": "1020182820302800"
+    "hash": "004ce4c638b8f000"
+  },
+  {
+    "species": "Victreebel-Mega",
+    "hash": "7064646470f0f030"
   },
   {
     "species": "Vivillon",
-    "hash": "28081c1664240400"
+    "hash": "ccccd0baae8ec6c0"
   },
   {
     "species": "Volcarona",
-    "hash": "4850404050505000"
+    "hash": "066e66f4f66466c2"
   },
   {
     "species": "Watchog",
-    "hash": "1822222254925600"
+    "hash": "3030282830603000"
   },
   {
     "species": "Weavile",
-    "hash": "48c250c850288c20"
+    "hash": "68eae0f860d87010"
   },
   {
     "species": "Whimsicott",
-    "hash": "3a37212323370200"
+    "hash": "70d2b4a4c6740000"
   },
   {
     "species": "Wyrdeer",
-    "hash": "1d250d071c16a100"
+    "hash": "7070706878386820"
   },
   {
     "species": "Zoroark",
-    "hash": "888890b0d4946800"
+    "hash": "ccccf0f8f0e0e810"
   },
   {
     "species": "Zoroark-Hisui",
-    "hash": "442a324248040800"
+    "hash": "ccececf8f2cc6060"
   }
 ]
