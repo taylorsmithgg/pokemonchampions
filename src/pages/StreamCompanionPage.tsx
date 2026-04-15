@@ -2333,8 +2333,8 @@ export function StreamCompanionPage() {
             )}
           </div>
 
-          {/* Video embed */}
-          {videoSource && <VideoEmbed source={videoSource} />}
+          {/* Video embed — hidden when screen capture active (redundant) */}
+          {videoSource && !detecting && <VideoEmbed source={videoSource} />}
         </div>
 
         {/* ═══ COMPACT STATUS BAR — inline under frame capture ═══ */}
