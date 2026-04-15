@@ -29,7 +29,6 @@ import {
   exportArchive,
   type CachedFrame,
 } from '../utils/matchCache';
-import { addTrainedProfile } from '../utils/screenCapture';
 import type { PokemonState } from '../types';
 import { createDefaultPokemonState } from '../types';
 
@@ -577,23 +576,10 @@ export function StreamCompanionPage() {
     if (captureRegion) localStorage.setItem('stream-companion-region', JSON.stringify(captureRegion));
     else localStorage.removeItem('stream-companion-region');
   }, [captureRegion]);
-  // Match phase: 'preview' = scanning for team preview, 'battle' = teams locked, watching W/L, 'ended' = cooldown
-  const [detectionPhase, setDetectionPhase] = useState<'preview' | 'battle' | 'ended'>('preview');
-  // Vote accumulators across frames — species → hit count, by side
-  const leftVotesRef = useRef<Map<string, number>>(new Map());
-  const rightVotesRef = useRef<Map<string, number>>(new Map());
-  // Permanent side assignment once high-confidence detection is seen.
-  // Camera pans cannot flip committed sides.
-  const committedSidesRef = useRef<Map<string, 'left' | 'right'>>(new Map());
-  // Counter for high-confidence sightings on the OPPOSITE side from committed.
-  // 3+ contradictions force a side flip — self-correction loop.
-  const wrongSideHitsRef = useRef<Map<string, number>>(new Map());
-  // Currently active battlers — sprite detected at battle field position
-  // (bottom-left = yours, top-right = opponent)
+  // Active battlers (during battle)
   const [activeYour, setActiveYour] = useState<string | null>(null);
   const [activeOpp, setActiveOpp] = useState<string | null>(null);
-  const [teamsLocked, setTeamsLocked] = useState(false);
-  // Current match ID for keyframe tagging
+  // Match ID for keyframe tagging
   const currentMatchIdRef = useRef<string>('');
   const previewFrameIdRef = useRef<string>('');
   // Cache stats
@@ -720,30 +706,12 @@ export function StreamCompanionPage() {
   );
   const filledOpponents = useMemo(() => opponentTeam.filter(Boolean), [opponentTeam]);
 
-  // Self-correction: if a species rapidly registers on the WRONG side
-  // (e.g. opponent sends out, briefly seen on your side too), drop it
-  // from the side with significantly fewer votes. Mirror matches rare —
-  // user can manually correct via dismiss buttons if needed.
+  // Dedup: same species can't be on both teams. Your team wins.
   useEffect(() => {
     const myTeamSet = new Set(filledMyTeam);
     const dupes = filledOpponents.filter(s => myTeamSet.has(s));
-    if (dupes.length === 0) return;
-    const opponentDominant = dupes.filter(s => {
-      const leftV = leftVotesRef.current.get(s) ?? 0;
-      const rightV = rightVotesRef.current.get(s) ?? 0;
-      return rightV >= leftV * 3 && rightV >= 5;
-    });
-    const yourDominant = dupes.filter(s => {
-      const leftV = leftVotesRef.current.get(s) ?? 0;
-      const rightV = rightVotesRef.current.get(s) ?? 0;
-      return leftV >= rightV * 3 && leftV >= 5;
-    });
-    if (yourDominant.length > 0) {
-      setOpponentTeam(prev => prev.filter(s => !yourDominant.includes(s)));
-    }
-    if (opponentDominant.length > 0) {
-      const cleaned = filledMyTeam.filter(s => !opponentDominant.includes(s));
-      handleSetMyTeam(cleaned);
+    if (dupes.length > 0) {
+      setOpponentTeam(prev => prev.filter(s => !myTeamSet.has(s)));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filledMyTeam, filledOpponents]);
@@ -826,10 +794,10 @@ export function StreamCompanionPage() {
     // Clear dismissed list for fresh game
     setDismissedSpecies(new Set());
     // Reset phase machine — ready for next match's team preview
-    leftVotesRef.current = new Map(); committedSidesRef.current = new Map(); wrongSideHitsRef.current = new Map();
-    rightVotesRef.current = new Map();
-    setTeamsLocked(false);
-    setDetectionPhase('preview');
+    
+    
+    
+    
     currentMatchIdRef.current = '';
     previewFrameIdRef.current = '';
     setActiveYour(null);
@@ -866,10 +834,10 @@ export function StreamCompanionPage() {
     setScanCount(0);
     setDismissedSpecies(new Set());
     cooldownUntilRef.current = 0;
-    leftVotesRef.current = new Map(); committedSidesRef.current = new Map(); wrongSideHitsRef.current = new Map();
-    rightVotesRef.current = new Map();
-    setTeamsLocked(false);
-    setDetectionPhase('preview');
+    
+    
+    
+    
     setCaptureRegion(null);
     saveHistory([]);
   }, []);
@@ -1002,7 +970,6 @@ export function StreamCompanionPage() {
 
     // X-axis split: left = yours, right = opponent
     const midX = frame.width / 2;
-    const midY = frame.height / 2;
 
     // Vertical midline guide (X-axis split for team assignment)
     actx.strokeStyle = 'rgba(255,255,255,0.2)';
@@ -1171,229 +1138,87 @@ export function StreamCompanionPage() {
 
     if (result.species.length < 1 && (!result.spriteMatched || result.spriteMatched.length < 1)) return;
 
-    // ── PHASE MACHINE ──
-    // preview: accumulate votes, wait for confident 6v6 split → lock teams
-    // battle:  teams locked, skip detection entirely (just watch W/L)
-    // ended:   cooldown after W/L, then transition back to preview
+    // ── SIMPLE APPEND-ONLY DETECTION ──
+    // No votes, no weights, no phase machine. Just:
+    // 1. Found species on left → add to yours
+    // 2. Found species on right → add to opponents
+    // 3. Dismissed species → skip
+    // 4. Already on the other team → skip (no duplicates)
 
-    if (detectionPhase === 'battle') {
-      // Locked. Identify active battlers by field position.
-      // Bottom-left = your active mon. Top-right = opponent active.
-      // Field zones: bottom-left ≈ x<50%, y>50%. Top-right ≈ x>50%, y<50%.
-      let bestYour: { species: string; conf: number } | null = null;
-      let bestOpp: { species: string; conf: number } | null = null;
-      for (const s of (result.spriteMatched ?? [])) {
-        if (s.confidence < 0.3) continue;
-        const inBottom = s.y > midY; // your mons — works for singles + doubles
-        const inTop = s.y < midY;   // opponent mons
-        if (inBottom && filledMyTeam.includes(s.species)) {
-          if (!bestYour || s.confidence > bestYour.conf) bestYour = { species: s.species, conf: s.confidence };
-        }
-        if (inTop && filledOpponents.includes(s.species)) {
-          if (!bestOpp || s.confidence > bestOpp.conf) bestOpp = { species: s.species, conf: s.confidence };
-        }
-      }
-      // Battle log overrides position — last seen mon usually = active
-      for (const blm of (result.battleLogMatches ?? [])) {
-        if (blm.isOpponent && filledOpponents.includes(blm.species)) {
-          bestOpp = { species: blm.species, conf: 1.0 };
-        } else if (!blm.isOpponent && filledMyTeam.includes(blm.species)) {
-          bestYour = { species: blm.species, conf: 1.0 };
-        }
-      }
-      if (bestYour && bestYour.species !== activeYour) setActiveYour(bestYour.species);
-      if (bestOpp && bestOpp.species !== activeOpp) setActiveOpp(bestOpp.species);
-      return; // OCR W/L already handled above
-    }
+    const myTeamSet = new Set(filledMyTeam);
+    for (const sp of filledMyTeam) myTeamSet.add(sp.split('-')[0]);
+    const oppTeamSet = new Set(filledOpponents);
 
-    // Preview phase — accumulate votes across frames
-    const leftVotes = leftVotesRef.current;
-    const rightVotes = rightVotesRef.current;
+    // Collect new detections from ALL sources this frame
+    const newYours: string[] = [];
+    const newOpps: string[] = [];
 
-    // Sprite votes with PERMANENT side commitment. Once committed, never
-    // flips — camera pans, animations, doubles positioning all cause
-    // temporary position noise. Only Re-detect button or new match resets.
-    const committed = committedSidesRef.current;
+    // Sprites (pHash) — side comes from scan region
     for (const s of (result.spriteMatched ?? [])) {
       if (s.confidence < 0.2) continue;
-      // Use side directly from scan region — no coord recalculation
-      const weight = Math.max(1, Math.round(s.confidence * 5));
-      const detectedSide: 'left' | 'right' = s.side;
-
-      let targetSide: 'left' | 'right';
-      const existing = committed.get(s.species);
-      if (existing) {
-        // LOCKED — always vote on committed side regardless of current position
-        targetSide = existing;
-      } else if (s.confidence >= 0.35) {
-        // First decent sighting → commit permanently
-        targetSide = detectedSide;
-        committed.set(s.species, targetSide);
-      } else {
-        targetSide = detectedSide;
+      if (dismissedSpecies.has(s.species)) continue;
+      if (s.side === 'left' && !myTeamSet.has(s.species) && !oppTeamSet.has(s.species)) {
+        newYours.push(s.species);
+      } else if (s.side === 'right' && !oppTeamSet.has(s.species) && !myTeamSet.has(s.species)) {
+        newOpps.push(s.species);
       }
-      const map = targetSide === 'left' ? leftVotes : rightVotes;
-      map.set(s.species, (map.get(s.species) ?? 0) + weight);
     }
 
-    // OCR votes by side — panel OCR matches have exact side assignment
-    // and 0.9+ confidence. Give them heavy weight + commit immediately.
+    // OCR text — side from word position
     for (const m of result.matched) {
-      if (m.confidence < 0.6) continue;
-      const side = m.side;
-      if (side !== 'left' && side !== 'right') continue;
-      // Panel OCR matches (conf >= 0.9) = ground truth from HP bar
-      const isPanelMatch = m.confidence >= 0.9;
-      const weight = isPanelMatch ? 8 : 2;
-      if (isPanelMatch) committed.set(m.species, side);
-      const map = side === 'left' ? leftVotes : rightVotes;
-      map.set(m.species, (map.get(m.species) ?? 0) + weight);
+      if (m.confidence < 0.6 || m.side === 'unknown') continue;
+      if (dismissedSpecies.has(m.species)) continue;
+      if (m.side === 'left' && !myTeamSet.has(m.species) && !oppTeamSet.has(m.species)) {
+        newYours.push(m.species);
+      } else if (m.side === 'right' && !oppTeamSet.has(m.species) && !myTeamSet.has(m.species)) {
+        newOpps.push(m.species);
+      }
     }
 
-    // Battle log is definitive — skip votes, go straight to lock-eligible.
-    // ALSO commit side permanently and train the visual sprite profile.
+    // Battle log — "Opposing X" = opponent, "Go! X" = yours
     for (const blm of (result.battleLogMatches ?? [])) {
-      const side = blm.isOpponent ? 'right' : 'left';
-      committed.set(blm.species, side);
-      const map = blm.isOpponent ? rightVotes : leftVotes;
-      map.set(blm.species, (map.get(blm.species) ?? 0) + 5);
-
-      // Train sprite profile from in-game appearance
-      const matchingSprite = (result.spriteMatched ?? []).find(s => s.species === blm.species);
-      if (matchingSprite && matchingSprite.confidence >= 0.4) {
-        addTrainedProfile(blm.species, frame, {
-          x: matchingSprite.x,
-          y: matchingSprite.y,
-          w: 80,
-          h: 80,
-        }).catch(() => {});
+      if (dismissedSpecies.has(blm.species)) continue;
+      if (blm.isOpponent && !oppTeamSet.has(blm.species) && !myTeamSet.has(blm.species)) {
+        newOpps.push(blm.species);
+      } else if (!blm.isOpponent && !myTeamSet.has(blm.species) && !oppTeamSet.has(blm.species)) {
+        newYours.push(blm.species);
       }
+    }
 
-      // ── CORRECTION LOOP ──
-      // Battle log is authoritative. If it names a species NOT on the
-      // opponent list, the wrong species is probably there in its place.
-      // Replace the lowest-confidence opponent (likely a sprite mismatch)
-      // with the battle-log-confirmed species.
-      if (blm.isOpponent && !filledOpponents.includes(blm.species) && !filledMyTeam.includes(blm.species)) {
-        setOpponentTeam(prev => {
-          const filled = prev.filter(Boolean);
-          if (filled.includes(blm.species)) return prev;
-          // Find the opponent with the LOWEST sprite-only support
-          // (no battle-log confirmation, lowest vote count)
-          const ranked = filled.map(sp => {
-            const blConfirmed = (result.battleLogMatches ?? []).some(m => m.species === sp && m.isOpponent);
-            const votes = rightVotesRef.current.get(sp) ?? 0;
-            return { species: sp, blConfirmed, votes };
-          }).sort((a, b) => {
-            if (a.blConfirmed !== b.blConfirmed) return a.blConfirmed ? 1 : -1; // unconfirmed first
-            return a.votes - b.votes; // lowest votes first
-          });
-          const weakest = ranked[0];
-          if (!weakest || weakest.blConfirmed) {
-            // No weak opponent to replace — just append if room
-            if (filled.length < 6) return [...filled, blm.species];
-            return prev;
+    // Dedupe within this frame
+    const uniqYours = [...new Set(newYours)];
+    const uniqOpps = [...new Set(newOpps)];
+
+    // Apply — append-only, never remove
+    if (uniqYours.length > 0 && filledMyTeam.length < 6) {
+      const toAdd = uniqYours.filter(s => !myTeamSet.has(s)).slice(0, 6 - filledMyTeam.length);
+      if (toAdd.length > 0) handleSetMyTeam([...filledMyTeam, ...toAdd]);
+    }
+
+    if (uniqOpps.length > 0) {
+      setOpponentTeam(prev => {
+        const existing = new Set(prev.filter(Boolean));
+        let changed = false;
+        for (const s of uniqOpps) {
+          if (!existing.has(s) && existing.size < 6 && !dismissedSpecies.has(s)) {
+            existing.add(s);
+            changed = true;
           }
-          // Swap weakest with the new battle-log species
-          const next = filled.map(s => s === weakest.species ? blm.species : s);
-          // Transfer side commitment, dismiss the wrong species so it
-          // doesn't get re-added by sprite-only votes
-          rightVotesRef.current.delete(weakest.species);
-          committedSidesRef.current.delete(weakest.species);
-          setDismissedSpecies(d => new Set([...d, weakest.species]));
-          return next;
-        });
+        }
+        if (!changed) return prev;
+        setGamePhase('preview');
+        return [...existing];
+      });
+    }
+
+    // Active battler tracking (during battle — use team membership as filter)
+    if (filledMyTeam.length >= 2 && filledOpponents.length >= 1) {
+      for (const blm of (result.battleLogMatches ?? [])) {
+        if (blm.isOpponent && filledOpponents.includes(blm.species)) setActiveOpp(blm.species);
+        else if (!blm.isOpponent && filledMyTeam.includes(blm.species)) setActiveYour(blm.species);
       }
     }
-
-    // Pick top-N by vote count per side
-    // Assign each species to its dominant side (majority votes).
-    // Species with votes on both sides goes to whichever has more.
-    const allSpecies = new Set([...leftVotes.keys(), ...rightVotes.keys()]);
-    const leftWinners: [string, number][] = [];
-    const rightWinners: [string, number][] = [];
-    for (const species of allSpecies) {
-      const l = leftVotes.get(species) ?? 0;
-      const r = rightVotes.get(species) ?? 0;
-      if (l > r) leftWinners.push([species, l]);
-      else if (r > l) rightWinners.push([species, r]);
-      // ties: skip (ambiguous)
-    }
-    leftWinners.sort((a, b) => b[1] - a[1]);
-    rightWinners.sort((a, b) => b[1] - a[1]);
-    const yourTop = leftWinners.slice(0, 6).map(([s]) => s);
-    const oppTop = rightWinners.slice(0, 6).map(([s]) => s);
-
-    // Lock condition: opponent side must be confident (3+ species, 2+ votes).
-    // Your team is OPTIONAL — locks if confident, otherwise user enters manually.
-    // Asymmetric because your team often switches rapidly (you control it),
-    // while opponent team you scout from team preview screen.
-    const confidentLeft = [...leftVotes.entries()].filter(([, v]) => v >= 2);
-    const confidentRight = [...rightVotes.entries()].filter(([, v]) => v >= 2);
-
-    // Lock when opponent side is confident. Your team locks if also
-    // confident, otherwise stays empty for manual entry.
-    if (!teamsLocked && confidentRight.length >= 2) {
-      // LOCK — assign teams, move to battle phase
-      // Only auto-assign your team if we have decent left-side detection (2+)
-      if (filledMyTeam.length < 2 && confidentLeft.length >= 2) {
-        handleSetMyTeam(yourTop);
-      }
-      const oppTeam = oppTop.filter(s => !yourTop.includes(s) && !dismissedSpecies.has(s));
-      setOpponentTeam(oppTeam);
-      setGamePhase('preview');
-      setTeamsLocked(true);
-      setDetectionPhase('battle');
-
-      // Cache the preview keyframe — starts a new match ID
-      const matchId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-      currentMatchIdRef.current = matchId;
-      const frameId = `${matchId}-preview-${Date.now()}`;
-      previewFrameIdRef.current = frameId;
-      saveFrame({
-        id: frameId,
-        matchId,
-        type: 'preview',
-        timestamp: Date.now(),
-        dataUrl: compressFrame(frame, 960, 0.65),
-        metadata: {
-          myTeam: yourTop,
-          opponentTeam: oppTeam,
-          leftVotes: Object.fromEntries(leftVotes),
-          rightVotes: Object.fromEntries(rightVotes),
-          sceneContext: result.screenContext,
-        },
-      }).catch(e => console.warn('[cache] preview save failed', e));
-      return;
-    }
-
-    // Preliminary display while still accumulating: show current top guesses
-    // so user can see progress. Use filledMyTeam filter if set.
-    const myTeamSet = new Set(filledMyTeam);
-    for (const species of filledMyTeam) myTeamSet.add(species.split('-')[0]);
-
-    if (filledMyTeam.length >= 2) {
-      // User set team manually — preliminary-populate opponents from
-      // right-side votes. Only species with 2+ weighted votes (sustained
-      // detection, not one-shot noise). Append-only to preserve slot order.
-      const confidentOpp = [...rightVotes.entries()]
-        .filter(([s, v]) => v >= 2 && !myTeamSet.has(s) && !dismissedSpecies.has(s))
-        .sort((a, b) => b[1] - a[1])
-        .map(([s]) => s);
-      if (confidentOpp.length > 0) {
-        setOpponentTeam(prev => {
-          const existing = new Set(prev.filter(Boolean));
-          let changed = false;
-          for (const s of confidentOpp) {
-            if (!existing.has(s) && existing.size < 6) { existing.add(s); changed = true; }
-          }
-          if (!changed) return prev;
-          setGamePhase('preview');
-          return [...existing];
-        });
-      }
-    }
-  }, [filledMyTeam, filledOpponents, recordMatch, handleSetMyTeam, dismissedSpecies, detectionPhase, teamsLocked, captureRegion]);
+  }, [filledMyTeam, filledOpponents, recordMatch, handleSetMyTeam, dismissedSpecies, captureRegion]);
 
   // Auto-scan loop: every 4 seconds when detection is active
   // Sequential scan loop — each scan finishes, then waits 200ms, then
@@ -1844,49 +1669,6 @@ export function StreamCompanionPage() {
               >
                 Reset
               </button>
-              {!teamsLocked && detecting && (leftVotesRef.current.size > 0 || rightVotesRef.current.size > 0) && (
-                <button
-                  onClick={() => {
-                    const lv = leftVotesRef.current, rv = rightVotesRef.current;
-                    const species = new Set([...lv.keys(), ...rv.keys()]);
-                    const left: [string, number][] = [], right: [string, number][] = [];
-                    for (const s of species) {
-                      const l = lv.get(s) ?? 0, r = rv.get(s) ?? 0;
-                      if (l > r) left.push([s, l]);
-                      else if (r > l) right.push([s, r]);
-                    }
-                    left.sort((a, b) => b[1] - a[1]);
-                    right.sort((a, b) => b[1] - a[1]);
-                    const yourTop = left.slice(0, 6).map(([s]) => s);
-                    const oppTop = right.slice(0, 6).map(([s]) => s);
-                    if (filledMyTeam.length < 2) handleSetMyTeam(yourTop);
-                    setOpponentTeam(oppTop);
-                    setTeamsLocked(true);
-                    setDetectionPhase('battle');
-                    const matchId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-                    currentMatchIdRef.current = matchId;
-                  }}
-                  className="text-[10px] px-2 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded hover:bg-emerald-500/20 transition-colors"
-                  title={`Lock current best guesses (L:${leftVotesRef.current.size} R:${rightVotesRef.current.size})`}
-                >
-                  Lock Now
-                </button>
-              )}
-              {teamsLocked && (
-                <button
-                  onClick={() => {
-                    setTeamsLocked(false);
-                    setDetectionPhase('preview');
-                    leftVotesRef.current = new Map(); committedSidesRef.current = new Map(); wrongSideHitsRef.current = new Map();
-                    rightVotesRef.current = new Map();
-                    setOpponentTeam([]);
-                  }}
-                  className="text-[10px] px-2 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded hover:bg-amber-500/20 transition-colors"
-                  title="Re-detect teams from next frame"
-                >
-                  Re-detect
-                </button>
-              )}
               <Link to="/" className="text-[10px] px-2 py-1 bg-poke-surface border border-poke-border text-slate-400 rounded hover:text-white transition-colors">Calc</Link>
               <Link to="/team-builder" className="text-[10px] px-2 py-1 bg-poke-surface border border-poke-border text-slate-400 rounded hover:text-white transition-colors">Builder</Link>
             </div>
@@ -2260,15 +2042,8 @@ export function StreamCompanionPage() {
                   </>
                 )}
                 <span className="text-slate-700">|</span>
-                <span className={`font-bold shrink-0 ${
-                  detectionPhase === 'battle' ? 'text-emerald-400' :
-                  detectionPhase === 'preview' ? 'text-amber-400' : 'text-slate-400'
-                }`}>
-                  {teamsLocked ? 'LOCKED' : detectionPhase.toUpperCase()}
-                </span>
-                <span className="text-slate-700">|</span>
                 <span className="text-slate-600 truncate">
-                  {lastOcrResult.matched.length}T {lastOcrResult.spriteMatched?.length ?? 0}I | L:{leftVotesRef.current.size} R:{rightVotesRef.current.size} | #{scanCount} | {lastOcrResult.durationMs}ms
+                  {lastOcrResult.matched.length}T {lastOcrResult.spriteMatched?.length ?? 0}I | {filledMyTeam.length}L {filledOpponents.length}R | #{scanCount} | {lastOcrResult.durationMs}ms
                 </span>
               </>
             )}
@@ -2291,40 +2066,6 @@ export function StreamCompanionPage() {
         {/* ═══ DEBUG SECTIONS — collapsible details ═══ */}
         {showDebug && lastOcrResult && (detecting || lastOcrResult) && (
           <div className="px-3 pb-3 space-y-1">
-
-            {/* Section: Vote Accumulator — shows what's building toward lock */}
-            {!teamsLocked && (leftVotesRef.current.size > 0 || rightVotesRef.current.size > 0) && (
-              <DebugSection title={`Vote Accumulator — L:${leftVotesRef.current.size} R:${rightVotesRef.current.size} (needs 3+ each to lock)`} defaultOpen>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <div className="text-[9px] text-sky-400 uppercase tracking-wider font-bold mb-1">Left (Yours)</div>
-                    <div className="space-y-0.5">
-                      {[...leftVotesRef.current.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([s, v]) => (
-                        <div key={s} className="flex items-center gap-1 text-[10px]">
-                          <Sprite species={s} size="sm" />
-                          <span className="text-white flex-1 truncate">{s}</span>
-                          <span className="text-sky-400 font-mono">x{v}</span>
-                        </div>
-                      ))}
-                      {leftVotesRef.current.size === 0 && <span className="text-[10px] text-slate-600">None yet</span>}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[9px] text-red-400 uppercase tracking-wider font-bold mb-1">Right (Opponent)</div>
-                    <div className="space-y-0.5">
-                      {[...rightVotesRef.current.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([s, v]) => (
-                        <div key={s} className="flex items-center gap-1 text-[10px]">
-                          <Sprite species={s} size="sm" />
-                          <span className="text-white flex-1 truncate">{s}</span>
-                          <span className="text-red-400 font-mono">x{v}</span>
-                        </div>
-                      ))}
-                      {rightVotesRef.current.size === 0 && <span className="text-[10px] text-slate-600">None yet</span>}
-                    </div>
-                  </div>
-                </div>
-              </DebugSection>
-            )}
 
             {/* Section: Battle Log Matches — highest confidence */}
             {(lastOcrResult.battleLogMatches?.length ?? 0) > 0 && (

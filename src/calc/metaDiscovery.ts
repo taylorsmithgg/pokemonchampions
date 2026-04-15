@@ -6,6 +6,7 @@
 import { getAvailablePokemon, getPokemonData, getDefensiveMultiplier } from '../data/champions';
 import { NORMAL_TIER_LIST, MEGA_TIER_LIST } from '../data/tierlist';
 import { PRESETS } from '../data/presets';
+import { getMetaUsage, getTopMeta, getArchetypeUsage } from '../data/pikalyticsMeta';
 
 const ALL_TYPES = [
   'Normal', 'Fire', 'Water', 'Electric', 'Grass', 'Ice',
@@ -26,11 +27,26 @@ export interface Discovery {
 
 // Helper: get base species for calc loading (strip Mega form)
 
-// Helper: check if a Pokemon is competitively viable
+// Pikalytics tournament usage is the strongest viability signal — a
+// Pokemon showing up in any top-team submission is by definition viable.
+// Tier list + presets remain a fallback for picks that haven't yet
+// registered tournament results (new releases, theorymon).
 function isViable(name: string): boolean {
+  if (getMetaUsage(name) > 0) return true;
   return NORMAL_TIER_LIST.some(e => e.name === name) ||
     MEGA_TIER_LIST.some(e => e.name === name) ||
     PRESETS.some(p => p.species === name);
+}
+
+// Boost confidence by how proven a pick is in tournaments. 30%+ usage
+// adds +12, 15-30% adds +8, 5-15% adds +4. Suppresses noise from
+// theorycrafted picks while letting real meta picks bubble up.
+function metaConfidenceBoost(species: string): number {
+  const usage = getMetaUsage(species);
+  if (usage >= 30) return 12;
+  if (usage >= 15) return 8;
+  if (usage >= 5) return 4;
+  return 0;
 }
 
 // ─── 1. Offensive Cores — type coverage combos ─────────────────────
@@ -62,6 +78,14 @@ function findOffensiveCores(): Discovery[] {
 
       const coverage = total > 0 ? (hitsSE / total) * 100 : 0;
       if (coverage >= 80) {
+        const usageA = getMetaUsage(viable[i]);
+        const usageB = getMetaUsage(viable[j]);
+        const avgUsage = (usageA + usageB) / 2;
+        const metaBoost = (metaConfidenceBoost(viable[i]) + metaConfidenceBoost(viable[j])) / 2;
+        const reasoning = [`${coverage.toFixed(0)}% coverage`, `Only ${total - hitsSE} Pokemon resist both`];
+        if (avgUsage > 0) {
+          reasoning.push(`Tournament usage: ${viable[i]} ${usageA.toFixed(1)}%, ${viable[j]} ${usageB.toFixed(1)}%`);
+        }
         discoveries.push({
           id: `core-${viable[i]}-${viable[j]}`,
           category: 'core',
@@ -69,8 +93,8 @@ function findOffensiveCores(): Discovery[] {
           description: `${[...combinedTypes].join('/')} STAB covers ${coverage.toFixed(0)}% of the Champions meta super-effectively.`,
           pokemon: [viable[i], viable[j]],
           calcPokemon: [viable[i], viable[j]],
-          reasoning: [`${coverage.toFixed(0)}% coverage`, `Only ${total - hitsSE} Pokemon resist both`],
-          confidence: Math.min(95, Math.round(coverage)),
+          reasoning,
+          confidence: Math.min(95, Math.round(coverage) + metaBoost),
         });
       }
     }
@@ -104,21 +128,34 @@ function findUncheckedThreats(): Discovery[] {
     }
 
     if (wallCount <= 6 && (data.baseStats.atk >= 100 || data.baseStats.spa >= 100)) {
-      const tier = NORMAL_TIER_LIST.find(e => e.name === species);
-      const isUnderrated = !tier || tier.tier === 'B' || tier.tier === 'C';
+      // Tournament usage is the source of truth for "established vs sleeper".
+      // Tier list lags behind real results — pikalytics reflects what's
+      // actually winning right now.
+      const usage = getMetaUsage(species);
+      const isEstablished = usage >= 15;            // A+ or higher tournament presence
+      const isSleeper = usage < 5;                  // barely seen but theoretically strong
+      const category = isSleeper ? 'underrated' : 'threat';
+      const title = isSleeper
+        ? `Sleeper: ${species}`
+        : `${species} — hard to wall`;
+      const usageNote = usage > 0
+        ? `${usage.toFixed(1)}% of tournament teams`
+        : 'No tournament presence yet';
+      const sleeperBonus = isSleeper && data.baseStats.spe >= 90 ? 10 : 0;
 
       discoveries.push({
         id: `threat-${species}`,
-        category: isUnderrated ? 'underrated' : 'threat',
-        title: isUnderrated ? `Sleeper: ${species}` : `${species} — hard to wall`,
-        description: `Only ${wallCount} Pokemon resist ${types.join('/')} STAB. ${data.baseStats.atk >= data.baseStats.spa ? data.baseStats.atk + ' Atk' : data.baseStats.spa + ' SpA'}, ${data.baseStats.spe} Speed.${isUnderrated ? ' Currently underranked.' : ''}`,
+        category,
+        title,
+        description: `Only ${wallCount} Pokemon resist ${types.join('/')} STAB. ${data.baseStats.atk >= data.baseStats.spa ? data.baseStats.atk + ' Atk' : data.baseStats.spa + ' SpA'}, ${data.baseStats.spe} Speed.${isSleeper ? ' Underused — opponents won\'t prep for it.' : ''}`,
         pokemon: [species],
         calcPokemon: [species],
         reasoning: [
           `${types.join('/')} walled by only ${wallCount} Pokemon`,
-          `${isUnderrated ? (tier?.tier || 'Unranked') + ' tier — fewer players running it' : 'Established meta threat'}`,
+          usageNote,
+          isEstablished ? 'Proven tournament threat — must-prep' : isSleeper ? 'Off-meta — surprise factor' : 'Mid-usage pick',
         ],
-        confidence: Math.min(90, 85 - wallCount * 5 + (isUnderrated ? 10 : 0)),
+        confidence: Math.min(95, 85 - wallCount * 5 + sleeperBonus + metaConfidenceBoost(species)),
       });
     }
   }
@@ -171,19 +208,37 @@ function findUnkillableWalls(): Discovery[] {
 
     const survivalRate = ((metaThreats.length - threatenedBy) / metaThreats.length) * 100;
     if (survivalRate >= 65 && weaknesses <= 3) {
+      // Re-score survival against actual top-tournament attackers, not the
+      // stat-filtered theoretical pool. A wall that survives Sneasler +
+      // Garchomp + Kingambit (the top picks) matters more than one that
+      // survives every 90+ Atk mon abstractly.
+      const topThreats = getTopMeta(15);
+      let topThreatenedBy = 0;
+      for (const threat of topThreats) {
+        const tData = getPokemonData(threat);
+        if (!tData) continue;
+        for (const tType of tData.types) {
+          if (getDefensiveMultiplier(tType as string, types) > 1) { topThreatenedBy++; break; }
+        }
+      }
+      const topSurvivalRate = topThreats.length > 0
+        ? ((topThreats.length - topThreatenedBy) / topThreats.length) * 100
+        : survivalRate;
+
       discoveries.push({
         id: `wall-${species}`,
         category: 'wall',
         title: `${species} — defensive fortress`,
-        description: `${resistances} resistances, ${immunities} immunities, only ${weaknesses} weaknesses. ${survivalRate.toFixed(0)}% of meta attackers can't hit it SE. Bulk: ${bs.hp}/${bs.def}/${bs.spd}.`,
+        description: `${resistances} resistances, ${immunities} immunities, only ${weaknesses} weaknesses. Walls ${topSurvivalRate.toFixed(0)}% of top-15 tournament attackers. Bulk: ${bs.hp}/${bs.def}/${bs.spd}.`,
         pokemon: [species],
         calcPokemon: [species],
         reasoning: [
-          `Only ${threatenedBy}/${metaThreats.length} attackers threaten it`,
+          `Only ${topThreatenedBy}/${topThreats.length} top tournament attackers threaten it`,
           `${resistances + immunities} favorable type matchups`,
           `Recovery options make it extremely hard to break`,
         ],
-        confidence: Math.min(90, Math.round(survivalRate * 0.9)),
+        // Weight by tournament-relevant survival, not abstract survival
+        confidence: Math.min(90, Math.round(topSurvivalRate * 0.9) + metaConfidenceBoost(species)),
       });
     }
   }
@@ -339,19 +394,71 @@ function findWeatherAdvantages(): Discovery[] {
     if (weather) weatherSetters[weather].push(name);
   }
 
+  // Pull tournament archetype frequency to weight which weathers are
+  // actually winning. Pikalytics tags "sun"/"rain"/"sand"/"snow" per team.
+  const archetypePercents: Record<string, number> = {};
+  for (const a of getArchetypeUsage()) archetypePercents[a.archetype] = a.percent;
+
   for (const [weather, setters] of Object.entries(weatherSetters)) {
     if (setters.length <= 2 && setters.length > 0) {
+      const tag = weather.toLowerCase();
+      const tournamentPercent = archetypePercents[tag] || 0;
+      const reasoning = [
+        `${setters.length} setter(s) — opponents can't easily overwrite`,
+        tournamentPercent > 0
+          ? `${tournamentPercent}% of top tournament teams use ${weather}`
+          : 'Underexplored archetype — surprise factor',
+      ];
+      // High tournament adoption = proven; low = sleeper opportunity
+      const baseConfidence = tournamentPercent >= 20 ? 85 : tournamentPercent >= 10 ? 78 : 70;
       discoveries.push({
-        id: `weather-${weather.toLowerCase()}`,
+        id: `weather-${tag}`,
         category: 'archetype',
-        title: `${weather} teams have less competition`,
-        description: `Only ${setters.length} Pokemon set ${weather}: ${setters.join(', ')}. Fewer weather wars means ${weather} stays up longer and is harder to counter.`,
+        title: tournamentPercent >= 15
+          ? `${weather} — top tournament archetype`
+          : `${weather} teams have less competition`,
+        description: tournamentPercent >= 15
+          ? `${tournamentPercent}% of top tournament teams run ${weather}. Setters: ${setters.join(', ')}.`
+          : `Only ${setters.length} Pokemon set ${weather}: ${setters.join(', ')}. Underexplored at the tournament level.`,
         pokemon: setters.slice(0, 2),
         calcPokemon: setters.slice(0, 2),
-        reasoning: [`${setters.length} setter(s) — opponents can't easily overwrite`, 'Build around weather with confidence'],
-        confidence: 72,
+        reasoning,
+        confidence: baseConfidence,
       });
     }
+  }
+
+  return discoveries;
+}
+
+// ─── 7. Tournament-Validated Cores ─────────────────────────────────
+// Pure pikalytics-driven: surface the highest-usage Pokemon as proven
+// must-prep threats. This is a direct counter to discovery engines that
+// over-index on theoretical analysis and miss "what's actually winning".
+function findTournamentTopPicks(): Discovery[] {
+  const discoveries: Discovery[] = [];
+  const top = getTopMeta(8);
+
+  for (const species of top) {
+    const usage = getMetaUsage(species);
+    if (usage < 20) continue;  // S-tier threshold only
+    const data = getPokemonData(species);
+    if (!data) continue;
+
+    discoveries.push({
+      id: `top-pick-${species}`,
+      category: 'threat',
+      title: `${species} — ${usage.toFixed(0)}% of top teams`,
+      description: `Tournament-proven core. Run by ${usage.toFixed(1)}% of top-200 Champions tournament teams. If your team can't handle it, you'll lose to the field.`,
+      pokemon: [species],
+      calcPokemon: [species],
+      reasoning: [
+        `${usage.toFixed(1)}% tournament usage`,
+        `Base stats: ${data.baseStats.hp}/${data.baseStats.atk}/${data.baseStats.def}/${data.baseStats.spa}/${data.baseStats.spd}/${data.baseStats.spe}`,
+        'Must-prep — opponents will bring it',
+      ],
+      confidence: Math.min(98, 80 + Math.round(usage / 2)),
+    });
   }
 
   return discoveries;
@@ -361,6 +468,7 @@ function findWeatherAdvantages(): Discovery[] {
 
 export function discoverStrategies(): Discovery[] {
   const all: Discovery[] = [
+    ...findTournamentTopPicks(),
     ...findMegaNiches(),
     ...findUncheckedThreats(),
     ...findUnkillableWalls(),
@@ -369,10 +477,32 @@ export function discoverStrategies(): Discovery[] {
     ...findWeatherAdvantages(),
   ];
 
+  // Dedupe by id, then by primary species — prefer the higher-confidence
+  // discovery so a single Pokemon doesn't appear three times in the feed.
   const seen = new Set<string>();
+  const speciesSeen = new Map<string, number>();  // species → best confidence so far
+
+  for (const d of all) {
+    const primary = d.pokemon[0];
+    if (!primary) continue;
+    const prev = speciesSeen.get(primary);
+    if (prev === undefined || d.confidence > prev) speciesSeen.set(primary, d.confidence);
+  }
+
   return all.filter(d => {
     if (seen.has(d.id)) return false;
     seen.add(d.id);
-    return true;
-  }).sort((a, b) => b.confidence - a.confidence);
+    const primary = d.pokemon[0];
+    // Allow multi-Pokemon discoveries (cores) through unconditionally
+    if (!primary || d.pokemon.length > 1) return true;
+    // Single-species: only keep the best discovery per species
+    return d.confidence === speciesSeen.get(primary);
+  })
+    .sort((a, b) => {
+      // Boost meta-validated picks within equal confidence buckets
+      if (b.confidence !== a.confidence) return b.confidence - a.confidence;
+      const aUsage = a.pokemon[0] ? getMetaUsage(a.pokemon[0]) : 0;
+      const bUsage = b.pokemon[0] ? getMetaUsage(b.pokemon[0]) : 0;
+      return bUsage - aUsage;
+    });
 }
