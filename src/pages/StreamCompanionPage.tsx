@@ -2123,7 +2123,7 @@ export function StreamCompanionPage() {
                 style={{
                   cursor: regionSelecting ? 'crosshair' : 'default',
                   userSelect: 'none',
-                  maxHeight: (regionSelecting || needsROI) ? 'none' : '280px',
+                  maxHeight: 'none',
                 }}
               >
                 <img
