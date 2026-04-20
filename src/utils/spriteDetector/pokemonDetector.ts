@@ -187,7 +187,11 @@ function processCard(
   // palette species like Hydrapple fall off the top-3 (dominated by
   // Basculegion / Samurott-Hisui / Alcremie lookalikes) and unique
   // assignment has no alternative to assign them to.
-  const topK = useConstrained ? Math.max(3, candidateSpecies!.size) : 3;
+  // Unconstrained pass: keep top-5 (not just top-3) so the species-clause
+  // enforcer downstream has real alternatives when two slots' top pick
+  // collide. Constrained pass stays at `pool-size` for the bipartite
+  // matching that already runs below.
+  const topK = useConstrained ? Math.max(3, candidateSpecies!.size) : 5;
   let candidates = matchQuery(query, db, constrainedConfig, topK);
   let matchMs = performance.now() - matchStart;
 
@@ -299,9 +303,13 @@ export function detectPokemon(
   // (which IS Hydrapple).
   if (opponentCandidates && opponentCandidates.size === opponents.length) {
     resolveUniqueAssignment(opponents, opponentCandidates);
+  } else {
+    enforceSpeciesClause(opponents);
   }
   if (playerCandidates && playerCandidates.size === players.length) {
     resolveUniqueAssignment(players, playerCandidates);
+  } else {
+    enforceSpeciesClause(players);
   }
 
   return { frame, opponents, players, totalMs: performance.now() - t0 };
@@ -398,6 +406,95 @@ function resolveUniqueAssignment(
     const chosen = match[i * N + bestPerm[i]];
     if (!chosen) continue;
     const slot = slots[i];
+    if (slot.candidates[0]?.species !== chosen.species) {
+      const rest = slot.candidates.filter(c => c.species !== chosen.species);
+      slot.candidates = [chosen, ...rest];
+    }
+    slot.top = chosen;
+  }
+}
+
+/**
+ * Enforce species-clause uniqueness across a panel's slots when the
+ * caller has NOT supplied a closed candidate pool (selection-screen
+ * pass, lock-screen pass without hints, etc.).
+ *
+ * Pokémon Champions teams can't contain duplicate species — a team is
+ * always 6 distinct Pokémon — but the unconstrained matcher happily
+ * assigns the same species to two slots when their chibis share a
+ * palette (e.g. two dark/purple cards both matching "Weavile" because
+ * the true second species' signature is weaker than Weavile's). Without
+ * a cross-slot constraint the consensus accumulator then votes Weavile
+ * at both slots forever and the UI surfaces "Weavile × 2".
+ *
+ * Algorithm: DFS over per-slot top-K candidate lists, picking one
+ * species per slot such that no species is reused AND total `combined`
+ * score is maximised. When every candidate for a slot is already
+ * claimed by another slot with a higher score, we NULL the slot's top
+ * (leaving its `candidates` intact for debugging) — a blank is better
+ * than a confident duplicate.
+ *
+ * N ≤ 6 slots × K=5 candidates → 5^6 = 15 625 leaves worst-case, with
+ * admissible-heuristic pruning. Runs in well under a millisecond.
+ */
+function enforceSpeciesClause(slots: DetectedPokemon[]): void {
+  const N = slots.length;
+  if (N <= 1) return;
+
+  const cands: MatchResult[][] = slots.map(s => s.candidates);
+  // Suffix upper bound: if every remaining slot could take its top pick
+  // we'd add up their top scores. Used to prune branches that can't
+  // beat `bestTotal`.
+  const suffix = new Float64Array(N + 1);
+  for (let i = N - 1; i >= 0; i--) {
+    suffix[i] = suffix[i + 1] + (cands[i][0]?.combined ?? 0);
+  }
+
+  const choice = new Array<MatchResult | null>(N).fill(null);
+  let bestTotal = -Infinity;
+  let bestChoice: (MatchResult | null)[] | null = null;
+  const used = new Set<string>();
+
+  const dfs = (i: number, total: number): void => {
+    if (total + suffix[i] <= bestTotal) return;
+    if (i === N) {
+      if (total > bestTotal) {
+        bestTotal = total;
+        bestChoice = choice.slice();
+      }
+      return;
+    }
+    const options = cands[i];
+    let tried = false;
+    for (const cand of options) {
+      if (used.has(cand.species)) continue;
+      tried = true;
+      choice[i] = cand;
+      used.add(cand.species);
+      dfs(i + 1, total + cand.combined);
+      used.delete(cand.species);
+    }
+    if (!tried) {
+      // All of this slot's candidates are taken — leave it unassigned
+      // and continue so the rest of the panel still gets resolved. The
+      // zero-score contribution is fine: we'd rather have 5 unique
+      // confident slots + 1 blank than 6 slots where one is a
+      // duplicate.
+      choice[i] = null;
+      dfs(i + 1, total);
+    }
+  };
+  dfs(0, 0);
+  if (!bestChoice) return;
+
+  for (let i = 0; i < N; i++) {
+    const chosen = (bestChoice as (MatchResult | null)[])[i];
+    const slot = slots[i];
+    if (!chosen) {
+      slot.top = null;
+      slot.isConfident = false;
+      continue;
+    }
     if (slot.candidates[0]?.species !== chosen.species) {
       const rest = slot.candidates.filter(c => c.species !== chosen.species);
       slot.candidates = [chosen, ...rest];
