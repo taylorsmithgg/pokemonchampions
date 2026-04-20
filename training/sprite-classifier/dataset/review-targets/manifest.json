@@ -1,0 +1,511 @@
+{
+  "generatedAt": "2026-04-16T07:25:14.346Z",
+  "sourceManifest": "training/sprite-classifier/config/review-targets.json",
+  "exampleCount": 36,
+  "examples": [
+    {
+      "imageKey": "lineup-selection-no-overlay",
+      "imagePath": "images/lineup-selection-no-overlay.png",
+      "side": "left",
+      "slotIndex": 0,
+      "species": "Garchomp",
+      "crop": {
+        "x": 0.205,
+        "y": 0.09,
+        "w": 0.11,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/garchomp/lineup-selection-no-overlay-left-slot-1.png"
+    },
+    {
+      "imageKey": "lineup-selection-no-overlay",
+      "imagePath": "images/lineup-selection-no-overlay.png",
+      "side": "left",
+      "slotIndex": 1,
+      "species": "Floette-Eternal",
+      "crop": {
+        "x": 0.205,
+        "y": 0.207,
+        "w": 0.11,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/floette-eternal/lineup-selection-no-overlay-left-slot-2.png"
+    },
+    {
+      "imageKey": "lineup-selection-no-overlay",
+      "imagePath": "images/lineup-selection-no-overlay.png",
+      "side": "left",
+      "slotIndex": 2,
+      "species": "Delphox",
+      "crop": {
+        "x": 0.205,
+        "y": 0.324,
+        "w": 0.11,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/delphox/lineup-selection-no-overlay-left-slot-3.png"
+    },
+    {
+      "imageKey": "lineup-selection-no-overlay",
+      "imagePath": "images/lineup-selection-no-overlay.png",
+      "side": "left",
+      "slotIndex": 3,
+      "species": "Primarina",
+      "crop": {
+        "x": 0.205,
+        "y": 0.441,
+        "w": 0.11,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/primarina/lineup-selection-no-overlay-left-slot-4.png"
+    },
+    {
+      "imageKey": "lineup-selection-no-overlay",
+      "imagePath": "images/lineup-selection-no-overlay.png",
+      "side": "left",
+      "slotIndex": 4,
+      "species": "Kingambit",
+      "crop": {
+        "x": 0.205,
+        "y": 0.558,
+        "w": 0.11,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/kingambit/lineup-selection-no-overlay-left-slot-5.png"
+    },
+    {
+      "imageKey": "lineup-selection-no-overlay",
+      "imagePath": "images/lineup-selection-no-overlay.png",
+      "side": "left",
+      "slotIndex": 5,
+      "species": "Aegislash-Shield",
+      "crop": {
+        "x": 0.205,
+        "y": 0.675,
+        "w": 0.11,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/aegislash-shield/lineup-selection-no-overlay-left-slot-6.png"
+    },
+    {
+      "imageKey": "lineup-selection-no-overlay",
+      "imagePath": "images/lineup-selection-no-overlay.png",
+      "side": "right",
+      "slotIndex": 6,
+      "species": "Victreebel",
+      "crop": {
+        "x": 0.765,
+        "y": 0.09,
+        "w": 0.105,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/victreebel/lineup-selection-no-overlay-right-slot-7.png"
+    },
+    {
+      "imageKey": "lineup-selection-no-overlay",
+      "imagePath": "images/lineup-selection-no-overlay.png",
+      "side": "right",
+      "slotIndex": 7,
+      "species": "Hydreigon",
+      "crop": {
+        "x": 0.765,
+        "y": 0.207,
+        "w": 0.105,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/hydreigon/lineup-selection-no-overlay-right-slot-8.png"
+    },
+    {
+      "imageKey": "lineup-selection-no-overlay",
+      "imagePath": "images/lineup-selection-no-overlay.png",
+      "side": "right",
+      "slotIndex": 8,
+      "species": "Toucannon",
+      "crop": {
+        "x": 0.765,
+        "y": 0.324,
+        "w": 0.105,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/toucannon/lineup-selection-no-overlay-right-slot-9.png"
+    },
+    {
+      "imageKey": "lineup-selection-no-overlay",
+      "imagePath": "images/lineup-selection-no-overlay.png",
+      "side": "right",
+      "slotIndex": 9,
+      "species": "Primarina",
+      "crop": {
+        "x": 0.765,
+        "y": 0.441,
+        "w": 0.105,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/primarina/lineup-selection-no-overlay-right-slot-10.png"
+    },
+    {
+      "imageKey": "lineup-selection-no-overlay",
+      "imagePath": "images/lineup-selection-no-overlay.png",
+      "side": "right",
+      "slotIndex": 10,
+      "species": "Slowking-Galar",
+      "crop": {
+        "x": 0.765,
+        "y": 0.558,
+        "w": 0.105,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/slowking-galar/lineup-selection-no-overlay-right-slot-11.png"
+    },
+    {
+      "imageKey": "lineup-selection-no-overlay",
+      "imagePath": "images/lineup-selection-no-overlay.png",
+      "side": "right",
+      "slotIndex": 11,
+      "species": "Scizor",
+      "crop": {
+        "x": 0.765,
+        "y": 0.675,
+        "w": 0.105,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/scizor/lineup-selection-no-overlay-right-slot-12.png"
+    },
+    {
+      "imageKey": "lineup-selection-lock-overlay",
+      "imagePath": "images/lineup-selection-lock-overlay.png",
+      "side": "left",
+      "slotIndex": 0,
+      "species": "Bellibolt",
+      "crop": {
+        "x": 0.115,
+        "y": 0.09,
+        "w": 0.16,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/bellibolt/lineup-selection-lock-overlay-left-slot-1.png"
+    },
+    {
+      "imageKey": "lineup-selection-lock-overlay",
+      "imagePath": "images/lineup-selection-lock-overlay.png",
+      "side": "left",
+      "slotIndex": 1,
+      "species": "Froslass",
+      "crop": {
+        "x": 0.165,
+        "y": 0.207,
+        "w": 0.11,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/froslass/lineup-selection-lock-overlay-left-slot-2.png"
+    },
+    {
+      "imageKey": "lineup-selection-lock-overlay",
+      "imagePath": "images/lineup-selection-lock-overlay.png",
+      "side": "left",
+      "slotIndex": 2,
+      "species": "Ninetales-Alola",
+      "crop": {
+        "x": 0.165,
+        "y": 0.324,
+        "w": 0.11,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/ninetales-alola/lineup-selection-lock-overlay-left-slot-3.png"
+    },
+    {
+      "imageKey": "lineup-selection-lock-overlay",
+      "imagePath": "images/lineup-selection-lock-overlay.png",
+      "side": "left",
+      "slotIndex": 3,
+      "species": "Kingambit",
+      "crop": {
+        "x": 0.165,
+        "y": 0.441,
+        "w": 0.11,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/kingambit/lineup-selection-lock-overlay-left-slot-4.png"
+    },
+    {
+      "imageKey": "lineup-selection-lock-overlay",
+      "imagePath": "images/lineup-selection-lock-overlay.png",
+      "side": "left",
+      "slotIndex": 4,
+      "species": "Arcanine-Hisui",
+      "crop": {
+        "x": 0.165,
+        "y": 0.558,
+        "w": 0.11,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/arcanine-hisui/lineup-selection-lock-overlay-left-slot-5.png"
+    },
+    {
+      "imageKey": "lineup-selection-lock-overlay",
+      "imagePath": "images/lineup-selection-lock-overlay.png",
+      "side": "left",
+      "slotIndex": 5,
+      "species": "Kommo-o",
+      "crop": {
+        "x": 0.165,
+        "y": 0.675,
+        "w": 0.11,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/kommo-o/lineup-selection-lock-overlay-left-slot-6.png"
+    },
+    {
+      "imageKey": "lineup-selection-lock-overlay",
+      "imagePath": "images/lineup-selection-lock-overlay.png",
+      "side": "right",
+      "slotIndex": 6,
+      "species": "Starmie",
+      "crop": {
+        "x": 0.708,
+        "y": 0.09,
+        "w": 0.118,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/starmie/lineup-selection-lock-overlay-right-slot-7.png"
+    },
+    {
+      "imageKey": "lineup-selection-lock-overlay",
+      "imagePath": "images/lineup-selection-lock-overlay.png",
+      "side": "right",
+      "slotIndex": 7,
+      "species": "Talonflame",
+      "crop": {
+        "x": 0.708,
+        "y": 0.207,
+        "w": 0.118,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/talonflame/lineup-selection-lock-overlay-right-slot-8.png"
+    },
+    {
+      "imageKey": "lineup-selection-lock-overlay",
+      "imagePath": "images/lineup-selection-lock-overlay.png",
+      "side": "right",
+      "slotIndex": 8,
+      "species": "Sneasler",
+      "crop": {
+        "x": 0.708,
+        "y": 0.324,
+        "w": 0.118,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/sneasler/lineup-selection-lock-overlay-right-slot-9.png"
+    },
+    {
+      "imageKey": "lineup-selection-lock-overlay",
+      "imagePath": "images/lineup-selection-lock-overlay.png",
+      "side": "right",
+      "slotIndex": 9,
+      "species": "Sableye",
+      "crop": {
+        "x": 0.708,
+        "y": 0.441,
+        "w": 0.118,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/sableye/lineup-selection-lock-overlay-right-slot-10.png"
+    },
+    {
+      "imageKey": "lineup-selection-lock-overlay",
+      "imagePath": "images/lineup-selection-lock-overlay.png",
+      "side": "right",
+      "slotIndex": 10,
+      "species": "Meowscarada",
+      "crop": {
+        "x": 0.708,
+        "y": 0.558,
+        "w": 0.118,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/meowscarada/lineup-selection-lock-overlay-right-slot-11.png"
+    },
+    {
+      "imageKey": "lineup-selection-lock-overlay",
+      "imagePath": "images/lineup-selection-lock-overlay.png",
+      "side": "right",
+      "slotIndex": 11,
+      "species": "Archaludon",
+      "crop": {
+        "x": 0.708,
+        "y": 0.675,
+        "w": 0.118,
+        "h": 0.095
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/archaludon/lineup-selection-lock-overlay-right-slot-12.png"
+    },
+    {
+      "imageKey": "lineup-selection-overlay",
+      "imagePath": "images/lineup-selection-overlay.png",
+      "side": "left",
+      "slotIndex": 0,
+      "species": "Weavile",
+      "crop": {
+        "x": 0.203,
+        "y": 0.092,
+        "w": 0.109,
+        "h": 0.092
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/weavile/lineup-selection-overlay-left-slot-1.png"
+    },
+    {
+      "imageKey": "lineup-selection-overlay",
+      "imagePath": "images/lineup-selection-overlay.png",
+      "side": "left",
+      "slotIndex": 1,
+      "species": "Aerodactyl",
+      "crop": {
+        "x": 0.203,
+        "y": 0.209,
+        "w": 0.109,
+        "h": 0.092
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/aerodactyl/lineup-selection-overlay-left-slot-2.png"
+    },
+    {
+      "imageKey": "lineup-selection-overlay",
+      "imagePath": "images/lineup-selection-overlay.png",
+      "side": "left",
+      "slotIndex": 2,
+      "species": "Gallade",
+      "crop": {
+        "x": 0.203,
+        "y": 0.326,
+        "w": 0.109,
+        "h": 0.092
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/gallade/lineup-selection-overlay-left-slot-3.png"
+    },
+    {
+      "imageKey": "lineup-selection-overlay",
+      "imagePath": "images/lineup-selection-overlay.png",
+      "side": "left",
+      "slotIndex": 3,
+      "species": "Appletun",
+      "crop": {
+        "x": 0.203,
+        "y": 0.443,
+        "w": 0.109,
+        "h": 0.092
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/appletun/lineup-selection-overlay-left-slot-4.png"
+    },
+    {
+      "imageKey": "lineup-selection-overlay",
+      "imagePath": "images/lineup-selection-overlay.png",
+      "side": "left",
+      "slotIndex": 4,
+      "species": "Goodra",
+      "crop": {
+        "x": 0.203,
+        "y": 0.56,
+        "w": 0.109,
+        "h": 0.092
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/goodra/lineup-selection-overlay-left-slot-5.png"
+    },
+    {
+      "imageKey": "lineup-selection-overlay",
+      "imagePath": "images/lineup-selection-overlay.png",
+      "side": "left",
+      "slotIndex": 5,
+      "species": "Heliolisk",
+      "crop": {
+        "x": 0.203,
+        "y": 0.677,
+        "w": 0.109,
+        "h": 0.092
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/heliolisk/lineup-selection-overlay-left-slot-6.png"
+    },
+    {
+      "imageKey": "lineup-selection-overlay",
+      "imagePath": "images/lineup-selection-overlay.png",
+      "side": "right",
+      "slotIndex": 6,
+      "species": "Rotom-Wash",
+      "crop": {
+        "x": 0.796,
+        "y": 0.097,
+        "w": 0.088,
+        "h": 0.09
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/rotom-wash/lineup-selection-overlay-right-slot-7.png"
+    },
+    {
+      "imageKey": "lineup-selection-overlay",
+      "imagePath": "images/lineup-selection-overlay.png",
+      "side": "right",
+      "slotIndex": 7,
+      "species": "Aegislash-Shield",
+      "crop": {
+        "x": 0.796,
+        "y": 0.214,
+        "w": 0.088,
+        "h": 0.09
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/aegislash-shield/lineup-selection-overlay-right-slot-8.png"
+    },
+    {
+      "imageKey": "lineup-selection-overlay",
+      "imagePath": "images/lineup-selection-overlay.png",
+      "side": "right",
+      "slotIndex": 8,
+      "species": "Lycanroc",
+      "crop": {
+        "x": 0.796,
+        "y": 0.331,
+        "w": 0.088,
+        "h": 0.09
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/lycanroc/lineup-selection-overlay-right-slot-9.png"
+    },
+    {
+      "imageKey": "lineup-selection-overlay",
+      "imagePath": "images/lineup-selection-overlay.png",
+      "side": "right",
+      "slotIndex": 9,
+      "species": "Lucario",
+      "crop": {
+        "x": 0.796,
+        "y": 0.448,
+        "w": 0.088,
+        "h": 0.09
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/lucario/lineup-selection-overlay-right-slot-10.png"
+    },
+    {
+      "imageKey": "lineup-selection-overlay",
+      "imagePath": "images/lineup-selection-overlay.png",
+      "side": "right",
+      "slotIndex": 10,
+      "species": "Garchomp",
+      "crop": {
+        "x": 0.796,
+        "y": 0.565,
+        "w": 0.088,
+        "h": 0.09
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/garchomp/lineup-selection-overlay-right-slot-11.png"
+    },
+    {
+      "imageKey": "lineup-selection-overlay",
+      "imagePath": "images/lineup-selection-overlay.png",
+      "side": "right",
+      "slotIndex": 11,
+      "species": "Delphox",
+      "crop": {
+        "x": 0.796,
+        "y": 0.682,
+        "w": 0.088,
+        "h": 0.09
+      },
+      "outputPath": "training/sprite-classifier/dataset/review-targets/delphox/lineup-selection-overlay-right-slot-12.png"
+    }
+  ]
+}

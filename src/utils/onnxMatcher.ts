@@ -15,7 +15,7 @@ import embeddingsData from '../data/spriteEmbeddings.json';
 let _session: ort.InferenceSession | null = null;
 let _loading = false;
 
-interface RefEmbedding {
+export interface RefEmbedding {
   species: string;
   embedding: number[];
 }
@@ -69,7 +69,7 @@ function preprocessCanvas(canvas: HTMLCanvasElement): ort.Tensor {
   return new ort.Tensor('float32', float32, [1, 3, 224, 224]);
 }
 
-async function extractFeatures(canvas: HTMLCanvasElement): Promise<number[] | null> {
+export async function extractCanvasFeatures(canvas: HTMLCanvasElement): Promise<number[] | null> {
   if (!_session) return null;
   try {
     const tensor = preprocessCanvas(canvas);
@@ -99,8 +99,13 @@ export interface OnnxMatch {
   confidence: number;
 }
 
-export function rankEmbeddingMatches(features: number[], topN = 5, minSimilarity = 0.5): OnnxMatch[] {
-  const scores = _refEmbeddings.map(ref => ({
+export function rankFeaturesAgainstEmbeddings(
+  features: number[],
+  refs: RefEmbedding[],
+  topN = 5,
+  minSimilarity = 0.5,
+): OnnxMatch[] {
+  const scores = refs.map(ref => ({
     species: ref.species,
     similarity: cosineSimilarity(features, ref.embedding),
   }));
@@ -114,6 +119,10 @@ export function rankEmbeddingMatches(features: number[], topN = 5, minSimilarity
       similarity: score.similarity,
       confidence: Math.max(0, Math.min(1, (score.similarity - 0.5) / 0.35)),
     }));
+}
+
+export function rankEmbeddingMatches(features: number[], topN = 5, minSimilarity = 0.5): OnnxMatch[] {
+  return rankFeaturesAgainstEmbeddings(features, _refEmbeddings, topN, minSimilarity);
 }
 
 export function matchEmbedding(features: number[], topN = 1, minSimilarity = 0.6): OnnxMatch[] {
@@ -139,7 +148,7 @@ export async function matchCanvasWithOnnx(
   topN = 5,
   minSimilarity = 0.5,
 ): Promise<OnnxMatch[]> {
-  const features = await extractFeatures(canvas);
+  const features = await extractCanvasFeatures(canvas);
   if (!features) return [];
   return rankEmbeddingMatches(features, topN, minSimilarity);
 }
@@ -174,7 +183,7 @@ export async function scanRegionsWithOnnx(
     crop.width = rw; crop.height = rh;
     crop.getContext('2d')!.drawImage(canvas, Math.round(region.x), Math.round(region.y), rw, rh, 0, 0, rw, rh);
 
-    const features = await extractFeatures(crop);
+    const features = await extractCanvasFeatures(crop);
     if (!features) continue;
 
     const matches = matchEmbedding(features, 1, 0.6);

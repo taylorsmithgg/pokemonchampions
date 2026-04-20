@@ -27,3 +27,19 @@ tests/screenshots/
 *.njsproj
 *.sln
 *.sw?
+
+# Python virtual env (for pokemon_detector reference implementation)
+.venv/
+
+# Local sprite-download cache (regeneratable via scripts/build-sprite-detector-db)
+.sprite-cache/
+
+# Sampled video frames + detector review output (regenerate with scripts/test-video-*)
+.video-frames/
+.video-review/
+.detector-debug/
+artifacts/
+
+# Raw gameplay video reference (too large for git; local-only)
+gameplay.mp4
+images/live-capture-*.png

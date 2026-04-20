@@ -8,6 +8,11 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "dataset:export-review-crops": "node scripts/export-training-crops.mjs",
+    "train:sprite-classifier": "node scripts/train-offline-sprite-classifier.mjs",
+    "review:sprite-classifier": "node scripts/review-offline-sprite-classifier.mjs",
+    "review:detection": "node scripts/review-detection.mjs",
+    "review:selection-layout": "node scripts/review-selection-layout.mjs",
     "scrape:pikalytics": "node scripts/scrape-pikalytics.mjs"
   },
   "dependencies": {

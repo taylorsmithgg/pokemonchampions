@@ -20,8 +20,8 @@ test.describe('Sprite Calibration', () => {
     await page.waitForLoadState('networkidle');
   });
 
-  test('lineup-selection.png — manual crop test + pHash diagnostic', async ({ page }) => {
-    const imgData = loadImageAsBase64('images/lineup-selection.png');
+  test('lineup-selection-no-overlay.png — manual crop test + pHash diagnostic', async ({ page }) => {
+    const imgData = loadImageAsBase64('images/lineup-selection-no-overlay.png');
 
     // Wait for __pHash to be available (loaded async on page load)
     await page.waitForFunction(() => !!(window as any).__pHash, { timeout: 10000 });

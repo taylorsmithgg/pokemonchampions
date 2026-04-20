@@ -5,6 +5,7 @@
 // template matching with visual scan feedback.
 
 import { getAvailablePokemon } from '../data/champions';
+import { SELECTION_REFERENCE_SEEDS } from '../data/selectionReferenceCatalog';
 import { getSpriteUrl } from './sprites';
 
 // ─── Screen capture stream management ──────────────────────────────
@@ -98,6 +99,7 @@ export interface SpriteProfileCandidate {
 let _spriteProfiles: SpriteProfile[] | null = null;
 let _profilesLoading = false;
 let _profilesProgress = 0;
+let _selectionSeedsLoaded = false;
 
 export function getProfileLoadProgress(): number { return _profilesProgress; }
 
@@ -168,6 +170,40 @@ function computeDominantColors(data: Uint8ClampedArray, k: number = 8): [number,
     ] as [number, number, number]);
 }
 
+function buildProfileFromImageData(
+  species: string,
+  imageData: ImageData,
+  width: number,
+  height: number,
+): SpriteProfile | null {
+  const colors = computeDominantColors(imageData.data);
+  if (colors.length === 0) return null;
+  const histogram = buildHsvHistogram(imageData.data, 2);
+
+  const tw = 32, th = 32;
+  const c2 = document.createElement('canvas');
+  c2.width = tw; c2.height = th;
+  const ctx2 = c2.getContext('2d');
+  if (!ctx2) return null;
+  const tmp = document.createElement('canvas');
+  tmp.width = width;
+  tmp.height = height;
+  tmp.getContext('2d')!.putImageData(imageData, 0, 0);
+  ctx2.drawImage(tmp, 0, 0, tw, th);
+  const templateImg = ctx2.getImageData(0, 0, tw, th);
+
+  return {
+    species,
+    colors,
+    histogram,
+    width,
+    height,
+    templateData: templateImg.data,
+    templateW: tw,
+    templateH: th,
+  };
+}
+
 /** Load and profile a single sprite. */
 function loadSpriteProfile(species: string): Promise<SpriteProfile | null> {
   return new Promise(resolve => {
@@ -182,24 +218,7 @@ function loadSpriteProfile(species: string): Promise<SpriteProfile | null> {
       ctx1.drawImage(img, 0, 0);
       try {
         const fullData = ctx1.getImageData(0, 0, img.width, img.height);
-        const colors = computeDominantColors(fullData.data);
-        const histogram = buildHsvHistogram(fullData.data, 2);
-
-        // Downscaled template (32×32) for fast template matching
-        const tw = 32, th = 32;
-        const c2 = document.createElement('canvas');
-        c2.width = tw; c2.height = th;
-        const ctx2 = c2.getContext('2d');
-        if (!ctx2) { resolve(null); return; }
-        ctx2.drawImage(img, 0, 0, tw, th);
-        const templateImg = ctx2.getImageData(0, 0, tw, th);
-
-        resolve({
-          species, colors, histogram,
-          width: img.width, height: img.height,
-          templateData: templateImg.data,
-          templateW: tw, templateH: th,
-        });
+        resolve(buildProfileFromImageData(species, fullData, img.width, img.height));
       } catch {
         resolve(null);
       }
@@ -207,6 +226,50 @@ function loadSpriteProfile(species: string): Promise<SpriteProfile | null> {
     img.onerror = () => resolve(null);
     img.src = getSpriteUrl(species);
   });
+}
+
+async function seedSelectionReferenceProfiles(profiles: SpriteProfile[]): Promise<void> {
+  if (_selectionSeedsLoaded || profiles.length === 0) return;
+
+  for (const seed of SELECTION_REFERENCE_SEEDS) {
+    await new Promise<void>(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve();
+            return;
+          }
+          ctx.drawImage(img, 0, 0);
+          const sx = Math.max(0, Math.round(img.width * seed.region.x));
+          const sy = Math.max(0, Math.round(img.height * seed.region.y));
+          const sw = Math.max(16, Math.round(img.width * seed.region.w));
+          const sh = Math.max(16, Math.round(img.height * seed.region.h));
+          const sample = ctx.getImageData(
+            sx,
+            sy,
+            Math.min(sw, img.width - sx),
+            Math.min(sh, img.height - sy),
+          );
+          const profile = buildProfileFromImageData(seed.species, sample, sample.width, sample.height);
+          if (profile) {
+            profiles.push(profile);
+          }
+        } catch {
+          // Ignore bad seed crops and keep loading the rest.
+        }
+        resolve();
+      };
+      img.onerror = () => resolve();
+      img.src = seed.imageUrl;
+    });
+  }
+
+  _selectionSeedsLoaded = true;
 }
 
 export async function loadSpriteProfiles(maxSpecies: number = 250): Promise<SpriteProfile[]> {
@@ -228,6 +291,8 @@ export async function loadSpriteProfiles(maxSpecies: number = 250): Promise<Spri
     for (const r of results) if (r && r.colors.length > 0) profiles.push(r);
     _profilesProgress = Math.round(((i + batch.length) / species.length) * 100);
   }
+
+  await seedSelectionReferenceProfiles(profiles);
 
   _spriteProfiles = profiles;
   _profilesLoading = false;
@@ -270,33 +335,11 @@ export async function addTrainedProfile(
   const sample = ctx.getImageData(Math.round(region.x), Math.round(region.y), sw, sh);
   if (sample.width < 16 || sample.height < 16) return;
 
-  // Build histogram + dominant colors from this real sprite
-  const colors = computeDominantColors(sample.data);
-  const histogram = buildHsvHistogram(sample.data, 2);
-
-  // Downscale to 32×32 template
-  const tw = 32, th = 32;
-  const c2 = document.createElement('canvas');
-  c2.width = tw; c2.height = th;
-  const ctx2 = c2.getContext('2d')!;
-  // Need to put sample on intermediate canvas first
-  const tmp = document.createElement('canvas');
-  tmp.width = sw; tmp.height = sh;
-  tmp.getContext('2d')!.putImageData(sample, 0, 0);
-  ctx2.drawImage(tmp, 0, 0, tw, th);
-  const templateImg = ctx2.getImageData(0, 0, tw, th);
-
-  _spriteProfiles.push({
-    species,
-    colors,
-    histogram,
-    width: sw,
-    height: sh,
-    templateData: templateImg.data,
-    templateW: tw,
-    templateH: th,
-  });
-  _trainedRegions.set(species, existing + 1);
+  const profile = buildProfileFromImageData(species, sample, sw, sh);
+  if (profile) {
+    _spriteProfiles.push(profile);
+    _trainedRegions.set(species, existing + 1);
+  }
 }
 
 export async function rankRegionWithSpriteProfiles(

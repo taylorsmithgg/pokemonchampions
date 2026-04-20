@@ -8,7 +8,9 @@ import { fileURLToPath } from 'url';
  * Validates OCR detection against known game screens without live stream.
  *
  * Images:
- *  - images/lineup-selection.png — team select screen with nicknames
+ *  - images/lineup-selection-no-overlay.png — selection screen (no stream overlay)
+ *  - images/lineup-selection-lock-overlay.png — lock / order phase (stream overlay)
+ *  - images/lineup-selection-overlay.png — selection with stream overlay
  *  - images/win-loss-screen.png — results screen with WON!/LOST
  */
 
@@ -61,10 +63,29 @@ async function runDetection(page: import('@playwright/test').Page, dataUrl: stri
     canvas.height = img.naturalHeight;
     canvas.getContext('2d')!.drawImage(img, 0, 0);
 
+    const detectedRegion = det.autoDetectGameWindow ? det.autoDetectGameWindow(canvas) : null;
+    let frame = canvas;
+    if (detectedRegion) {
+      const sx = Math.round(canvas.width * detectedRegion.x);
+      const sy = Math.round(canvas.height * detectedRegion.y);
+      const sw = Math.round(canvas.width * detectedRegion.w);
+      const sh = Math.round(canvas.height * detectedRegion.h);
+      if (sw > 100 && sh > 100) {
+        const cropped = document.createElement('canvas');
+        cropped.width = sw;
+        cropped.height = sh;
+        cropped.getContext('2d')!.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+        frame = cropped;
+      }
+    }
+
     const onnxReady = det.isModelReady ? det.isModelReady() : false;
-    const result = await det.detectPokemonFromFrame(canvas);
+    const result = await det.detectPokemonFromFrame(frame);
     return {
       onnxReady,
+      detectedRegion,
+      frameWidth: frame.width,
+      frameHeight: frame.height,
       rawText: result.rawText as string,
       species: result.species as string[],
       hoveredRowIndex: result.hoveredRowIndex as number | null,
@@ -94,12 +115,13 @@ test.describe('Detection Reference Images', () => {
     await initOcr(page);
   });
 
-  test('lineup-selection.png — detects species from left column', async ({ page }) => {
-    const imgData = loadImageAsBase64('images/lineup-selection.png');
+  test('lineup-selection-no-overlay.png — detects species from left column', async ({ page }) => {
+    const imgData = loadImageAsBase64('images/lineup-selection-no-overlay.png');
     const result = await runDetection(page, imgData);
 
     console.log('=== LINEUP DETECTION ===');
     console.log('ONNX model ready:', result.onnxReady);
+    console.log('Detected region:', result.detectedRegion, 'frame:', result.frameWidth, 'x', result.frameHeight);
     console.log('Screen context:', result.screenContext, '—', result.screenContextDebug);
     console.log('Raw OCR text (first 500):', result.rawText.slice(0, 500));
     console.log('Detected species:', result.species);
@@ -119,21 +141,86 @@ test.describe('Detection Reference Images', () => {
     expect(result.selectionCount).toBe(0);
     expect(result.hoveredRowIndex).toBe(3);
 
-    // Left column shows NICKNAMES: LUCKY GIRL, Floette, Delphox, Primarina, Kingambit, Monado
-    // OCR can only match species names that happen to equal the displayed nickname.
-    // Floette → Floette-Eternal (via alias), Primarina = exact match.
-    // Delphox, Kingambit may or may not be read depending on OCR accuracy.
-    const knownPossible = ['Primarina', 'Floette-Eternal', 'Delphox', 'Kingambit'];
-    const foundSpecies = knownPossible.filter(s => result.species.includes(s));
-    console.log('Known species found:', foundSpecies, `(${foundSpecies.length}/${knownPossible.length})`);
+    const leftSprites = result.spriteMatched.filter(s => s.side === 'left').map(s => s.species);
+    const rightSprites = result.spriteMatched.filter(s => s.side === 'right').map(s => s.species);
+    console.log('Left sprites:', leftSprites);
+    console.log('Right sprites:', rightSprites);
 
-    // At least 1 species should be detected (Primarina is most reliable)
-    expect(foundSpecies.length).toBeGreaterThanOrEqual(1);
+    expect([...leftSprites].sort()).toEqual([
+      'Aegislash-Shield',
+      'Delphox',
+      'Floette-Eternal',
+      'Garchomp',
+      'Kingambit',
+      'Primarina',
+    ].sort());
+    expect([...rightSprites].sort()).toEqual([
+      'Hydreigon',
+      'Primarina',
+      'Scizor',
+      'Slowking-Galar',
+      'Toucannon',
+      'Victreebel',
+    ].sort());
+    expect(result.matched.every(m => m.method !== 'panel')).toBeTruthy();
+  });
 
-    // Left-column species should be assigned to 'left' side
-    const leftMatches = result.matched.filter(m => m.side === 'left');
-    console.log('Left-side matches:', leftMatches.map(m => m.species));
-    expect(leftMatches.length).toBeGreaterThan(0);
+  test('lineup-selection-lock-overlay.png — detects slot species from sprites', async ({ page }) => {
+    const imgData = loadImageAsBase64('images/lineup-selection-lock-overlay.png');
+    const result = await runDetection(page, imgData);
+
+    console.log('=== LINEUP DETECTION (LOCK) ===');
+    console.log('Detected region:', result.detectedRegion, 'frame:', result.frameWidth, 'x', result.frameHeight);
+    console.log('Screen context:', result.screenContext, '—', result.screenContextDebug);
+    console.log('Selection progress:', `${result.selectionCount}/${result.selectionTarget}`, 'hover row:', result.hoveredRowIndex);
+    console.log('Sprite matches:', result.spriteMatched);
+
+    expect(result.screenContext).toBe('battle');
+
+    const leftSprites = result.spriteMatched.filter(s => s.side === 'left').map(s => s.species);
+    const rightSprites = result.spriteMatched.filter(s => s.side === 'right').map(s => s.species);
+    expect([...leftSprites].sort()).toEqual([
+      'Arcanine-Hisui',
+      'Bellibolt',
+      'Froslass',
+      'Kingambit',
+      'Kommo-o',
+      'Ninetales-Alola',
+    ].sort());
+    expect([...rightSprites].sort()).toEqual([
+      'Archaludon',
+      'Meowscarada',
+      'Sableye',
+      'Starmie',
+      'Sneasler',
+      'Talonflame',
+    ].sort());
+    expect(result.matched.every(m => m.method !== 'panel')).toBeTruthy();
+  });
+
+  test('lineup-selection-overlay.png — detects slot species from sprites', async ({ page }) => {
+    const imgData = loadImageAsBase64('images/lineup-selection-overlay.png');
+    const result = await runDetection(page, imgData);
+
+    expect(result.screenContext).toBe('battle');
+    const leftSprites = result.spriteMatched.filter(s => s.side === 'left').map(s => s.species);
+    const rightSprites = result.spriteMatched.filter(s => s.side === 'right').map(s => s.species);
+    expect([...leftSprites].sort()).toEqual([
+      'Aerodactyl',
+      'Appletun',
+      'Gallade',
+      'Goodra',
+      'Heliolisk',
+      'Weavile',
+    ].sort());
+    expect([...rightSprites].sort()).toEqual([
+      'Aegislash-Shield',
+      'Delphox',
+      'Garchomp',
+      'Lucario',
+      'Lycanroc',
+      'Rotom-Wash',
+    ].sort());
   });
 
   test('win-loss-screen.png — detects WON on left half', async ({ page }) => {

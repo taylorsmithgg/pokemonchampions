@@ -7,10 +7,7 @@
 
 import { createWorker, type Worker, PSM } from 'tesseract.js';
 import { getAvailablePokemon } from '../data/champions';
-import { loadSpriteProfiles, rankRegionWithSpriteProfiles } from './screenCapture';
-import { loadTemplates, isTemplateReady, rankRegionWithTemplates, scanRegionsWithTemplates } from './templateMatcher';
-import { loadModel, isModelReady as isOnnxModelReady, matchCanvasWithOnnx } from './onnxMatcher';
-import { isHashDBReady, loadHashDB, matchRegionByHash } from './perceptualHash';
+import { detectLineupOnCanvas, detectResultOnCanvas, loadSpriteDetectorDatabase, type LineupMatchHints } from './spriteDetector/browserAdapter.ts';
 
 // ─── Worker management ──────────────────────────────────────────
 
@@ -44,10 +41,12 @@ export async function initOcrWorker(): Promise<void> {
     _workerReady = true;
     _loadProgress = 100;
 
-    // Preload sprite matchers + legacy sprite profiles (non-blocking)
-    loadTemplates();
-    loadModel().catch(() => {});
-    loadSpriteProfiles(250).catch(() => {});
+    // Preload the sprite-detector DB (HSV frame detector + multi-signal
+    // sprite matcher, ported from `pokemon_detector/`). This is now the
+    // sole sprite-matching backend for the stream companion.
+    loadSpriteDetectorDatabase().catch(err => {
+      console.warn('[sprite-detector] failed to load DB:', err);
+    });
   } catch (err) {
     console.warn('[ocrDetection] Failed to init worker:', err);
     _workerReady = false;
@@ -294,6 +293,8 @@ export type MatchResult = 'win' | 'loss' | null;
 export interface SpriteMatch {
   species: string;
   confidence: number;
+  /** True when the matched DB entry is the shiny variant of `species`. */
+  isShiny?: boolean;
   x: number;
   y: number;
   w?: number;
@@ -304,11 +305,25 @@ export interface SpriteMatch {
 
 export type ScreenContext = 'battle' | 'menu' | 'unknown';
 
+/** JPEG thumbnails of stages fed to OCR — use with `debugSnapshots: true` on `detectPokemonFromFrame`. */
+export interface OcrPipelineSnapshot {
+  label: string;
+  w: number;
+  h: number;
+  dataUrl: string;
+}
+
 export interface OcrDetectionResult {
   rawText: string;
   tokens: string[];
   matched: OcrMatch[];
   spriteMatched: SpriteMatch[];
+  selectionUiDetected: boolean;
+  selectionUiReason: string;
+  selectionSlotMatcherEnabled: boolean;
+  selectionSlotMatcherReason: string;
+  selectionSlots: SelectionSlotDebug[];
+  selectionPanels: SelectionPanelDebug[];
   selectedRowIndices: number[];
   hoveredRowIndex: number | null;
   selectionCount: number | null;
@@ -319,55 +334,89 @@ export interface OcrDetectionResult {
   bestPass: string;
   matchResult: MatchResult;
   matchResultDebug: string;
+  /** Raw signal percentages from the HSV result-screen detector (0-100).
+   *  Present on every frame — callers check `matchResult !== null` to
+   *  know whether the detector actually fired. Useful for auditing
+   *  false-positive wins/losses caused by in-game effects. */
+  matchResultSignals: {
+    /** @deprecated alias for `badgeRedLeft`, kept for audit compat. */
+    badgeRed: number;
+    silverRight: number;
+    centerDark: number;
+    badgeRedLeft: number;
+    badgeRedRight: number;
+    goldLeft: number;
+    silverLeft: number;
+    goldRight: number;
+  };
+  /** Detection confidence when `matchResult` is non-null, else 0. */
+  matchResultConfidence: number;
+  /** Raw signals from the HSV selection-frame detector, always present
+   *  regardless of whether the detector classified the frame as a
+   *  team-select. Lets the audit trail show why detection failed
+   *  (e.g. only 4/6 opponent cards found, confidence 0.4). */
+  selectionFrame: {
+    isTeamSelect: boolean;
+    frameConfidence: number;
+    opponentCardCount: number;
+    playerCardCount: number;
+    panelCount: number;
+  };
+  /** Lock-screen ("Standing By") detector signals + slots. Only
+   *  populated when the HSV detector classified the frame as `mode:
+   *  'lock'`; on selection / non-lineup frames every field is null/0/[].
+   *  Kept structurally parallel to `selectionSlots` / `selectionFrame`
+   *  so downstream code can treat both pipelines symmetrically. */
+  lockFrame: {
+    isLockScreen: boolean;
+    frameConfidence: number;
+    opponentCardCount: number;
+    playerCardCount: number;
+    panelCount: number;
+  };
+  /** Per-slot detector evaluations from the lock screen (all 6 cards
+   *  per side, even though only 4 were actually selected). Empty
+   *  outside lock screens. */
+  lockSlots: SelectionSlotDebug[];
+  /** Confident sprite matches from lock-screen frames. Same shape as
+   *  `spriteMatched` / `selectionSlots` but kept on a separate axis to
+   *  prevent low-confidence lock votes from polluting selection
+   *  consensus. */
+  lockMatches: SpriteMatch[];
+  /**
+   * Lock-screen only: indices (0-based, top-to-bottom) of the player
+   * cards that carry a visible selection-order badge (1/2/3). These
+   * identify which of the player's 6 Pokémon were actually sent into
+   * battle — authoritative signal, independent of sprite matching. The
+   * corresponding species can be looked up via the selection consensus
+   * already known to the caller. Empty on non-lock frames. */
+  playerLockBadgeSlots: number[];
   screenContext: ScreenContext;
   screenContextDebug: string;
   sideDetection: SideDetection;
   /** Pokemon found via battle log patterns — highest confidence */
   battleLogMatches: BattleLogMatch[];
+  /** Stages of the OCR pipeline (crop → scale → Tesseract preprocess) — only when `debugSnapshots` was true */
+  debugSnapshots?: OcrPipelineSnapshot[];
 }
 
-type OcrWordBox = {
-  text: string;
-  bbox: { x0: number; y0: number; x1: number; y1: number };
-};
-
-function classifyResultText(raw: string): MatchResult {
-  const text = raw.toLowerCase().replace(/[^a-z]/g, '');
-  if (!text) return null;
-  if (text === 'won' || text === 'win' || text === 'victory') return 'win';
-  if (text === 'lost' || text === 'loss' || text === 'lose' || text === 'defeat') return 'loss';
-  return null;
-}
-
-function findLargeResultWord(
-  words: OcrWordBox[] | undefined,
-  frameWidth: number,
-  frameHeight: number,
-  options?: {
-    requireLeftSide?: boolean;
-    minWidthRatio?: number;
-    minHeightRatio?: number;
-  },
-): { result: MatchResult; raw: string; centerX: number } | null {
-  if (!words?.length) return null;
-  const requireLeftSide = options?.requireLeftSide ?? false;
-  const minWidthRatio = options?.minWidthRatio ?? 0.08;
-  const minHeightRatio = options?.minHeightRatio ?? 0.05;
-  const midX = frameWidth / 2;
-
-  for (const word of words) {
-    const result = classifyResultText(word.text);
-    if (!result) continue;
-    const bboxWidth = word.bbox.x1 - word.bbox.x0;
-    const bboxHeight = word.bbox.y1 - word.bbox.y0;
-    const centerX = (word.bbox.x0 + word.bbox.x1) / 2;
-    if (bboxWidth < frameWidth * minWidthRatio) continue;
-    if (bboxHeight < frameHeight * minHeightRatio) continue;
-    if (requireLeftSide && centerX >= midX) continue;
-    return { result, raw: word.text.trim(), centerX };
-  }
-
-  return null;
+export interface DetectionOptions {
+  mode?: 'monitor' | 'preview';
+  /** When true, fills `debugSnapshots` on the result (JPEG data URLs — skip in tight loops). */
+  debugSnapshots?: boolean;
+  /**
+   * When provided, lock-screen frames have the matcher constrained to
+   * these candidate species (typically the 6-up/6-down list resolved by
+   * the selection consensus). Selection-screen matching always runs
+   * unconstrained — the consensus is the source of truth, the lock pass
+   * is a verification.
+   *
+   * Pass `undefined` (or omit) to disable constrained matching entirely.
+   */
+  lockMatchHints?: {
+    playerSpecies?: ReadonlySet<string>;
+    opponentSpecies?: ReadonlySet<string>;
+  };
 }
 
 // ─── Screen context detection ───────────────────────────────────
@@ -510,6 +559,12 @@ function classifyScreen(
 
 interface SelectionSpriteRegion {
   slotIndex: number;
+  /** Full card bounds (panel + portrait + icon strip) in frame pixel coords. */
+  cardX: number;
+  cardY: number;
+  cardW: number;
+  cardH: number;
+  /** Sprite sub-region within the card (what the matcher actually crops). */
   x: number;
   y: number;
   w: number;
@@ -522,216 +577,226 @@ interface RankedSelectionCandidate {
   confidence: number;
   score: number;
   supportCount: number;
+  /** True when the matched DB entry was a shiny variant. */
+  isShiny?: boolean;
 }
 
 interface SelectionSlotEvaluation {
   region: SelectionSpriteRegion;
   candidates: RankedSelectionCandidate[];
+  /** Lock-pipeline only — see `SelectionSlotDebug.reprocessed`. */
+  reprocessed?: boolean;
+  fallbackTop?: { species: string; confidence: number; isShiny?: boolean } | null;
 }
 
-function clamp01(value: number): number {
-  return Math.max(0, Math.min(1, value));
+export interface SelectionSlotDebug {
+  slotIndex: number;
+  side: 'left' | 'right';
+  cardX: number;
+  cardY: number;
+  cardW: number;
+  cardH: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  assignedSpecies: string | null;
+  assignedConfidence: number | null;
+  candidates: RankedSelectionCandidate[];
+  /** Lock pipeline only: true when the slot was first scored against a
+   *  constrained candidate pool (typically the 6 species from selection
+   *  consensus) and we then re-ran unconstrained because the constrained
+   *  pass produced no confident match. Always false on selection slots. */
+  reprocessed?: boolean;
+  /** Lock pipeline only: best unconstrained match when `reprocessed`
+   *  is true. Used to flag lock-vs-selection mismatches in the
+   *  Detection Trail. */
+  fallbackTop?: { species: string; confidence: number; isShiny?: boolean } | null;
 }
 
-export const SELECTION_SLOT_CONFIGS: Array<{ side: 'left' | 'right'; x: number; y: number; w: number; h: number }> = [
-  { side: 'left', x: 0.232, y: 0.09, w: 0.065, h: 0.09 },
-  { side: 'left', x: 0.232, y: 0.205, w: 0.065, h: 0.09 },
-  { side: 'left', x: 0.232, y: 0.322, w: 0.065, h: 0.09 },
-  { side: 'left', x: 0.232, y: 0.439, w: 0.065, h: 0.09 },
-  { side: 'left', x: 0.232, y: 0.556, w: 0.065, h: 0.09 },
-  { side: 'left', x: 0.232, y: 0.673, w: 0.065, h: 0.09 },
-  { side: 'right', x: 0.836, y: 0.095, w: 0.06, h: 0.085 },
-  { side: 'right', x: 0.836, y: 0.212, w: 0.06, h: 0.085 },
-  { side: 'right', x: 0.836, y: 0.329, w: 0.06, h: 0.085 },
-  { side: 'right', x: 0.836, y: 0.446, w: 0.06, h: 0.085 },
-  { side: 'right', x: 0.836, y: 0.563, w: 0.06, h: 0.085 },
-  { side: 'right', x: 0.836, y: 0.68, w: 0.06, h: 0.085 },
-];
-
-function buildSelectionSpriteRegions(
-  width: number,
-  height: number,
-): SelectionSpriteRegion[] {
-  return SELECTION_SLOT_CONFIGS.map((config, slotIndex) => ({
-    slotIndex,
-    x: width * config.x,
-    y: height * config.y,
-    w: width * config.w,
-    h: height * config.h,
-    side: config.side,
-  }));
+export interface SelectionPanelDebug {
+  side: 'left' | 'right';
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
-function cropRegionToCanvas(
+async function recognizeCanvasText(canvas: HTMLCanvasElement): Promise<string> {
+  if (!_worker || !_workerReady) return '';
+  try {
+    const { data } = await _worker.recognize(canvas);
+    return data.text ?? '';
+  } catch {
+    return '';
+  }
+}
+
+interface LineupBySpritesResult {
+  /** Whether this frame was detected as the SELECTION screen
+   *  specifically (the legacy meaning of `isTeamSelect`). */
+  isTeamSelect: boolean;
+  /** Whether this frame was detected as the LOCK / "Standing By"
+   *  screen. Mutually exclusive with `isTeamSelect`. */
+  isLockScreen: boolean;
+  frameConfidence: number;
+  opponentCardCount: number;
+  playerCardCount: number;
+  matches: SpriteMatch[];
+  slotEvaluations: SelectionSlotEvaluation[];
+  panels: SelectionPanelDebug[];
+  /**
+   * Lock-screen only: indices (0-based) of player slots carrying a
+   * selection-order number badge. The canonical source of truth for
+   * "which 3 Pokémon did the player send into battle" — species names
+   * come from the selection consensus rather than from sprite matching
+   * because the 3D lock-screen chibis match poorly against 2D menu
+   * sprites.
+   */
+  playerLockBadgeSlots: number[];
+}
+
+async function detectSelectionLineupBySprites(
   canvas: HTMLCanvasElement,
-  region: { x: number; y: number; w: number; h: number },
-): HTMLCanvasElement {
-  const crop = document.createElement('canvas');
-  crop.width = Math.max(1, Math.round(region.w));
-  crop.height = Math.max(1, Math.round(region.h));
-  crop.getContext('2d')!.drawImage(
-    canvas,
-    Math.round(region.x),
-    Math.round(region.y),
-    crop.width,
-    crop.height,
-    0,
-    0,
-    crop.width,
-    crop.height,
-  );
-  return crop;
-}
+  lockMatchHints?: LineupMatchHints,
+): Promise<LineupBySpritesResult> {
+  // HSV frame detector + multi-signal sprite matcher (port of
+  // `pokemon_detector/`). The detector internally short-circuits when
+  // the HSV panels don't look like a lineup (selection OR lock) screen,
+  // so it's safe to call on every frame regardless of what OCR saw.
+  // The returned `mode` field discriminates between the two screens so
+  // the caller can route slots into the appropriate analyzer.
+  //
+  // Two-pass strategy when `lockMatchHints` are supplied:
+  //   • Pass 1 (always): unconstrained detection. Detects the screen
+  //     mode (selection / lock / none) and produces the canonical
+  //     selection-side matches.
+  //   • Pass 2 (lock frames only): re-run with `lockMatchHints` as a
+  //     candidate whitelist. The matcher restricts itself to the
+  //     selection-consensus species, which dramatically improves
+  //     accuracy on visually-degraded 3D lock-card chibis. The
+  //     unconstrained pass-1 results are kept as a fallback inside the
+  //     matcher so true mismatches (locked species not in selection
+  //     consensus) still surface as `fallbackTop` on the slot.
+  try {
+    const firstPass = await detectLineupOnCanvas(canvas);
+    const panels = firstPass.panels.map(p => ({ side: p.side, x: p.x, y: p.y, w: p.w, h: p.h }));
 
-async function evaluateSelectionSlot(
-  canvas: HTMLCanvasElement,
-  region: SelectionSpriteRegion,
-): Promise<SelectionSlotEvaluation> {
-  const crop = cropRegionToCanvas(canvas, region);
-  const combined = new Map<string, { score: number; confidence: number; support: Set<string> }>();
-
-  const addCandidate = (
-    species: string,
-    matcher: 'onnx' | 'template' | 'hash' | 'profile',
-    contribution: number,
-    confidence: number,
-  ) => {
-    const existing = combined.get(species) ?? { score: 0, confidence: 0, support: new Set<string>() };
-    existing.score += contribution;
-    existing.confidence = Math.max(existing.confidence, confidence);
-    existing.support.add(matcher);
-    combined.set(species, existing);
-  };
-
-  if (isOnnxModelReady()) {
-    const onnxMatches = await matchCanvasWithOnnx(crop, 4, 0.5);
-    onnxMatches.forEach((match, index) => {
-      const rankPenalty = 1 - index * 0.12;
-      addCandidate(
-        match.species,
-        'onnx',
-        0.62 * match.confidence * rankPenalty,
-        clamp01((match.similarity - 0.5) / 0.32),
-      );
-    });
-  }
-
-  const profileMatches = await rankRegionWithSpriteProfiles(canvas, region, 5);
-  profileMatches.forEach((match, index) => {
-    const rankPenalty = 1 - index * 0.08;
-    addCandidate(match.species, 'profile', 0.9 * match.confidence * rankPenalty, match.confidence);
-  });
-
-  if (isTemplateReady()) {
-    const templateMatches = rankRegionWithTemplates(canvas, region, 5);
-    templateMatches.forEach((match, index) => {
-      const confidence = clamp01((match.score - 0.2) / 0.45);
-      const rankPenalty = 1 - index * 0.1;
-      addCandidate(match.species, 'template', 0.34 * confidence * rankPenalty, confidence);
-    });
-  }
-
-  if (isHashDBReady()) {
-    const hashMatches = matchRegionByHash(canvas, region, 5, 18);
-    hashMatches.forEach((match, index) => {
-      const rankPenalty = 1 - index * 0.1;
-      addCandidate(match.species, 'hash', 0.2 * clamp01(match.confidence) * rankPenalty, clamp01(match.confidence));
-    });
-  }
-
-  const candidates = [...combined.entries()]
-    .map(([species, entry]) => {
-      const supportBonus = entry.support.size >= 2 ? 0.12 * (entry.support.size - 1) : 0;
-      const score = entry.score + supportBonus;
+    if (!firstPass.isLineupScreen) {
       return {
-        species,
-        score,
-        confidence: clamp01(Math.max(entry.confidence, score)),
-        supportCount: entry.support.size,
+        isTeamSelect: false,
+        isLockScreen: false,
+        frameConfidence: firstPass.frameConfidence,
+        opponentCardCount: firstPass.opponentCardCount,
+        playerCardCount: firstPass.playerCardCount,
+        matches: [],
+        slotEvaluations: [],
+        panels,
+        playerLockBadgeSlots: [],
       };
-    })
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 4);
-
-  return { region, candidates };
-}
-
-function resolveSelectionSlotMatchesForSide(slotEvaluations: SelectionSlotEvaluation[]): SpriteMatch[] {
-  const assignments = new Map<number, RankedSelectionCandidate>();
-  const usedSpecies = new Set<string>();
-  const slotOrder = slotEvaluations
-    .map((slot, index) => ({ index, score: slot.candidates[0]?.score ?? -1 }))
-    .sort((a, b) => b.score - a.score);
-
-  const tryAssign = (minScore: number, allowSingleMatcher: boolean) => {
-    for (const { index } of slotOrder) {
-      if (assignments.has(index)) continue;
-      const candidate = slotEvaluations[index].candidates.find(entry => {
-        if (usedSpecies.has(entry.species)) return false;
-        if (entry.score < minScore) return false;
-        if (!allowSingleMatcher && entry.supportCount < 2 && entry.confidence < 0.8) return false;
-        return true;
-      });
-      if (!candidate) continue;
-      assignments.set(index, candidate);
-      usedSpecies.add(candidate.species);
     }
-  };
 
-  tryAssign(0.58, false);
-  tryAssign(0.5, true);
+    let adapted = firstPass;
+    if (
+      firstPass.mode === 'lock' &&
+      lockMatchHints &&
+      ((lockMatchHints.playerSpecies?.size ?? 0) > 0 ||
+        (lockMatchHints.opponentSpecies?.size ?? 0) > 0)
+    ) {
+      adapted = await detectLineupOnCanvas(canvas, lockMatchHints);
+    }
 
-  const matches: SpriteMatch[] = [];
-  slotEvaluations.forEach((slot, index) => {
-    const candidate = assignments.get(index);
-    if (!candidate) return;
-    matches.push({
-      species: candidate.species,
-      confidence: candidate.confidence,
-      x: slot.region.x,
-      y: slot.region.y,
-      w: slot.region.w,
-      h: slot.region.h,
-      side: slot.region.side,
-    });
-  });
-  return matches;
-}
+    const matches: SpriteMatch[] = adapted.matches.map(m => ({
+      species: m.species,
+      confidence: m.confidence,
+      isShiny: m.isShiny,
+      x: m.x,
+      y: m.y,
+      w: m.w,
+      h: m.h,
+      side: m.side,
+    }));
 
-function resolveSelectionSlotMatches(slotEvaluations: SelectionSlotEvaluation[]): SpriteMatch[] {
-  const leftSlots = slotEvaluations.filter(slot => slot.region.side === 'left');
-  const rightSlots = slotEvaluations.filter(slot => slot.region.side === 'right');
-  return [
-    ...resolveSelectionSlotMatchesForSide(leftSlots),
-    ...resolveSelectionSlotMatchesForSide(rightSlots),
-  ];
-}
+    const slotEvaluations: SelectionSlotEvaluation[] = adapted.slotEvaluations.map(slot => ({
+      region: {
+        slotIndex: slot.slotIndex,
+        side: slot.side,
+        cardX: slot.cardX,
+        cardY: slot.cardY,
+        cardW: slot.cardW,
+        cardH: slot.cardH,
+        x: slot.x,
+        y: slot.y,
+        w: slot.w,
+        h: slot.h,
+      },
+      candidates: slot.candidates,
+      reprocessed: slot.reprocessed,
+      fallbackTop: slot.fallbackTop,
+    }));
 
-async function detectSelectionLineupBySprites(canvas: HTMLCanvasElement): Promise<SpriteMatch[]> {
-  const evaluations = await Promise.all(
-    buildSelectionSpriteRegions(canvas.width, canvas.height).map(region => evaluateSelectionSlot(canvas, region))
-  );
-  return resolveSelectionSlotMatches(evaluations);
+    return {
+      isTeamSelect: adapted.mode === 'selection',
+      isLockScreen: adapted.mode === 'lock',
+      frameConfidence: adapted.frameConfidence,
+      opponentCardCount: adapted.opponentCardCount,
+      playerCardCount: adapted.playerCardCount,
+      matches,
+      slotEvaluations,
+      panels,
+      playerLockBadgeSlots: adapted.playerLockBadgeSlots,
+    };
+  } catch (err) {
+    console.warn('[sprite-detector] lineup detection failed:', err);
+    return {
+      isTeamSelect: false,
+      isLockScreen: false,
+      frameConfidence: 0,
+      opponentCardCount: 0,
+      playerCardCount: 0,
+      matches: [],
+      slotEvaluations: [],
+      panels: [],
+      playerLockBadgeSlots: [],
+    };
+  }
 }
 
 function extractSelectionProgress(rawText: string): {
   selectionCount: number | null;
   selectionTarget: number | null;
 } {
-  const normalized = rawText
+  // Counter "2 / 4" only: OCR often confuses 0/O and 1/l — normalize for digit slash match only.
+  const forCounter = rawText
     .replace(/[|\\]/g, '/')
     .replace(/[Oo]/g, '0')
     .replace(/[Il]/g, '1');
+  const counterMatch = forCounter.match(/([0-6])\s*\/\s*([34])/);
 
-  const counterMatch = normalized.match(/([0-6])\s*\/\s*([34])/);
-  const headerMatch = normalized.match(/select\s*([34])\s*pok(?:e|é)mon/i);
+  // Header phrases: do NOT apply O→0 here — it breaks Italian "Seleziona" → "Selez0na" and English "Pokemon".
+  const forHeaders = rawText
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  const headerMatch = forHeaders.match(/\bselect\s*([34])\s+pokemon\b/i);
+  const italianHeaderMatch = forHeaders.match(/\bseleziona\s*([34])\s+pokemon\b/i);
+  // Italian often reads "Seleziona 4 Pokémon per la lotta" — if "pokemon" is garbled, match through "lotta".
+  const italianLooseMatch = forHeaders.match(/\bseleziona\s*([34])[\s\S]{0,160}?\blotta\b/i);
+  const spanishHeaderMatch = forHeaders.match(/\bselecciona\s*([34])\s+pokemon\b/i);
 
   const selectionCount = counterMatch ? Number(counterMatch[1]) : null;
   const selectionTarget = counterMatch
     ? Number(counterMatch[2])
     : headerMatch
       ? Number(headerMatch[1])
-      : null;
+      : italianHeaderMatch
+        ? Number(italianHeaderMatch[1])
+        : spanishHeaderMatch
+          ? Number(spanishHeaderMatch[1])
+          : italianLooseMatch
+            ? Number(italianLooseMatch[1])
+            : null;
 
   return { selectionCount, selectionTarget };
 }
@@ -783,13 +848,15 @@ function detectHoveredPreviewRow(canvas: HTMLCanvasElement): number | null {
  */
 export async function detectPokemonFromFrame(
   canvas: HTMLCanvasElement,
+  options: DetectionOptions = {},
 ): Promise<OcrDetectionResult> {
   const t0 = performance.now();
+  const mode = options.mode ?? 'preview';
+  const wantPipelineSnapshots = options.debugSnapshots === true;
+  /** Live companion scans: minimize Tesseract work per frame (full pipeline could exceed 25s+ on one core). */
+  const isMonitorMode = mode === 'monitor';
 
   const emptySide: SideDetection = { hasOpposingLabel: false, opposingSide: 'unknown', debug: '' };
-  if (!isTemplateReady()) void loadTemplates();
-  if (!isOnnxModelReady()) void loadModel().catch(() => {});
-  if (!isHashDBReady()) loadHashDB();
 
   // ── FAST PANEL OCR ──
   // HP bar panels are at fixed positions. OCR just those regions first.
@@ -822,8 +889,9 @@ export async function detectPokemonFromFrame(
     } catch { /* panel OCR failed, continue with full-frame */ }
   };
 
-  // ── BATTLE SCREEN panels (HP bars at corners)
-  if (canUseOcr) {
+  // ── BATTLE SCREEN panels (HP bars at corners) — skipped in monitor mode (live scan);
+  // those add 2× Tesseract runs on top of the full-frame pass and routinely exceed 40s+ on one worker.
+  if (canUseOcr && !isMonitorMode) {
     await Promise.all([
       ocrPanel(w * 0.00, h * 0.82, w * 0.25, h * 1.00, 'left'),
       ocrPanel(w * 0.55, h * 0.00, w * 1.00, h * 0.18, 'right'),
@@ -865,52 +933,30 @@ export async function detectPokemonFromFrame(
       }
     } catch { /* selection OCR failed */ }
   };
-  if (canUseOcr) {
+  if (canUseOcr && !isMonitorMode) {
     await ocrSelectionColumn();
   }
 
-  // ── TARGETED W/L DETECTION ──
-  // Results screen shows "WON!" / "LOST" in large decorative gold text.
-  // Left half = player result. Run dedicated OCR with multiple preprocessing
-  // passes on the left-center region to catch stylized game fonts.
-  let earlyMatchResult: MatchResult = null;
-  let earlyMatchDebug = '';
-  const ocrWinLoss = async () => {
-    // Scan left 48% of frame, middle vertical band (y 25-80%)
-    const lx = Math.round(w * 0.02), ly = Math.round(h * 0.25);
-    const lw2 = Math.round(w * 0.46), lh2 = Math.round(h * 0.55);
-    if (lw2 < 30 || lh2 < 30) return;
-    const crop = document.createElement('canvas');
-    crop.width = lw2; crop.height = lh2;
-    crop.getContext('2d')!.drawImage(canvas, lx, ly, lw2, lh2, 0, 0, lw2, lh2);
-
-    // Multiple preprocessing passes — decorative gold font needs different thresholds
-    const passes = [
-      preprocessHighContrast(crop),
-      preprocessGoldText(crop),  // Gold/yellow text isolation
-      preprocessGrayscale(crop),
-    ];
-
-    for (const processed of passes) {
-      if (earlyMatchResult) break;
-      try {
-        if (!_worker) return;
-        const { data } = await _worker.recognize(processed);
-        const words = (data as unknown as { words?: OcrWordBox[] }).words;
-        const match = findLargeResultWord(words, processed.width, processed.height, {
-          minWidthRatio: 0.16,
-          minHeightRatio: 0.12,
-        });
-        if (match) {
-          earlyMatchResult = match.result;
-          earlyMatchDebug = `W/L panel: "${match.raw}" large-word`;
-        }
-      } catch { /* W/L OCR failed */ }
-    }
-  };
-  if (canUseOcr) {
-    await ocrWinLoss();
-  }
+  // ── W/L DETECTION ──
+  // Pure HSV color-signal detector — no OCR involved. Identifies
+  // the post-match result screen by red/gold badge + silver text +
+  // center dark divider, then decides WIN vs LOSS by gold vs silver
+  // in the left-center region. Runs on every frame regardless of
+  // mode (cheap: a single HSV conversion + 3-5 region means).
+  const resultDetection = detectResultOnCanvas(canvas);
+  const matchResultFromVision: MatchResult = resultDetection.isResultScreen
+    ? resultDetection.outcome
+    : null;
+  const matchResultDebugFromVision = resultDetection.isResultScreen
+    ? `result-screen conf=${resultDetection.confidence.toFixed(2)} outcome=${resultDetection.outcome ?? 'uncertain'} ` +
+      `badgeL=${resultDetection.signals.badgeRedLeft.toFixed(1)}% ` +
+      `badgeR=${resultDetection.signals.badgeRedRight.toFixed(1)}% ` +
+      `centerDark=${resultDetection.signals.centerDark.toFixed(1)}% ` +
+      `goldL=${resultDetection.signals.goldLeft.toFixed(1)}% ` +
+      `silverL=${resultDetection.signals.silverLeft.toFixed(1)}% ` +
+      `goldR=${resultDetection.signals.goldRight.toFixed(1)}% ` +
+      `silverR=${resultDetection.signals.silverRight.toFixed(1)}%`
+    : '';
 
   // Crop out the right 25% of the frame — this is where Twitch chat
   // typically sits. Chat text generates massive OCR noise (usernames,
@@ -918,17 +964,41 @@ export async function detectPokemonFromFrame(
   // Also crop the bottom 10% (stream alerts/donation tickers).
   const cropped = cropFrame(canvas, 0, 0, 0.75, 0.9);
 
-  // Scale down for OCR quality + speed
-  const scaled = scaleDown(cropped, 960);
+  // Scale down for OCR quality + speed (monitor: one cheap pass — keep width low)
+  const scaled = scaleDown(cropped, isMonitorMode ? 480 : 960);
 
   // OCR passes — sprite detection is primary for Pokemon ID but OCR
   // still contributes text matches, win/loss, and screen context.
-  // 2 OCR passes max — sprite detection is primary, OCR is supplementary.
-  // Raw pass dropped — high-contrast catches same text with better noise rejection.
-  const passes: { name: string; canvas: HTMLCanvasElement }[] = [
-    { name: 'high-contrast', canvas: preprocessHighContrast(scaled) },
-    { name: 'grayscale', canvas: preprocessGrayscale(scaled) },
-  ];
+  // Monitor: single pass — two full-width passes per frame routinely time out on one CPU core.
+  const passes: { name: string; canvas: HTMLCanvasElement }[] = isMonitorMode
+    ? [{ name: 'high-contrast', canvas: preprocessHighContrast(scaled) }]
+    : [
+        { name: 'high-contrast', canvas: preprocessHighContrast(scaled) },
+        { name: 'grayscale', canvas: preprocessGrayscale(scaled) },
+      ];
+
+  const pipelineDebugSnapshots: OcrPipelineSnapshot[] | undefined = wantPipelineSnapshots
+    ? [
+        {
+          label: 'OCR crop (75%×90% — chat / ticker stripped)',
+          w: cropped.width,
+          h: cropped.height,
+          dataUrl: cropped.toDataURL('image/jpeg', 0.62),
+        },
+        {
+          label: `Scaled for OCR (${scaled.width}×${scaled.height})`,
+          w: scaled.width,
+          h: scaled.height,
+          dataUrl: scaled.toDataURL('image/jpeg', 0.62),
+        },
+        ...passes.map(p => ({
+          label: `Tesseract input · ${p.name} (${p.canvas.width}×${p.canvas.height})`,
+          w: p.canvas.width,
+          h: p.canvas.height,
+          dataUrl: p.canvas.toDataURL('image/jpeg', 0.62),
+        })),
+      ]
+    : undefined;
 
   const allMatched = new Map<string, OcrMatch>();
   // Seed with panel OCR results — highest confidence, exact side assignment
@@ -940,9 +1010,7 @@ export async function detectPokemonFromFrame(
   let allTokens: string[] = [];
   let bestPassName = 'raw';
 
-  // Match result detection: look for "Won"/"Lost" with position info
-  let matchResult: MatchResult = null;
-  let matchResultDebug = '';
+  // W/L is handled above by the HSV result detector — not OCR.
   let sideDetection: SideDetection = { ...emptySide };
 
   if (canUseOcr && _worker) {
@@ -953,45 +1021,24 @@ export async function detectPokemonFromFrame(
       const frameWidth = scaled.width;
       const midX = frameWidth / 2;
 
-      const words = (data as unknown as { words?: { text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }[] }).words;
-      if (words) {
-      // Detect "opposing" / "opponent" label
-        if (!sideDetection.hasOpposingLabel) {
-          for (const word of words) {
-            const t = word.text.toLowerCase().replace(/[^a-z]/g, '');
-            if (t === 'opposing' || t === 'opponent' || t === 'opponents' || t === 'foe' || t === 'enemy') {
-              const centerX = (word.bbox.x0 + word.bbox.x1) / 2;
-              const side = centerX < midX ? 'left' : 'right';
-              sideDetection = {
-                hasOpposingLabel: true,
-                opposingSide: side,
-                debug: `"${word.text}" at x=${Math.round(centerX)} → opponent is on ${side} side (pass: ${pass.name})`,
-              };
-              break;
-            }
-          }
-        }
-      }
-
       // Full-frame OCR is NOT used for species matching — chat overlays,
       // stream text, and usernames produce too many false positives.
       // Species detection comes from: panel OCR (HP bars) + battle log only.
-      // Full-frame OCR is used for: W/L, screen context, battle log, side labels.
-
-      // Detect match result from word-level bounding boxes.
-      // The game shows "Won"/"Lost" — left is player's result, right is opponent's.
-      // Use scaled frame width for correct midpoint (OCR ran on scaled canvas).
-      const words2 = (data as unknown as { words?: { text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }[] }).words;
-      if (words2) {
-        const match = findLargeResultWord(words2 as OcrWordBox[], scaled.width, scaled.height, {
-          requireLeftSide: true,
-          minWidthRatio: 0.08,
-          minHeightRatio: 0.05,
-        });
-        if (match) {
-          matchResult = match.result;
-          matchResultDebug = `"${match.raw}" at x=${Math.round(match.centerX)} LEFT, pass: ${pass.name}`;
-          break;
+      // Full-frame OCR is used for: screen context, battle log, side labels.
+      const words = (data as unknown as { words?: { text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }[] }).words;
+      if (words && !sideDetection.hasOpposingLabel) {
+        for (const word of words) {
+          const t = word.text.toLowerCase().replace(/[^a-z]/g, '');
+          if (t === 'opposing' || t === 'opponent' || t === 'opponents' || t === 'foe' || t === 'enemy') {
+            const centerX = (word.bbox.x0 + word.bbox.x1) / 2;
+            const side = centerX < midX ? 'left' : 'right';
+            sideDetection = {
+              hasOpposingLabel: true,
+              opposingSide: side,
+              debug: `"${word.text}" at x=${Math.round(centerX)} → opponent is on ${side} side (pass: ${pass.name})`,
+            };
+            break;
+          }
         }
       }
 
@@ -1000,6 +1047,51 @@ export async function detectPokemonFromFrame(
         allTokens = tokens;
         bestPassName = pass.name;
       }
+    }
+  }
+
+  const selectionProgressFromMainOcr = extractSelectionProgress(allRawText);
+  const selectionTokenSetFromMainOcr = new Set(
+    allTokens.map(t => t.toLowerCase().replace(/[^a-z]/g, ''))
+  );
+
+  const ocrSelectionUiHints = async () => {
+    const regions = [
+      { x: 0.34, y: 0.10, w: 0.26, h: 0.22 },
+      { x: 0.03, y: 0.88, w: 0.24, h: 0.10 },
+      { x: 0.76, y: 0.86, w: 0.22, h: 0.12 },
+      { x: 0.35, y: 0.00, w: 0.30, h: 0.08 },
+    ];
+    const snippets: string[] = [];
+    for (const region of regions) {
+      const crop = cropFrame(canvas, region.x, region.y, region.w, region.h);
+      const variants = [
+        preprocessHighContrast(crop),
+        preprocessGrayscale(crop),
+        preprocessPanelText(crop),
+      ];
+      for (const variant of variants) {
+        const text = (await recognizeCanvasText(variant)).trim();
+        if (text) snippets.push(text);
+      }
+    }
+    return snippets.join('\n');
+  };
+
+  const needsSelectionHintPass =
+    canUseOcr &&
+    !isMonitorMode &&
+    selectionProgressFromMainOcr.selectionTarget === null &&
+    !selectionTokenSetFromMainOcr.has('select') &&
+    !selectionTokenSetFromMainOcr.has('send') &&
+    !selectionTokenSetFromMainOcr.has('seleziona');
+
+  if (needsSelectionHintPass) {
+    const selectionHintText = await ocrSelectionUiHints();
+    if (selectionHintText.trim()) {
+      allRawText = [allRawText, selectionHintText].filter(Boolean).join('\n');
+      allTokens = tokenize(allRawText);
+      if (bestPassName === 'raw') bestPassName = 'selection-ui-hints';
     }
   }
 
@@ -1020,38 +1112,121 @@ export async function detectPokemonFromFrame(
     }
   }
 
-  const matched = [...allMatched.values()].sort((a, b) => b.confidence - a.confidence);
-
-  // ── SPRITE MATCHING ──
+  // ── SELECTION DETECTION ──
   // Preview lineup detection is visual-only and ignores nickname text.
-  const battleSpriteRegions = [
-    { x: w * 0.00, y: h * 0.52, w: w * 0.20, h: h * 0.40, side: 'left' as const },
-    { x: w * 0.26, y: h * 0.45, w: w * 0.42, h: h * 0.50, side: 'left' as const },
-    { x: w * 0.22, y: h * 0.16, w: w * 0.28, h: h * 0.42, side: 'right' as const },
-    { x: w * 0.72, y: h * 0.15, w: w * 0.25, h: h * 0.46, side: 'right' as const },
-  ];
-  const selectionTokenSet = new Set(
-    allTokens.map(t => t.toLowerCase().replace(/[^a-z]/g, ''))
-  );
+  // Accent-stripped "Pokémon" becomes "pokmon" after [^a-z] — alias to pokemon for keyword checks.
+  const selectionTokenSet = new Set<string>();
+  for (const t of allTokens) {
+    const n = t.toLowerCase().replace(/[^a-z]/g, '');
+    selectionTokenSet.add(n);
+    if (n === 'pokmon') selectionTokenSet.add('pokemon');
+  }
   const selectionProgress = extractSelectionProgress(allRawText);
-  const looksLikeSelectionScreen =
-    selectionTokenSet.has('select') ||
-    selectionTokenSet.has('send') ||
-    selectionTokenSet.has('seleziona') ||
+  const hasSelectionBottomUi =
+    (selectionTokenSet.has('standing') && selectionTokenSet.has('by')) ||
+    selectionTokenSet.has('done');
+  /** English headers + Italian/Spanish competitive UI ("Lotta in Doppio", "Lotta Competitiva", …). */
+  const hasSelectionModeHeader =
     selectionTokenSet.has('ranked') ||
     selectionTokenSet.has('single') ||
     selectionTokenSet.has('double') ||
-    (selectionTokenSet.has('pokemon') && selectionTokenSet.has('lotta')) ||
-    (selectionTokenSet.has('standing') && selectionTokenSet.has('by')) ||
-    selectionProgress.selectionTarget !== null;
-  const selectionSpriteMatches = await detectSelectionLineupBySprites(canvas);
+    selectionTokenSet.has('battle') ||
+    selectionTokenSet.has('battles') ||
+    selectionTokenSet.has('lotta') ||
+    selectionTokenSet.has('competitiva') ||
+    selectionTokenSet.has('doppio') ||
+    selectionTokenSet.has('competitive');
+  const hasSelectionUiTextFromOcr =
+    selectionProgress.selectionTarget !== null ||
+    selectionProgress.selectionCount !== null ||
+    selectionTokenSet.has('select') ||
+    selectionTokenSet.has('send') ||
+    selectionTokenSet.has('seleziona') ||
+    selectionTokenSet.has('selecciona') ||
+    (hasSelectionBottomUi && hasSelectionModeHeader) ||
+    (selectionTokenSet.has('seleziona') && selectionTokenSet.has('lotta')) ||
+    (selectionTokenSet.has('selecciona') && selectionTokenSet.has('pokemon')) ||
+    (
+      (selectionTokenSet.has('pokemon') || selectionTokenSet.has('battle') || selectionTokenSet.has('lotta')) &&
+      (selectionTokenSet.has('select') || selectionTokenSet.has('send') || selectionTokenSet.has('seleziona') || selectionTokenSet.has('selecciona'))
+    );
+
+  // The HSV frame detector is a much more reliable signal for "we're
+  // on the team-select screen" than OCR text. It short-circuits
+  // internally when the crimson + blue/green panels aren't visible, so
+  // calling it every frame is cheap when we're NOT in selection mode
+  // and is the desired work when we ARE.
+  const lineupSpriteDebug = await detectSelectionLineupBySprites(canvas, options.lockMatchHints);
+  // Route the same detector output to either the SELECTION or the LOCK
+  // pipeline. They share the same per-card slot evaluation shape but
+  // accumulate consensus separately downstream.
+  const selectionSpriteDebug = lineupSpriteDebug.isTeamSelect
+    ? lineupSpriteDebug
+    : { ...lineupSpriteDebug, matches: [] as SpriteMatch[], slotEvaluations: [] as SelectionSlotEvaluation[] };
+  const lockSpriteDebug = lineupSpriteDebug.isLockScreen
+    ? lineupSpriteDebug
+    : { ...lineupSpriteDebug, matches: [] as SpriteMatch[], slotEvaluations: [] as SelectionSlotEvaluation[] };
+  const selectionSpriteMatches = selectionSpriteDebug.matches;
+  const hasVisualSelectionFrame = selectionSpriteDebug.isTeamSelect;
+
+  // Authoritative "is this a selection screen?" flag: visual signal
+  // (HSV panels) OR OCR saw banner text. Either is sufficient.
+  const hasSelectionUiText = hasVisualSelectionFrame || hasSelectionUiTextFromOcr;
+
+  // Always include raw frame-detector card counts — invaluable when the
+  // visual frame fails silently (e.g. crimson hue mismatch, panel clipped
+  // by ROI, stream overlay bleed) and we only have the OCR fallback.
+  const frameDebug =
+    `frame(opp:${selectionSpriteDebug.opponentCardCount}/6 plr:${selectionSpriteDebug.playerCardCount}/6 ` +
+    `conf:${selectionSpriteDebug.frameConfidence.toFixed(2)})`;
+  const selectionUiReason = hasVisualSelectionFrame
+    ? `visual-frame ${frameDebug}`
+    : hasSelectionUiTextFromOcr
+    ? `selection-ui-text (${selectionProgress.selectionCount ?? '-'} / ${selectionProgress.selectionTarget ?? '-'}) · ${frameDebug}`
+    : `no selection ui text, no visual frame · ${frameDebug}`;
+  const selectionSlotMatcherReason = hasSelectionUiText
+    ? `enabled: ${selectionUiReason}`
+    : `disabled: ${selectionUiReason}`;
+  // Project a `SelectionSlotEvaluation` into the `SelectionSlotDebug`
+  // shape consumed by the analyzer. Used for both selection AND lock
+  // pipelines — the per-slot data structure is identical.
+  const slotsFrom = (
+    evaluations: SelectionSlotEvaluation[],
+    matches: SpriteMatch[],
+  ): SelectionSlotDebug[] => evaluations.map(slot => {
+    const assigned = matches.find(match =>
+      match.side === slot.region.side &&
+      Math.abs(match.x - slot.region.x) < 1 &&
+      Math.abs(match.y - slot.region.y) < 1,
+    );
+    return {
+      slotIndex: slot.region.slotIndex,
+      side: slot.region.side,
+      cardX: slot.region.cardX,
+      cardY: slot.region.cardY,
+      cardW: slot.region.cardW,
+      cardH: slot.region.cardH,
+      x: slot.region.x,
+      y: slot.region.y,
+      w: slot.region.w,
+      h: slot.region.h,
+      assignedSpecies: assigned?.species ?? null,
+      assignedConfidence: assigned?.confidence ?? null,
+      candidates: slot.candidates.slice(0, 5),
+      reprocessed: slot.reprocessed,
+      fallbackTop: slot.fallbackTop,
+    };
+  });
+  const selectionSlots = slotsFrom(selectionSpriteDebug.slotEvaluations, selectionSpriteMatches);
+  const lockSlots = slotsFrom(lockSpriteDebug.slotEvaluations, lockSpriteDebug.matches);
+  const lockMatches: SpriteMatch[] = lockSpriteDebug.matches;
   const hasVisualSelectionLineup = selectionSpriteMatches.length >= 4;
-  const hoveredRowIndex = (looksLikeSelectionScreen || hasVisualSelectionLineup)
+  const hoveredRowIndex = (hasSelectionUiText || hasVisualSelectionLineup)
     ? detectHoveredPreviewRow(canvas)
     : null;
   const selectedRowIndices: number[] = [];
-  const selectionCount = looksLikeSelectionScreen ? selectionProgress.selectionCount : null;
-  const selectionTarget = looksLikeSelectionScreen ? selectionProgress.selectionTarget : null;
+  const selectionCount = hasSelectionUiText ? selectionProgress.selectionCount : null;
+  const selectionTarget = hasSelectionUiText ? selectionProgress.selectionTarget : null;
 
   const spriteByKey = new Map<string, SpriteMatch>();
   const addSpriteMatch = (match: SpriteMatch) => {
@@ -1062,39 +1237,24 @@ export async function detectPokemonFromFrame(
     }
   };
 
-  if (hasVisualSelectionLineup) {
+  if (hasSelectionUiText && hasVisualSelectionLineup) {
     for (const match of selectionSpriteMatches) {
       addSpriteMatch(match);
     }
   }
 
-  if (isTemplateReady()) {
-    const templateMatches = await scanRegionsWithTemplates(
-      canvas,
-      hasVisualSelectionLineup || looksLikeSelectionScreen ? [] : battleSpriteRegions,
-    );
-    for (const match of templateMatches) {
-      addSpriteMatch({
-        species: match.species,
-        confidence: match.confidence,
-        x: match.x,
-        y: match.y,
-        side: match.side,
-      });
-    }
-  }
-
   const spriteMatched = [...spriteByKey.values()];
-  const effectiveMatched = (looksLikeSelectionScreen || hasVisualSelectionLineup)
-    ? matched.filter(m => m.method !== 'panel')
-    : matched;
+  const matched = hasSelectionUiText
+    ? [...allMatched.values()].sort((a, b) => b.confidence - a.confidence)
+    : [];
+  const effectiveMatched = matched.filter(m => m.method !== 'panel');
 
   // Detect battle UI panels at bottom-left + top-right
   // (standard HP/Pokemon panels in every battle screen, arena-independent)
   const panels = detectBattlePanels(cropped);
 
   const allSeenTokens = [...new Set([...allTokens, ...allRejected.map(r => r.token)])];
-  const screenContextInfo = (hasVisualSelectionLineup || looksLikeSelectionScreen)
+  const screenContextInfo = hasSelectionUiText
     ? {
         context: 'battle' as const,
         debug: `Selection screen (${selectionSpriteMatches.length}/6 sprite slots, target:${selectionProgress.selectionTarget ?? '-'})`,
@@ -1112,6 +1272,12 @@ export async function detectPokemonFromFrame(
       tokens: allTokens,
       matched: [],
       spriteMatched: [],
+      selectionUiDetected: hasSelectionUiText,
+      selectionUiReason,
+      selectionSlotMatcherEnabled: hasSelectionUiText,
+      selectionSlotMatcherReason,
+      selectionSlots,
+      selectionPanels: selectionSpriteDebug.panels,
       selectedRowIndices,
       hoveredRowIndex,
       selectionCount,
@@ -1120,12 +1286,32 @@ export async function detectPokemonFromFrame(
       species: [],
       durationMs: Math.round(performance.now() - t0),
       bestPass: bestPassName,
-      matchResult: null,
-      matchResultDebug: '',
+      matchResult: matchResultFromVision,
+      matchResultDebug: matchResultDebugFromVision,
+      matchResultSignals: resultDetection.signals,
+      matchResultConfidence: resultDetection.confidence,
+      selectionFrame: {
+        isTeamSelect: selectionSpriteDebug.isTeamSelect,
+        frameConfidence: selectionSpriteDebug.frameConfidence,
+        opponentCardCount: selectionSpriteDebug.opponentCardCount,
+        playerCardCount: selectionSpriteDebug.playerCardCount,
+        panelCount: selectionSpriteDebug.panels.length,
+      },
+      lockFrame: {
+        isLockScreen: lockSpriteDebug.isLockScreen,
+        frameConfidence: lockSpriteDebug.frameConfidence,
+        opponentCardCount: lockSpriteDebug.opponentCardCount,
+        playerCardCount: lockSpriteDebug.playerCardCount,
+        panelCount: lockSpriteDebug.panels.length,
+      },
+      lockSlots,
+      lockMatches,
+      playerLockBadgeSlots: lockSpriteDebug.playerLockBadgeSlots,
       screenContext,
       screenContextDebug: `${screenContextDebug} · sprites:${spriteMatched.length}`,
       sideDetection,
       battleLogMatches: [],
+      ...(pipelineDebugSnapshots ? { debugSnapshots: pipelineDebugSnapshots } : {}),
     };
   }
 
@@ -1144,6 +1330,12 @@ export async function detectPokemonFromFrame(
     tokens: allTokens,
     matched: effectiveMatched,
     spriteMatched,
+    selectionUiDetected: hasSelectionUiText,
+    selectionUiReason,
+    selectionSlotMatcherEnabled: hasSelectionUiText,
+    selectionSlotMatcherReason,
+    selectionSlots,
+    selectionPanels: selectionSpriteDebug.panels,
     selectedRowIndices,
     hoveredRowIndex,
     selectionCount,
@@ -1152,12 +1344,32 @@ export async function detectPokemonFromFrame(
     species: uniqueSpecies,
     durationMs: Math.round(performance.now() - t0),
     bestPass: bestPassName,
-    matchResult: matchResult ?? earlyMatchResult,
-    matchResultDebug: matchResultDebug || earlyMatchDebug,
+    matchResult: matchResultFromVision,
+    matchResultDebug: matchResultDebugFromVision,
+    matchResultSignals: resultDetection.signals,
+    matchResultConfidence: resultDetection.confidence,
+    selectionFrame: {
+      isTeamSelect: selectionSpriteDebug.isTeamSelect,
+      frameConfidence: selectionSpriteDebug.frameConfidence,
+      opponentCardCount: selectionSpriteDebug.opponentCardCount,
+      playerCardCount: selectionSpriteDebug.playerCardCount,
+      panelCount: selectionSpriteDebug.panels.length,
+    },
+    lockFrame: {
+      isLockScreen: lockSpriteDebug.isLockScreen,
+      frameConfidence: lockSpriteDebug.frameConfidence,
+      opponentCardCount: lockSpriteDebug.opponentCardCount,
+      playerCardCount: lockSpriteDebug.playerCardCount,
+      panelCount: lockSpriteDebug.panels.length,
+    },
+    lockSlots,
+    lockMatches,
+    playerLockBadgeSlots: lockSpriteDebug.playerLockBadgeSlots,
     screenContext,
     screenContextDebug,
     sideDetection,
     battleLogMatches,
+    ...(pipelineDebugSnapshots ? { debugSnapshots: pipelineDebugSnapshots } : {}),
   };
 }
 
@@ -1424,39 +1636,6 @@ function preprocessGrayscale(source: HTMLCanvasElement): HTMLCanvasElement {
 }
 
 /**
- * Gold/yellow text isolation — for "WON!" / "LOST" decorative game fonts.
- * Gold text has high R, high G, low B. Isolate pixels where R+G >> B
- * and overall brightness is moderate-to-high.
- */
-function preprocessGoldText(source: HTMLCanvasElement): HTMLCanvasElement {
-  const canvas = document.createElement('canvas');
-  canvas.width = source.width;
-  canvas.height = source.height;
-  const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(source, 0, 0);
-
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const d = imageData.data;
-
-  for (let i = 0; i < d.length; i += 4) {
-    const r = d[i], g = d[i + 1], b = d[i + 2];
-    const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
-    // Gold/yellow: R > 150, G > 120, B < 100, and bright enough
-    // Also catch white text (all channels > 180)
-    const isGold = r > 150 && g > 120 && b < 100 && brightness > 100;
-    const isWhite = r > 180 && g > 180 && b > 180;
-    if (isGold || isWhite) {
-      d[i] = d[i + 1] = d[i + 2] = 0; // text → black
-    } else {
-      d[i] = d[i + 1] = d[i + 2] = 255; // bg → white
-    }
-  }
-
-  ctx.putImageData(imageData, 0, 0);
-  return canvas;
-}
-
-/**
  * Panel-specific preprocess: game UI name text is bright/colored on
  * dark semi-transparent bg. Lower threshold (100) + saturation boost
  * to catch colored text (blue Kingambit label, green Victreebel, etc).
@@ -1491,6 +1670,23 @@ function preprocessPanelText(source: HTMLCanvasElement): HTMLCanvasElement {
 
 let _captureStream: MediaStream | null = null;
 let _videoEl: HTMLVideoElement | null = null;
+/** When set (e.g. live preview in DOM), `grabFrame` prefers this element — the off-DOM video from `startCapture` can stay at 0×0 in some browsers. */
+let _grabFrameVideoOverride: HTMLVideoElement | null = null;
+
+export function setCaptureGrabVideoElement(el: HTMLVideoElement | null): void {
+  _grabFrameVideoOverride = el;
+}
+
+function pickVideoElementForGrab(): HTMLVideoElement | null {
+  if (!_captureStream?.active) return null;
+  const tryEl = (el: HTMLVideoElement | null): HTMLVideoElement | null => {
+    if (!el || el.srcObject !== _captureStream) return null;
+    if (el.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return null;
+    if (el.videoWidth < 2 || el.videoHeight < 2) return null;
+    return el;
+  };
+  return tryEl(_grabFrameVideoOverride) ?? tryEl(_videoEl);
+}
 
 export async function startCapture(): Promise<MediaStream> {
   const stream = await navigator.mediaDevices.getDisplayMedia({
@@ -1508,6 +1704,7 @@ export async function startCapture(): Promise<MediaStream> {
 }
 
 export function stopCapture() {
+  _grabFrameVideoOverride = null;
   if (_captureStream) {
     _captureStream.getTracks().forEach(t => t.stop());
     _captureStream = null;
@@ -1527,13 +1724,14 @@ export function getCaptureStream(): MediaStream | null {
 }
 
 export function grabFrame(): HTMLCanvasElement | null {
-  if (!_videoEl || !_captureStream?.active) return null;
+  const video = pickVideoElementForGrab();
+  if (!video || !_captureStream?.active) return null;
   const canvas = document.createElement('canvas');
-  canvas.width = _videoEl.videoWidth;
-  canvas.height = _videoEl.videoHeight;
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
-  ctx.drawImage(_videoEl, 0, 0);
+  ctx.drawImage(video, 0, 0);
   return canvas;
 }
 

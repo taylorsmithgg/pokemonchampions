@@ -451,22 +451,22 @@ function shouldSkipForm(fileKey: string): boolean {
 
 // ─── Build the list of filenames to fetch ────────────────────────────
 
-function buildFileList(): { filename: string; species: string }[] {
-  const entries: { filename: string; species: string }[] = [];
+function buildFileList(): { filename: string; species: string; isShiny: boolean }[] {
+  const entries: { filename: string; species: string; isShiny: boolean }[] = [];
 
-  // Base forms from DEX_TO_SPECIES
+  // Base forms from DEX_TO_SPECIES (normal + shiny)
   for (const [dexNum, species] of Object.entries(DEX_TO_SPECIES)) {
     if (SKIP_SPECIES.has(species)) continue;
-    const filename = `Menu CP ${dexNum}.png`;
-    entries.push({ filename, species });
+    entries.push({ filename: `Menu CP ${dexNum}.png`, species, isShiny: false });
+    entries.push({ filename: `Menu CP ${dexNum} shiny.png`, species, isShiny: true });
   }
 
-  // Alternate forms from FORM_SUFFIXES
+  // Alternate forms from FORM_SUFFIXES (normal + shiny)
   for (const [formKey, species] of Object.entries(FORM_SUFFIXES)) {
     if (SKIP_SPECIES.has(species)) continue;
     if (shouldSkipForm(formKey)) continue;
-    const filename = `Menu CP ${formKey}.png`;
-    entries.push({ filename, species });
+    entries.push({ filename: `Menu CP ${formKey}.png`, species, isShiny: false });
+    entries.push({ filename: `Menu CP ${formKey} shiny.png`, species, isShiny: true });
   }
 
   return entries;
@@ -521,10 +521,11 @@ async function main() {
   let failed = 0;
   let skipped = 0;
 
-  for (const { filename, species } of fileList) {
+  for (const { filename, species, isShiny } of fileList) {
     const url = urlMap.get(filename);
     if (!url) {
-      console.warn(`  NO URL: ${filename} → ${species}`);
+      // Shinies that don't exist on Bulbapedia are routine — log quietly.
+      if (!isShiny) console.warn(`  NO URL: ${filename} → ${species}`);
       failed++;
       continue;
     }
@@ -541,8 +542,13 @@ async function main() {
       ctx.fillRect(0, 0, img.width, img.height);
       ctx.drawImage(img, 0, 0);
 
-      const hash = computeDHash(canvas);
-      db.push({ species, hash });
+      // Legacy dHash DB powers the OCR token-fallback path and only
+      // needs the normal-colour variant per species. Shiny entries are
+      // cached on disk for the sprite-detector DB builder to pick up.
+      if (!isShiny) {
+        const hash = computeDHash(canvas);
+        db.push({ species, hash });
+      }
       loaded++;
 
       if (loaded % 50 === 0) {

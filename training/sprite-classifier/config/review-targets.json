@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "description": "Seed review targets for offline sprite-classifier training and evaluation.",
+  "images": [
+    {
+      "key": "lineup-selection-no-overlay",
+      "path": "images/lineup-selection-no-overlay.png",
+      "slots": [
+        { "side": "left", "slotIndex": 0, "species": "Garchomp", "crop": { "x": 0.205, "y": 0.09, "w": 0.11, "h": 0.095 } },
+        { "side": "left", "slotIndex": 1, "species": "Floette-Eternal", "crop": { "x": 0.205, "y": 0.207, "w": 0.11, "h": 0.095 } },
+        { "side": "left", "slotIndex": 2, "species": "Delphox", "crop": { "x": 0.205, "y": 0.324, "w": 0.11, "h": 0.095 } },
+        { "side": "left", "slotIndex": 3, "species": "Primarina", "crop": { "x": 0.205, "y": 0.441, "w": 0.11, "h": 0.095 } },
+        { "side": "left", "slotIndex": 4, "species": "Kingambit", "crop": { "x": 0.205, "y": 0.558, "w": 0.11, "h": 0.095 } },
+        { "side": "left", "slotIndex": 5, "species": "Aegislash-Shield", "crop": { "x": 0.205, "y": 0.675, "w": 0.11, "h": 0.095 } },
+        { "side": "right", "slotIndex": 6, "species": "Victreebel", "crop": { "x": 0.765, "y": 0.09, "w": 0.105, "h": 0.095 } },
+        { "side": "right", "slotIndex": 7, "species": "Hydreigon", "crop": { "x": 0.765, "y": 0.207, "w": 0.105, "h": 0.095 } },
+        { "side": "right", "slotIndex": 8, "species": "Toucannon", "crop": { "x": 0.765, "y": 0.324, "w": 0.105, "h": 0.095 } },
+        { "side": "right", "slotIndex": 9, "species": "Primarina", "crop": { "x": 0.765, "y": 0.441, "w": 0.105, "h": 0.095 } },
+        { "side": "right", "slotIndex": 10, "species": "Slowking-Galar", "crop": { "x": 0.765, "y": 0.558, "w": 0.105, "h": 0.095 } },
+        { "side": "right", "slotIndex": 11, "species": "Scizor", "crop": { "x": 0.765, "y": 0.675, "w": 0.105, "h": 0.095 } }
+      ]
+    },
+    {
+      "key": "lineup-selection-lock-overlay",
+      "path": "images/lineup-selection-lock-overlay.png",
+      "slots": [
+        { "side": "left", "slotIndex": 0, "species": "Bellibolt", "crop": { "x": 0.115, "y": 0.09, "w": 0.16, "h": 0.095 } },
+        { "side": "left", "slotIndex": 1, "species": "Froslass", "crop": { "x": 0.165, "y": 0.207, "w": 0.11, "h": 0.095 } },
+        { "side": "left", "slotIndex": 2, "species": "Ninetales-Alola", "crop": { "x": 0.165, "y": 0.324, "w": 0.11, "h": 0.095 } },
+        { "side": "left", "slotIndex": 3, "species": "Kingambit", "crop": { "x": 0.165, "y": 0.441, "w": 0.11, "h": 0.095 } },
+        { "side": "left", "slotIndex": 4, "species": "Arcanine-Hisui", "crop": { "x": 0.165, "y": 0.558, "w": 0.11, "h": 0.095 } },
+        { "side": "left", "slotIndex": 5, "species": "Kommo-o", "crop": { "x": 0.165, "y": 0.675, "w": 0.11, "h": 0.095 } },
+        { "side": "right", "slotIndex": 6, "species": "Starmie", "crop": { "x": 0.708, "y": 0.09, "w": 0.118, "h": 0.095 } },
+        { "side": "right", "slotIndex": 7, "species": "Talonflame", "crop": { "x": 0.708, "y": 0.207, "w": 0.118, "h": 0.095 } },
+        { "side": "right", "slotIndex": 8, "species": "Sneasler", "crop": { "x": 0.708, "y": 0.324, "w": 0.118, "h": 0.095 } },
+        { "side": "right", "slotIndex": 9, "species": "Sableye", "crop": { "x": 0.708, "y": 0.441, "w": 0.118, "h": 0.095 } },
+        { "side": "right", "slotIndex": 10, "species": "Meowscarada", "crop": { "x": 0.708, "y": 0.558, "w": 0.118, "h": 0.095 } },
+        { "side": "right", "slotIndex": 11, "species": "Archaludon", "crop": { "x": 0.708, "y": 0.675, "w": 0.118, "h": 0.095 } }
+      ]
+    },
+    {
+      "key": "lineup-selection-overlay",
+      "path": "images/lineup-selection-overlay.png",
+      "slots": [
+        { "side": "left", "slotIndex": 0, "species": "Weavile", "crop": { "x": 0.203, "y": 0.092, "w": 0.109, "h": 0.092 } },
+        { "side": "left", "slotIndex": 1, "species": "Aerodactyl", "crop": { "x": 0.203, "y": 0.209, "w": 0.109, "h": 0.092 } },
+        { "side": "left", "slotIndex": 2, "species": "Gallade", "crop": { "x": 0.203, "y": 0.326, "w": 0.109, "h": 0.092 } },
+        { "side": "left", "slotIndex": 3, "species": "Appletun", "crop": { "x": 0.203, "y": 0.443, "w": 0.109, "h": 0.092 } },
+        { "side": "left", "slotIndex": 4, "species": "Goodra", "crop": { "x": 0.203, "y": 0.56, "w": 0.109, "h": 0.092 } },
+        { "side": "left", "slotIndex": 5, "species": "Heliolisk", "crop": { "x": 0.203, "y": 0.677, "w": 0.109, "h": 0.092 } },
+        { "side": "right", "slotIndex": 6, "species": "Rotom-Wash", "crop": { "x": 0.796, "y": 0.097, "w": 0.088, "h": 0.09 } },
+        { "side": "right", "slotIndex": 7, "species": "Aegislash-Shield", "crop": { "x": 0.796, "y": 0.214, "w": 0.088, "h": 0.09 } },
+        { "side": "right", "slotIndex": 8, "species": "Lycanroc", "crop": { "x": 0.796, "y": 0.331, "w": 0.088, "h": 0.09 } },
+        { "side": "right", "slotIndex": 9, "species": "Lucario", "crop": { "x": 0.796, "y": 0.448, "w": 0.088, "h": 0.09 } },
+        { "side": "right", "slotIndex": 10, "species": "Garchomp", "crop": { "x": 0.796, "y": 0.565, "w": 0.088, "h": 0.09 } },
+        { "side": "right", "slotIndex": 11, "species": "Delphox", "crop": { "x": 0.796, "y": 0.682, "w": 0.088, "h": 0.09 } }
+      ]
+    }
+  ]
+}
