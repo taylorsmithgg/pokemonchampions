@@ -1458,7 +1458,18 @@ export function StreamCompanionPage() {
     setHistory(prev => prev.slice(1));
   }, []);
 
-  // Full session reset — clears EVERYTHING for starting fresh
+  // Full session reset — clears EVERYTHING for starting fresh.
+  //
+  // Must clear both in-memory React state AND every persistent store
+  // (localStorage keys, IndexedDB frame cache, consensus analyzers)
+  // otherwise the lineup silently rehydrates on the next page load:
+  //   • `MY_TEAM_KEY` only gets overwritten when `myTeamSourceRef.current
+  //     === 'manual'`, so simply zero-ing React state leaves stale
+  //     entries behind — the restore effect then re-applies them on
+  //     mount.
+  //   • The IndexedDB lineup-lock / result-candidate entries drive the
+  //     Detection Trail, which otherwise reads back the last two hours
+  //     of previous-session audits after every refresh.
   const resetSession = useCallback(() => {
     setOpponentTeam([]);
     setContextTeam(Array.from({ length: 6 }, () => createDefaultPokemonState()));
@@ -1478,18 +1489,38 @@ export function StreamCompanionPage() {
     pendingAutoResultRef.current = null;
     setDismissedSpecies(new Set());
     setSelectedBring([]);
+    setActiveYour(null);
+    setActiveOpp(null);
     previewSelectionRef.current = { count: null, hoveredRowIndex: null, target: null, seenFrames: 0 };
     opponentPreviewSlotsRef.current = createPreviewSlotStability();
     previewProcessingRef.current = { inFlight: false, lastQueuedKey: '', lastCompletedKey: '', lastProcessedAt: 0 };
+    lockBadgeVotesRef.current = { votes: [0, 0, 0, 0, 0, 0], frames: 0 };
+    lastLineupLockSigRef.current = '';
+    lastLineupHeartbeatRef.current = 0;
+    lastLineupSaveIdRef.current = null;
+    lastLineupSaveHadAnnotationRef.current = false;
+    lastResultCandidateSaveRef.current = { outcome: '', timestamp: 0 };
+    lastResultCandidateIdRef.current = null;
+    lastResultCandidateHadAnnotationRef.current = false;
+    currentMatchIdRef.current = '';
     resetLineupAnalyzer();
     resetLockAnalyzer();
     cooldownUntilRef.current = 0;
-    
-    
-    
-    
+
     setCaptureRegion(null);
     saveHistory([]);
+
+    try {
+      localStorage.removeItem(MY_TEAM_KEY);
+      localStorage.removeItem(DETECTED_MY_TEAM_KEY);
+      localStorage.removeItem(DETECTED_OPPONENT_TEAM_KEY);
+    } catch {
+      // Ignore storage failures; in-memory state is already cleared.
+    }
+
+    setDetectionTrail([]);
+    setCacheStats({ frames: 0, bytes: 0 });
+    clearAllFrames().catch(e => console.warn('[cache] clearAllFrames failed during reset', e));
   }, [setContextTeam]);
 
   const handleExportArchive = useCallback(async () => {
@@ -3256,7 +3287,7 @@ export function StreamCompanionPage() {
               <button
                 onClick={resetSession}
                 className="text-[10px] px-2 py-1 bg-poke-surface border border-poke-border text-slate-400 rounded hover:text-red-400 hover:border-red-500/30 transition-colors"
-                title="Clear all detection data, opponents, and history for a fresh session"
+                title="Clear saved team, opponent lineup, detection trail cache, match history, and all session state for a fresh start"
               >
                 Reset
               </button>
