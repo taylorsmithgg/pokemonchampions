@@ -1645,15 +1645,21 @@ export function StreamCompanionPage() {
       const now = Date.now();
       // Fire on ANY of:
       //  - a new set of confirmed species just locked (sig changed)
-      //  - HSV detector flagged this as a team-select frame
-      //  - HSV found at least one side's panel (partial-detection diagnostic)
-      //  - the OCR selectionUi heuristic flagged selection text
+      //  - HSV detector flagged this frame as a selection OR lock screen
       // Gate per-trigger by a 6s heartbeat so we don't flood IndexedDB.
+      //
+      // We deliberately do NOT trigger on `selectionUiDetected` (the OCR
+      // fallback) or on partial HSV signals. The OCR heuristic fires on
+      // tokens like "pokemon" / "battle" / "select" / "send" which all
+      // appear in the in-battle bottom menu and stream overlays, so
+      // trusting it outside of a visual confirmation was producing a
+      // steady drip of "lineup-lock" audit saves during actual combat.
+      // The partial-HSV branches were also dead: the frame detector only
+      // populates `panelCount` / `cardCount` once it commits to a lineup
+      // mode, so these conditions would never fire independently of
+      // `isTeamSelect` / `isLockScreen` anyway.
       const selectionLike =
-        result.selectionFrame.isTeamSelect ||
-        result.selectionFrame.panelCount > 0 ||
-        (result.selectionFrame.opponentCardCount + result.selectionFrame.playerCardCount) >= 4 ||
-        result.selectionUiDetected;
+        result.selectionFrame.isTeamSelect || result.lockFrame.isLockScreen;
       const sigChanged = confirmed.length >= 1 && sig !== lastLineupLockSigRef.current;
       const heartbeatDue = selectionLike && now - lastLineupHeartbeatRef.current > 6000;
       // Annotation-upgrade: if we previously wrote a raw entry for the
@@ -2371,7 +2377,15 @@ export function StreamCompanionPage() {
       return;
     }
 
-    const isSelectionScreen = result.selectionUiDetected && result.screenContext !== 'menu';
+    // Require the HSV frame detector to visually confirm a team-select
+    // screen before flipping the preview UI into selection-tracking
+    // mode. The OCR-only `selectionUiDetected` fallback triggers on
+    // battle-menu tokens ("pokemon", "battle", "select", "send") which
+    // are present the entire time the player is issuing moves in a live
+    // match, so relying on it here was resetting the opponent preview
+    // and churning the selection counter during actual combat.
+    const isSelectionScreen =
+      result.selectionFrame.isTeamSelect && result.screenContext !== 'menu';
     const previousSelection = previewSelectionRef.current;
     const nextSeenFrames = isSelectionScreen ? previousSelection.seenFrames + 1 : 0;
     const hasConfirmedSelectionScreen = isSelectionScreen && nextSeenFrames >= MIN_SELECTION_CONFIRMATION_FRAMES;
