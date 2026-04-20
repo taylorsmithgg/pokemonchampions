@@ -1181,6 +1181,11 @@ function mirrorRowsToPanel(
     panel,
     index: i,
     spriteBbox: { x1: 0, y1: 0, x2: xBounds.x2 - xBounds.x1, y2: c.yEnd - c.yStart },
+    // Mirrored rows inherit only geometry — we don't know the
+    // highlight state on the mirrored side, so we conservatively
+    // treat it as not highlighted. The lock-screen flow picks the
+    // highlighted slot from badge detection instead of this flag.
+    isHighlighted: false,
   }));
 }
 
