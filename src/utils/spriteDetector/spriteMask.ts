@@ -96,6 +96,154 @@ function sampleLockCardBackground(
 }
 
 /**
+ * Sample the dominant background colour for a single SELECTION-screen
+ * player card.
+ *
+ * The historic hard-coded "H in [110, 140]" bgBlue rule works great
+ * for the standard purple/indigo card fill, but collapses in two
+ * regimes that appear in the live Champions stream we regress against:
+ *
+ *   1. PURPLE CHIBI on purple bg (Gengar): the chibi body shares the
+ *      card hue (H≈115-125) AND shares the saturation (S≈80-140), so
+ *      the "any purple pixel is bg" rule masks out ~95% of Gengar,
+ *      leaving only the red eyes + white teeth (spriteFrac=5.5% on
+ *      trail export 2026-04-20T22:44:57). The 5% silhouette that
+ *      remains matches Vivillon / Castform's wing markings instead of
+ *      Gengar.
+ *
+ *   2. GREEN HIGHLIGHTED card (selected slot): the "Standing By" /
+ *      selected player slot gets repainted green (H≈40-60), completely
+ *      outside the [110, 140] bgBlue range. The old mask flags ~0%
+ *      of the crop as bg, so the full green card (including the bg
+ *      behind the chibi) is fed to the matcher as "sprite" —
+ *      spriteFrac=96.9% for Kommo-o on slot 5, which drags every
+ *      scoring signal into noise (Machamp wins at combined=0.208,
+ *      below the 0.22 confidence floor).
+ *
+ * Fix: sample the card's actual bg tint from the top/bottom bands of
+ * the crop (where chibis almost never reach), excluding pixels that
+ * look like the card's white highlight rim or the very dark outline
+ * pixels of the chibi. Compute a dominant hue + saturation + value
+ * window and use THAT as the bg signature. Saturation is now bounded
+ * on BOTH ends so ultra-saturated chibi pixels sharing the bg hue
+ * (Gengar's deep purple) survive the mask.
+ */
+function sampleSelectionPlayerBackground(
+  src: PixelView,
+): {
+  hMin: number;
+  hMax: number;
+  sMin: number;
+  sMax: number;
+  vMin: number;
+  vMax: number;
+} | null {
+  const hsv = toHsv(src);
+  const { width, height, h, s, v } = hsv;
+  if (width < 24 || height < 24) return null;
+
+  // Skip the outermost border — ~3% or 3px, whichever is larger. That
+  // absorbs the card's rounded frame + highlight rim.
+  const marginX = Math.max(3, Math.floor(width * 0.03));
+  const marginY = Math.max(3, Math.floor(height * 0.03));
+
+  // Sample from the FOUR CORNERS only. A horizontal "top band" would
+  // pick up tall chibi pixels (Kommo-o's horns, Tyranitar's spikes,
+  // Gengar's ears all reach into the top 10% of the crop on this
+  // stream's UI). Corner patches are small enough that even the
+  // widest chibis don't reach them — the card bg shows through
+  // reliably.
+  const cornerW = Math.max(6, Math.floor(width * 0.14));
+  const cornerH = Math.max(6, Math.floor(height * 0.12));
+  const corners: Array<{ xLo: number; xHi: number; yLo: number; yHi: number }> = [
+    { xLo: marginX, xHi: marginX + cornerW, yLo: marginY, yHi: marginY + cornerH },
+    { xLo: width - marginX - cornerW, xHi: width - marginX, yLo: marginY, yHi: marginY + cornerH },
+    { xLo: marginX, xHi: marginX + cornerW, yLo: height - marginY - cornerH, yHi: height - marginY },
+    { xLo: width - marginX - cornerW, xHi: width - marginX, yLo: height - marginY - cornerH, yHi: height - marginY },
+  ];
+
+  type Sample = { H: number; S: number; V: number };
+  const samples: Sample[] = [];
+  for (const c of corners) {
+    for (let y = c.yLo; y < c.yHi; y++) {
+      for (let x = c.xLo; x < c.xHi; x++) {
+        const i = y * width + x;
+        const S = s[i];
+        const V = v[i];
+        // Reject card-frame whites (desaturated bright pixels), the
+        // chibi's dark outline, and the card's inner shadow gutter.
+        if (S < 30) continue;
+        if (V < 35 || V > 235) continue;
+        samples.push({ H: h[i], S, V });
+      }
+    }
+  }
+  if (samples.length < 32) return null;
+
+  // Find dominant hue via a 180-bin histogram with ±3° smoothing.
+  const raw = new Int32Array(180);
+  for (const p of samples) raw[p.H]++;
+  const smoothed = new Int32Array(180);
+  for (let i = 0; i < 180; i++) {
+    let acc = 0;
+    for (let d = -3; d <= 3; d++) acc += raw[(i + d + 180) % 180];
+    smoothed[i] = acc;
+  }
+  let dominantH = 0;
+  let dominantCount = 0;
+  for (let i = 0; i < 180; i++) {
+    if (smoothed[i] > dominantCount) {
+      dominantCount = smoothed[i];
+      dominantH = i;
+    }
+  }
+
+  // Keep only samples whose hue is within ±12° (wrap-aware) of the
+  // dominant peak. Anything outside is presumed to be a chibi pixel
+  // leaking into the band (tall tails / ears) or a highlight artifact.
+  const filtered = samples.filter(p => {
+    const dh = Math.min(
+      Math.abs(p.H - dominantH),
+      180 - Math.abs(p.H - dominantH),
+    );
+    return dh <= 12;
+  });
+  if (filtered.length < 16) return null;
+
+  // Use median + interquartile range now that we're sampling from
+  // chibi-free corner patches. The old p10-p90 window was compensating
+  // for chibi contamination in the top/bottom bands; with clean
+  // corner samples we can afford a tighter window so saturated chibi
+  // pixels that share the bg hue (Gengar's S=160 body on an S=120 bg)
+  // fall outside and survive as sprite.
+  const ss = filtered.map(p => p.S).sort((a, b) => a - b);
+  const vs = filtered.map(p => p.V).sort((a, b) => a - b);
+  const sMed = ss[Math.floor(ss.length * 0.5)];
+  const sP75 = ss[Math.floor(ss.length * 0.75)];
+  const vMed = vs[Math.floor(vs.length * 0.5)];
+  const vP75 = vs[Math.floor(vs.length * 0.75)];
+  // IQR-based slack: widen tolerance by the observed spread so
+  // gradient-tinted backgrounds (the selected-card green highlight,
+  // which runs from neon-lime to darker green across the card) don't
+  // lose half their pixels to the mask.
+  const sSlack = Math.max(20, (sP75 - ss[Math.floor(ss.length * 0.25)]) * 1.5);
+  const vSlack = Math.max(25, (vP75 - vs[Math.floor(vs.length * 0.25)]) * 1.5);
+
+  return {
+    // Narrow hue window — tight enough to spare chibi pixels whose
+    // hue differs from the card tint (Gengar's red eyes at H≈0-5
+    // fall well outside a ±10° window even though the card bg and
+    // Gengar's body are both at H≈123).
+    hMin: dominantH - 10,
+    hMax: dominantH + 10,
+    sMin: Math.max(20, sMed - sSlack),
+    sMax: Math.min(255, sMed + sSlack),
+    vMin: Math.max(20, vMed - vSlack),
+    vMax: Math.min(255, vMed + vSlack),
+  };
+}
+
+/**
  * Sample the crimson-bg V range for a single opponent card.
  *
  * We look at thin strips along the left and right edges of the card
@@ -242,32 +390,84 @@ function cardBackgroundMask(
       }
     }
   } else {
-    // Player cards: the body is always a blue/indigo/purple gradient
-    // (H~110-140). Two extras:
-    //   1. bgDark — very dark pixels are background. Helps reject the
-    //      shadow gutter under the chibi.
-    //   2. bgGreenEdge — the currently-selected card has a thick neon
-    //      green highlight RING around all four borders. The border
-    //      pixels survive the blue mask and inflate the sprite mask,
-    //      especially after the y-crop was loosened from 12-92% to
-    //      6-94% to make room for tall chibis (Tyranitar's spikes).
-    //      Yellow chibi pixels (Azumarill / Dragonite / Dedenne) sit
-    //      in the SAME hue range, so we can only safely treat green
-    //      pixels as background when they lie in the outer ring of
-    //      the crop where the chibi never reaches.
-    // Edge band must be SMALL — just the highlight ring itself (2-3px).
-    // Wider bands (6%+) chew into yellow chibis (Azumarill's ears,
-    // Dragonite's wing tips) because their hue overlaps neon green.
+    // SELECTION-screen player card — sample the card's actual bg tint
+    // per-card instead of hard-coding H=110-140. See
+    // `sampleSelectionPlayerBackground` for the rationale and the two
+    // failure modes this replaces (purple chibi on purple bg → 95%
+    // mask eat; green highlighted card → 0% mask).
+    //
+    // We still preserve the two hard rules that the old mask relied
+    // on:
+    //   - bgDark (V < 20): very dark pixels are never sprite. The
+    //     chibi's OUTLINE also sits in this range, but the matcher
+    //     tolerates the outline being absent; keeping it was a bigger
+    //     liability because the shadow gutter under the chibi shared
+    //     the same darkness and shape.
+    //   - bgGreenEdge: the currently-selected card has a thick neon
+    //     green highlight RING around all four borders. Even with
+    //     adaptive sampling the ring can survive — the sampler's
+    //     dominant-hue filter will ignore it as an outlier when the
+    //     rest of the card is still its base tint. Keep the explicit
+    //     2-3px edge rule so the ring is always rejected.
+    const range = sampleSelectionPlayerBackground(src);
     const edge = Math.max(2, Math.min(3, Math.floor(Math.min(width, height) * 0.025)));
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const i = y * width + x;
-        const H = h[i], S = s[i], V = v[i];
-        const bgBlue = H >= 110 && H <= 140 && S >= 40 && V >= 40;
-        const bgDark = V < 20;
-        const inEdgeBand = y < edge || y >= height - edge || x < edge || x >= width - edge;
-        const bgGreenEdge = inEdgeBand && H >= 25 && H <= 55 && S >= 100 && V >= 120;
-        if (bgBlue || bgDark || bgGreenEdge) dst[i] = 255;
+
+    if (!range) {
+      // Sampler failed (tiny crop / saturated frame noise / etc.).
+      // Fall back to the historic hard-coded rule so we degrade to
+      // the old behaviour rather than masking nothing.
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const i = y * width + x;
+          const H = h[i], S = s[i], V = v[i];
+          const bgBlue = H >= 110 && H <= 140 && S >= 40 && V >= 40;
+          const bgDark = V < 20;
+          const inEdgeBand = y < edge || y >= height - edge || x < edge || x >= width - edge;
+          const bgGreenEdge = inEdgeBand && H >= 25 && H <= 55 && S >= 100 && V >= 120;
+          if (bgBlue || bgDark || bgGreenEdge) dst[i] = 255;
+        }
+      }
+    } else {
+      const { hMin, hMax, sMin, sMax, vMin, vMax } = range;
+      const wraps = hMin < 0 || hMax > 180;
+      const hMinW = ((hMin % 180) + 180) % 180;
+      const hMaxW = ((hMax % 180) + 180) % 180;
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const i = y * width + x;
+          const H = h[i], S = s[i], V = v[i];
+          let hueOk: boolean;
+          if (!wraps) {
+            hueOk = H >= hMin && H <= hMax;
+          } else {
+            hueOk = (H >= hMinW && H <= 180) || (H >= 0 && H <= hMaxW);
+          }
+          // Adaptive card-bg test. Saturation is bounded on BOTH ends
+          // so chibi pixels whose hue matches the bg but whose S is
+          // well above the bg's saturation (the high-S interior of
+          // Gengar, Kommo-o, Meganium) survive. Similarly bounded V
+          // spares chibi highlights brighter than the bg.
+          const bgCard = hueOk && S >= sMin && S <= sMax && V >= vMin && V <= vMax;
+          // NOTE: we intentionally DO NOT flag V<20 as bg on the
+          // adaptive-sampler path. The chibi's dark outline sits in
+          // that range on almost every sprite, and we NEED the outline
+          // to survive as "sprite" so `fillBgHoles` (enabled below
+          // for player-selection via `extractSpriteMask`) can
+          // reclassify enclosed bg-hue pixels (Gengar's body, Kommo-o's
+          // body when selected-green) as sprite interior. Without a
+          // surviving outline the "enclosed" region escapes to the
+          // image edge and stays flagged as bg — which was exactly
+          // the 5.5%-mask-survival regression on the Gengar slot.
+          //
+          // Tradeoff: the dark shadow gutter directly under the chibi
+          // joins the sprite cluster. That's fine — morphological
+          // close merges it with the body and the tiny shadow sliver
+          // doesn't noticeably shift the sprite bbox.
+          const inEdgeBand = y < edge || y >= height - edge || x < edge || x >= width - edge;
+          const bgGreenEdge =
+            inEdgeBand && H >= 25 && H <= 55 && S >= 100 && V >= 120;
+          if (bgCard || bgGreenEdge) dst[i] = 255;
+        }
       }
     }
   }
@@ -469,10 +669,24 @@ export function extractSpriteMask(
   const background = cardBackgroundMask(cardImg, panel, mode);
   if (panel === 'opponent') {
     // Reclassify enclosed bg pixels (warm-red holes inside Hydrapple/
-    // Armarouge chibis) as sprite. Only applied to opponent — player
-    // masks are built on varied tints where the flood-fill heuristic
-    // has already been subsumed by adaptive per-card sampling.
+    // Armarouge chibis) as sprite.
     fillBgHoles(background);
+  } else if (mode === 'selection') {
+    // Player SELECTION chibis frequently share their body hue with
+    // the card bg (Gengar purple on purple panel, Kommo-o green on
+    // selected-green highlight). The adaptive bg sampler catches
+    // those pixels as "bg", but they're enclosed inside the chibi's
+    // dark outline. Flood-fill from the card edges — anything NOT
+    // reachable from the border is a chibi interior hole, not true
+    // bg, and should be reclassified as sprite.
+    //
+    // maxHoleFrac=0.45 is generous compared to the opponent branch's
+    // 0.25 default because selection player crops are tight — the
+    // chibi occupies 40-60% of the crop, so its enclosed interior
+    // pool can legitimately exceed 25%. Any larger floods (e.g.
+    // outline broken open at the base) are guarded against by the
+    // subsequent filterSmallComponents / morph steps.
+    fillBgHoles(background, 0.45);
   }
   let sprite = invertMask(background);
   sprite = morphOpen(sprite, morphKernel);
