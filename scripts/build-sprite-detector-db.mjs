@@ -95,7 +95,7 @@ const DEX_TO_SPECIES = {
   '0936': 'Armarouge', '0937': 'Ceruledge', '0939': 'Scovillain',
   '0952': 'Tinkaton', '0956': 'Orthworm', '0959': 'Tatsugiri',
   '0964': 'Palafin', '0968': 'Revavroom', '0970': 'Glimmora',
-  '0981': 'Farigiraf', '0983': 'Kingambit', '1013': 'Rillaboom',
+  '0981': 'Farigiraf', '0983': 'Kingambit', '1013': 'Sinistcha',
   '1018': 'Archaludon', '1019': 'Hydrapple',
 };
 
@@ -114,7 +114,7 @@ const FORM_SUFFIXES = {
 const SKIP_FORMS = new Set([
   'Archipelago', 'Continental', 'Elegant', 'Fancy', 'Garden',
   'High Plains', 'Icy Snow', 'Jungle', 'Marine', 'Modern',
-  'Monsoon', 'Ocean', 'Poke Ball', 'Polar', 'River', 'Sandstorm',
+  'Monsoon', 'Ocean', 'Poke Ball', 'Poké Ball', 'Polar', 'River', 'Sandstorm',
   'Savanna', 'Sun', 'Tundra',
   'Dandy', 'Debutante', 'Diamond', 'Heart', 'Kabuki',
   'La Reine', 'Matron', 'Pharaoh', 'Star',
