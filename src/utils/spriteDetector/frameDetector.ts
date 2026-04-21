@@ -586,6 +586,42 @@ interface PanelResult {
   bounds: { x1: number; y1: number; x2: number; y2: number } | null;
 }
 
+/**
+ * Compute the selection-screen sprite bounding box inside a card.
+ *
+ * Opponent sprites live on the LEFT of their card; player sprites on the
+ * right. Player panel needs a tighter left crop (x ≥ 78%) because x=65-78%
+ * of each card contains the gender symbol (♂/♀) — a high-saturation
+ * pink/blue blob that survives the background mask and pollutes the
+ * signature. Validated against the gameplay.mp4 regression: Umbreon /
+ * Houndoom / Dragapult match dramatically better when the icon is fully
+ * excluded.
+ *
+ * Vertical crop: 6-94% (was 12-92%). The original tighter window clipped
+ * tall chibis (Tyranitar's head spikes were sliced off in f257s player
+ * slot 3). Loosening too aggressively (4-96%) pulled bright cyan/violet
+ * border pixels into the histogram and flipped Azumarill→Ampharos-Mega.
+ * 6-94% is the safe middle: enough head room for spikes / horns without
+ * dragging border colors into the signature.
+ */
+function selectionSpriteBbox(
+  cardWidth: number,
+  cardH: number,
+  spriteSide: 'left' | 'right',
+): { x1: number; y1: number; x2: number; y2: number } {
+  const padX = Math.floor(cardWidth * 0.02);
+  const padY = Math.floor(cardH * 0.05);
+  if (spriteSide === 'left') {
+    return { x1: padX, y1: padY, x2: Math.floor(cardWidth * 0.55), y2: cardH - padY };
+  }
+  return {
+    x1: Math.floor(cardWidth * 0.78),
+    y1: Math.floor(cardH * 0.06),
+    x2: cardWidth - padX,
+    y2: Math.floor(cardH * 0.94),
+  };
+}
+
 function detectPanel(
   hsv: HsvView,
   frameW: number,
@@ -712,31 +748,7 @@ function detectPanel(
   const cards: CardRegion[] = [];
   for (const [yStart, yEnd] of trimmedCards) {
     const cardH = yEnd - yStart;
-    const padX = Math.floor(cardWidth * 0.02);
-    const padY = Math.floor(cardH * 0.05);
-
-    // Opponent sprites live on the LEFT of their card; player sprites on the right.
-    // Player panel needs a tighter left crop (x ≥ 78%) because x=65-78% of each
-    // card contains the gender symbol (♂/♀) — a high-saturation pink/blue blob
-    // that survives the background mask and pollutes the signature. Validated
-    // against the gameplay.mp4 regression: Umbreon / Houndoom / Dragapult match
-    // dramatically better when the icon is fully excluded.
-    //
-    // Vertical crop: 6-94% (was 12-92%). The original tighter window
-    // clipped tall chibis (Tyranitar's head spikes were sliced off in
-    // f257s player slot 3). Loosening too aggressively (4-96%) pulled
-    // bright cyan/violet border pixels into the histogram and flipped
-    // Azumarill→Ampharos-Mega. 6-94% is the safe middle: enough head
-    // room for spikes / horns without dragging border colors into the
-    // signature.
-    const spriteBbox = spriteSide === 'left'
-      ? { x1: padX, y1: padY, x2: Math.floor(cardWidth * 0.55), y2: cardH - padY }
-      : {
-          x1: Math.floor(cardWidth * 0.78),
-          y1: Math.floor(cardH * 0.06),
-          x2: cardWidth - padX,
-          y2: Math.floor(cardH * 0.94),
-        };
+    const spriteBbox = selectionSpriteBbox(cardWidth, cardH, spriteSide);
 
     // Green-highlight detection for the active player card.
     let isHighlighted = false;
@@ -858,7 +870,7 @@ export function detectFrame(
   );
 
   // Player panel: left side, blue + green
-  const player = detectPanel(
+  let player = detectPanel(
     hsv, source.width, source.height,
     0.0, 0.4,
     blueGreenMask, 'right', 'player',
@@ -910,6 +922,34 @@ export function detectFrame(
   if (detectBattleInfoBadge(hsv, source.width, source.height)) return result;
 
   if (haveSelectionPanels) {
+    // Realign the player panel's rows to the opponent's when the
+    // player's row detection drifted. Champions' team-select always
+    // aligns both panels vertically: same y-start, same y-end, six
+    // contiguous cards. The blue/green mask that segments the player
+    // side sometimes sweeps up the trainer-name banner ("ToonSlim")
+    // as a phantom first card, or collapses the valley between two
+    // adjacent chibis. Both failure modes produce a uniform-looking
+    // opponent panel (crimson mask is textbook clean) alongside a
+    // drifted player panel. When the drift is detected we rebuild
+    // the player cards by mirroring the opponent's y-rows onto the
+    // player x-extent — same trick the lock-screen pathway uses for
+    // a related reason. Sprite bbox + green-highlight flag are
+    // recomputed per mirrored row so downstream matching keeps the
+    // same crop shape and the selected-card marker is preserved.
+    if (panelIsUniformContiguous(opp.cards) && playerPanelDrifted(opp.cards, player.cards)) {
+      const playerXStart = player.cards[0]?.xStart ?? player.bounds?.x1 ?? 0;
+      const playerXEnd = player.cards[0]?.xEnd ?? player.bounds?.x2 ?? Math.floor(source.width * 0.4);
+      player = {
+        cards: rebuildPlayerFromOpponent(hsv, opp.cards, playerXStart, playerXEnd),
+        bounds: {
+          x1: playerXStart,
+          y1: opp.cards[0].yStart,
+          x2: playerXEnd,
+          y2: opp.cards[opp.cards.length - 1].yEnd,
+        },
+      };
+    }
+
     // Both selection AND lock screens can satisfy `haveSelectionPanels`
     // because the lock-screen player panel mixes type tints — blue
     // (water/flying), green (grass/bug), etc. — that the blue/green
@@ -1187,6 +1227,110 @@ function mirrorRowsToPanel(
     // highlighted slot from badge detection instead of this flag.
     isHighlighted: false,
   }));
+}
+
+/**
+ * True if a panel's six rows are tight, uniform, and contiguous — the
+ * shape we expect from a clean row-valley detection in Champions'
+ * team-select screen. Used to decide whether a panel is trustworthy
+ * enough to anchor the other panel's row boundaries to.
+ *
+ *   heights uniform: stddev/mean < 0.08 (each card within ~8% of the mean)
+ *   contiguous:      gap-sum / total-span < 0.03 (essentially no inter-card gap)
+ */
+function panelIsUniformContiguous(cards: CardRegion[]): boolean {
+  if (cards.length !== 6) return false;
+  const heights = cards.map(c => c.yEnd - c.yStart);
+  const mean = heights.reduce((a, b) => a + b, 0) / heights.length;
+  if (mean <= 0) return false;
+  const variance = heights.reduce((acc, h) => acc + (h - mean) ** 2, 0) / heights.length;
+  const cv = Math.sqrt(variance) / mean;
+  if (cv > 0.08) return false;
+  const totalSpan = cards[cards.length - 1].yEnd - cards[0].yStart;
+  const heightSum = heights.reduce((a, b) => a + b, 0);
+  const gapFrac = (totalSpan - heightSum) / Math.max(1, totalSpan);
+  return gapFrac < 0.03;
+}
+
+/**
+ * Detect whether the player panel's row geometry has drifted relative
+ * to the opponent's. In Champions' team-select screen both panels are
+ * vertically aligned (same y-start / y-end) and use six contiguous,
+ * equal-height cards. Common drift sources:
+ *
+ *   1. Trainer-name banner ("ToonSlim") mistaken for the first card —
+ *      shifts every row up by ~1/6 of the panel height.
+ *   2. Valley detector missed the boundary between two adjacent
+ *      chibis, merging two cards into one while an outer row collapses.
+ *
+ * We flag drift when player heights aren't uniform OR have real gaps,
+ * OR the panel y-span differs from the opponent's by more than 10%.
+ */
+function playerPanelDrifted(
+  opp: CardRegion[],
+  player: CardRegion[],
+): boolean {
+  if (opp.length !== 6 || player.length !== 6) return false;
+  // Player internal shape non-uniform.
+  if (!panelIsUniformContiguous(player)) return true;
+  // Y-span misalignment relative to opponent.
+  const oppSpan = opp[opp.length - 1].yEnd - opp[0].yStart;
+  const playerSpan = player[player.length - 1].yEnd - player[0].yStart;
+  const spanDelta = Math.abs(oppSpan - playerSpan) / Math.max(1, oppSpan);
+  if (spanDelta > 0.1) return true;
+  const yStartDelta = Math.abs(opp[0].yStart - player[0].yStart);
+  return yStartDelta > oppSpan * 0.05;
+}
+
+/** Measure the green-highlight density across a y-strip in the player
+ *  panel — used to re-seed the `isHighlighted` flag after mirroring
+ *  opponent rows onto the player side. Same hue window as the
+ *  per-card highlight probe inside `detectPanel`. */
+function isRowHighlighted(
+  hsv: HsvView,
+  xStart: number,
+  xEnd: number,
+  yStart: number,
+  yEnd: number,
+): boolean {
+  let greenHits = 0;
+  let samples = 0;
+  const xClampEnd = Math.min(hsv.width, xEnd);
+  const yClampEnd = Math.min(hsv.height, yEnd);
+  for (let y = Math.max(0, yStart); y < yClampEnd; y += 2) {
+    for (let x = Math.max(0, xStart); x < xClampEnd; x += 2) {
+      const si = y * hsv.width + x;
+      samples++;
+      if (hsv.h[si] > 25 && hsv.h[si] < 50 && hsv.s[si] > 80) greenHits++;
+    }
+  }
+  return samples > 0 && greenHits / samples > 0.15;
+}
+
+/**
+ * Rebuild the player panel's card list by copying the opponent's
+ * y-boundaries onto the player's x-extent, then re-seeding the
+ * sprite bbox and highlight flag per card.
+ */
+function rebuildPlayerFromOpponent(
+  hsv: HsvView,
+  oppCards: CardRegion[],
+  playerXStart: number,
+  playerXEnd: number,
+): CardRegion[] {
+  const cardWidth = playerXEnd - playerXStart;
+  return oppCards.map(c => {
+    const cardH = c.yEnd - c.yStart;
+    return {
+      yStart: c.yStart,
+      yEnd: c.yEnd,
+      xStart: playerXStart,
+      xEnd: playerXEnd,
+      spriteBbox: selectionSpriteBbox(cardWidth, cardH, 'right'),
+      isHighlighted: isRowHighlighted(hsv, playerXStart, playerXEnd, c.yStart, c.yEnd),
+      panel: 'player',
+    } as CardRegion;
+  });
 }
 
 /**
