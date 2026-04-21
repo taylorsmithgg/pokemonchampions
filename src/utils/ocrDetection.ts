@@ -417,6 +417,22 @@ export interface DetectionOptions {
     playerSpecies?: ReadonlySet<string>;
     opponentSpecies?: ReadonlySet<string>;
   };
+  /**
+   * Ground-truth player species hint — applied on EVERY frame
+   * (selection AND lock) when the user has manually entered their team.
+   *
+   * This is qualitatively different from `lockMatchHints.playerSpecies`:
+   * lock hints come from the SELECTION-screen consensus (which can be
+   * wrong on noisy 3D chibis), while this hint comes from the user
+   * typing in their actual team. When both are present, this one wins
+   * for the player side because it's incontrovertible.
+   *
+   * When the set has exactly 6 species, the matcher's per-panel
+   * `resolveUniqueAssignment` runs over those 6 with bipartite optimal
+   * scoring — empirically lifts player-side accuracy from ~50% to 100%
+   * on the lineup trail that prompted this hint.
+   */
+  playerSpeciesHint?: ReadonlySet<string>;
 }
 
 // ─── Screen context detection ───────────────────────────────────
@@ -659,6 +675,7 @@ interface LineupBySpritesResult {
 async function detectSelectionLineupBySprites(
   canvas: HTMLCanvasElement,
   lockMatchHints?: LineupMatchHints,
+  playerSpeciesHint?: ReadonlySet<string>,
 ): Promise<LineupBySpritesResult> {
   // HSV frame detector + multi-signal sprite matcher (port of
   // `pokemon_detector/`). The detector internally short-circuits when
@@ -667,17 +684,24 @@ async function detectSelectionLineupBySprites(
   // The returned `mode` field discriminates between the two screens so
   // the caller can route slots into the appropriate analyzer.
   //
-  // Two-pass strategy when `lockMatchHints` are supplied:
+  // Two-pass strategy:
   //   • Pass 1 (always): unconstrained detection. Detects the screen
   //     mode (selection / lock / none) and produces the canonical
   //     selection-side matches.
-  //   • Pass 2 (lock frames only): re-run with `lockMatchHints` as a
-  //     candidate whitelist. The matcher restricts itself to the
-  //     selection-consensus species, which dramatically improves
-  //     accuracy on visually-degraded 3D lock-card chibis. The
-  //     unconstrained pass-1 results are kept as a fallback inside the
-  //     matcher so true mismatches (locked species not in selection
-  //     consensus) still surface as `fallbackTop` on the slot.
+  //   • Pass 2 (when ANY hint is usable): re-run with whatever
+  //     restriction we have:
+  //       - `playerSpeciesHint` is the user's manually-entered team —
+  //         ground truth, applied on BOTH selection and lock frames.
+  //         When there are exactly 6 species the matcher's bipartite
+  //         resolveUniqueAssignment makes the player side ~100% on
+  //         ambiguous 3D chibis.
+  //       - `lockMatchHints` come from the SELECTION-screen consensus
+  //         and are applied only on lock frames (their original
+  //         design). They cover the opponent side (no manual input)
+  //         and serve as a fallback for the player side when the user
+  //         hasn't entered a manual team.
+  //   The unconstrained pass-1 results are kept as a fallback inside
+  //   the matcher so true mismatches still surface as `fallbackTop`.
   try {
     const firstPass = await detectLineupOnCanvas(canvas);
     const panels = firstPass.panels.map(p => ({ side: p.side, x: p.x, y: p.y, w: p.w, h: p.h }));
@@ -696,14 +720,27 @@ async function detectSelectionLineupBySprites(
       };
     }
 
+    // Build the merged hint set for pass 2. `playerSpeciesHint` always
+    // wins for the player side because it's the user's typed team.
+    const mergedHints: LineupMatchHints | undefined = (() => {
+      const playerFromUser = playerSpeciesHint && playerSpeciesHint.size > 0
+        ? playerSpeciesHint
+        : undefined;
+      const isLock = firstPass.mode === 'lock';
+      const lockOpp = isLock && (lockMatchHints?.opponentSpecies?.size ?? 0) > 0
+        ? lockMatchHints!.opponentSpecies
+        : undefined;
+      const lockPlayer = isLock && !playerFromUser && (lockMatchHints?.playerSpecies?.size ?? 0) > 0
+        ? lockMatchHints!.playerSpecies
+        : undefined;
+      const player = playerFromUser ?? lockPlayer;
+      if (!player && !lockOpp) return undefined;
+      return { playerSpecies: player, opponentSpecies: lockOpp };
+    })();
+
     let adapted = firstPass;
-    if (
-      firstPass.mode === 'lock' &&
-      lockMatchHints &&
-      ((lockMatchHints.playerSpecies?.size ?? 0) > 0 ||
-        (lockMatchHints.opponentSpecies?.size ?? 0) > 0)
-    ) {
-      adapted = await detectLineupOnCanvas(canvas, lockMatchHints);
+    if (mergedHints) {
+      adapted = await detectLineupOnCanvas(canvas, mergedHints);
     }
 
     const matches: SpriteMatch[] = adapted.matches.map(m => ({
@@ -1156,7 +1193,11 @@ export async function detectPokemonFromFrame(
   // internally when the crimson + blue/green panels aren't visible, so
   // calling it every frame is cheap when we're NOT in selection mode
   // and is the desired work when we ARE.
-  const lineupSpriteDebug = await detectSelectionLineupBySprites(canvas, options.lockMatchHints);
+  const lineupSpriteDebug = await detectSelectionLineupBySprites(
+    canvas,
+    options.lockMatchHints,
+    options.playerSpeciesHint,
+  );
   // Route the same detector output to either the SELECTION or the LOCK
   // pipeline. They share the same per-card slot evaluation shape but
   // accumulate consensus separately downstream.

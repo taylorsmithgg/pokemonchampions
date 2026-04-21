@@ -145,6 +145,7 @@ export function createLineupAnalyzer(): LineupAnalyzer {
     for (const state of ordered) {
       slots.push(buildConsensusSlot(state));
     }
+    resolveCrossPanelDuplicates(slots);
     return { slots, startedAt, lastUpdatedAt, snapshotsFed };
   }
 
@@ -313,6 +314,114 @@ function buildConsensusSlot(state: SlotVoteState): ConsensusSlot {
     isConfident,
     isShinyConsensus,
   };
+}
+
+/**
+ * Cross-panel duplicate softener.
+ *
+ * The matcher's colour signal occasionally promotes the same species
+ * as a confident consensus on BOTH panels — e.g. an opponent Garchomp
+ * that's a 96% lock leaks into a player slot whose 3D chibi happens to
+ * share Garchomp's hue distribution (purple Gengar's shading lands one
+ * H-bin away from Garchomp's reference). The matcher can't distinguish
+ * them per-frame, but at the consensus layer we can compare *vote
+ * shares* and award the duplicate to the side that's more confident,
+ * demoting the loser to its highest-voted alternative.
+ *
+ * Algorithm (cooperative, never *increases* confidence):
+ *   1. Scan all confident slots for species winning on more than one
+ *      slot (across both panels combined).
+ *   2. The slot with the highest `winnerVotes` keeps the species.
+ *   3. Each losing slot walks its `voteCandidates` in order and adopts
+ *      the first species that isn't already a confident winner.
+ *      • If the alternative passes the same confidence gates relative
+ *        to the slot's framesObserved, it becomes the new assignment.
+ *      • Otherwise we mark the slot as not-yet-confident
+ *        (`assignedSpecies = null`) so downstream gates can wait for
+ *        more evidence.
+ *
+ * In-panel duplicates are already handled per-frame by
+ * `enforceSpeciesClause` / `resolveUniqueAssignment` in
+ * `pokemonDetector.ts`. This pass only resolves the cross-panel case
+ * the per-frame logic can't see.
+ */
+function resolveCrossPanelDuplicates(slots: ConsensusSlot[]): void {
+  const speciesToSlots = new Map<string, ConsensusSlot[]>();
+  for (const slot of slots) {
+    if (!slot.assignedSpecies || !slot.isConfident) continue;
+    const arr = speciesToSlots.get(slot.assignedSpecies) ?? [];
+    arr.push(slot);
+    speciesToSlots.set(slot.assignedSpecies, arr);
+  }
+
+  // Track which species are currently locked across the entire board so
+  // demoted slots don't fall back onto another already-locked species.
+  const lockedSpecies = new Set<string>();
+  for (const [species, list] of speciesToSlots) {
+    if (list.length === 1) lockedSpecies.add(species);
+  }
+
+  for (const [species, list] of speciesToSlots) {
+    if (list.length === 1) continue;
+    // Multiple confident slots claim this species. Sort by winnerVotes
+    // (descending) — ties broken by share-of-frames so a 12/12=100%
+    // beats a 12/24=50% even when the absolute count matches a noisier
+    // slot's larger sample.
+    const ranked = list.slice().sort((a, b) => {
+      if (b.winnerVotes !== a.winnerVotes) return b.winnerVotes - a.winnerVotes;
+      const aShare = a.framesObserved > 0 ? a.winnerVotes / a.framesObserved : 0;
+      const bShare = b.framesObserved > 0 ? b.winnerVotes / b.framesObserved : 0;
+      return bShare - aShare;
+    });
+    const keeper = ranked[0];
+    lockedSpecies.add(keeper.assignedSpecies!);
+    for (let i = 1; i < ranked.length; i++) {
+      const loser = ranked[i];
+      const fallback = pickFallbackForSlot(loser, lockedSpecies);
+      if (fallback) {
+        loser.assignedSpecies = fallback.species;
+        loser.winnerVotes = fallback.votes;
+        loser.assignedConfidence =
+          loser.framesObserved > 0 ? fallback.votes / loser.framesObserved : null;
+        loser.isShinyConsensus =
+          fallback.votes > 0 && fallback.shinyVotes / fallback.votes >= 0.5;
+        lockedSpecies.add(fallback.species);
+      } else {
+        // No usable alternative — the slot is no longer a confident
+        // assignment, but we keep voteCandidates intact so the UI can
+        // still show what it was leaning toward.
+        loser.assignedSpecies = null;
+        loser.assignedConfidence = null;
+        loser.isConfident = false;
+      }
+    }
+    // Marker so callers / debugging can reason about which species was
+    // contested. Avoid mutating the readonly-shaped voteCandidates list.
+    void species;
+  }
+}
+
+/**
+ * Walk a slot's voteCandidates and return the highest-voted candidate
+ * that (a) isn't already locked elsewhere on the board, and (b) clears
+ * the same confidence gates the original winner did.
+ *
+ * Returns null when no candidate qualifies — caller should treat the
+ * slot as unconfident.
+ */
+function pickFallbackForSlot(
+  slot: ConsensusSlot,
+  lockedSpecies: ReadonlySet<string>,
+): ConsensusCandidate | null {
+  for (const cand of slot.voteCandidates) {
+    if (lockedSpecies.has(cand.species)) continue;
+    if (cand.species === slot.assignedSpecies) continue;
+    if (cand.votes < MIN_CONSENSUS_VOTES) continue;
+    const share = slot.framesObserved > 0 ? cand.votes / slot.framesObserved : 0;
+    if (share < MIN_CONSENSUS_SHARE) continue;
+    return cand;
+  }
+  return null;
 }
 
 export function getConsensus(): Consensus {

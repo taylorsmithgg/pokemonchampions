@@ -90,11 +90,11 @@ function meanGap(g) {
 }
 
 const grid = [];
-for (const wColor of [0.10, 0.20, 0.25, 0.30, 0.35, 0.40, 0.50]) {
-  for (const wTemplate of [0.05, 0.10, 0.15, 0.20, 0.25, 0.30]) {
-    for (const wShape of [0.05, 0.10, 0.15, 0.20]) {
+for (const wColor of [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.50, 0.55]) {
+  for (const wTemplate of [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.40]) {
+    for (const wShape of [0.0, 0.05, 0.10, 0.15, 0.20]) {
       const wPhash = +(1 - wColor - wTemplate - wShape).toFixed(2);
-      if (wPhash < 0.10 || wPhash > 0.80) continue;
+      if (wPhash < 0.05 || wPhash > 0.85) continue;
       grid.push({ weightColor: wColor, weightTemplate: wTemplate, weightShape: wShape, weightPhash: wPhash });
     }
   }

@@ -38,7 +38,7 @@ const HIST_TOTAL = HIST_H_BINS * HIST_S_BINS;
 export function computeHsHistogram(src: PixelView, mask: Mask): Float32Array {
   const { data, width, height } = src;
   const m = mask.data;
-  const hist = new Float32Array(HIST_TOTAL);
+  const raw = new Float32Array(HIST_TOTAL);
   const n = width * height;
 
   // Inline HSV conversion for speed — avoids an allocation of 3× Uint8Array.
@@ -60,20 +60,57 @@ export function computeHsHistogram(src: PixelView, mask: Mask): Float32Array {
     if (H < 0) H += 360;
     const Hbin = Math.min(HIST_H_BINS - 1, Math.floor((H / 2) / (180 / HIST_H_BINS)));
     const Sbin = Math.min(HIST_S_BINS - 1, Math.floor(S / (256 / HIST_S_BINS)));
-    hist[Hbin * HIST_S_BINS + Sbin]++;
+    raw[Hbin * HIST_S_BINS + Sbin]++;
+  }
+
+  // ── 3×3 H/S Gaussian-ish smoothing ────────────────────────────────
+  // The 3D chibis the live game renders are lit/shaded enough that
+  // their dominant hue routinely shifts by ~12° vs the static 2D menu
+  // sprites in our DB — exactly one HIST_H_BINS-wide bin (each bin
+  // spans 6° in HSV (after the H/2 OpenCV scaling), which is 12° in
+  // real degrees). Bhattacharyya distance is bin-local: a one-bin shift
+  // looks "completely different" even when the colour is identical.
+  // Smoothing across the 8-neighbour cells with a tiny Gaussian kernel
+  // makes the comparison tolerant to that one-bin drift while still
+  // rejecting genuinely different palettes.
+  // Hue dimension wraps (180° == 0°); saturation dimension clamps.
+  const smoothed = new Float32Array(HIST_TOTAL);
+  // Kernel weights: centre 0.36, 4-neighbours 0.12, diagonals 0.04.
+  // Sum = 0.36 + 4·0.12 + 4·0.04 = 1.00.
+  const wC = 0.36;
+  const wE = 0.12; // edge (axial) neighbour
+  const wD = 0.04; // diagonal neighbour
+  for (let h = 0; h < HIST_H_BINS; h++) {
+    const hPrev = (h - 1 + HIST_H_BINS) % HIST_H_BINS;
+    const hNext = (h + 1) % HIST_H_BINS;
+    for (let s = 0; s < HIST_S_BINS; s++) {
+      const sPrev = Math.max(0, s - 1);
+      const sNext = Math.min(HIST_S_BINS - 1, s + 1);
+      const idx = h * HIST_S_BINS + s;
+      smoothed[idx] =
+        wC * raw[idx] +
+        wE * raw[hPrev * HIST_S_BINS + s] +
+        wE * raw[hNext * HIST_S_BINS + s] +
+        wE * raw[h * HIST_S_BINS + sPrev] +
+        wE * raw[h * HIST_S_BINS + sNext] +
+        wD * raw[hPrev * HIST_S_BINS + sPrev] +
+        wD * raw[hPrev * HIST_S_BINS + sNext] +
+        wD * raw[hNext * HIST_S_BINS + sPrev] +
+        wD * raw[hNext * HIST_S_BINS + sNext];
+    }
   }
 
   // Min-max normalize to [0, 1]
   let lo = Infinity, hi = -Infinity;
   for (let i = 0; i < HIST_TOTAL; i++) {
-    if (hist[i] < lo) lo = hist[i];
-    if (hist[i] > hi) hi = hist[i];
+    if (smoothed[i] < lo) lo = smoothed[i];
+    if (smoothed[i] > hi) hi = smoothed[i];
   }
   const range = hi - lo;
   if (range > 0) {
-    for (let i = 0; i < HIST_TOTAL; i++) hist[i] = (hist[i] - lo) / range;
+    for (let i = 0; i < HIST_TOTAL; i++) smoothed[i] = (smoothed[i] - lo) / range;
   }
-  return hist;
+  return smoothed;
 }
 
 /**
