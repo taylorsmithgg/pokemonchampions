@@ -1117,7 +1117,17 @@ export function StreamCompanionPage() {
   const [selectedBring, setSelectedBring] = useState<string[]>([]);
   // Match ID for keyframe tagging
   const currentMatchIdRef = useRef<string>('');
-  const pendingAutoResultRef = useRef<{ result: 'win' | 'loss'; seenCount: number } | null>(null);
+  // Result-confirmation accumulator. The detector flickers — the WIN
+  // banner only matches its HSV signature on a subset of frames during
+  // the win/loss animation. We need 2 hits to confirm, but we tolerate
+  // intermediate misses so a single dropped frame doesn't reset the
+  // counter and cause the increment to be missed entirely (see issue
+  // where "win was detected and accepted but it never incremented").
+  const pendingAutoResultRef = useRef<{
+    result: 'win' | 'loss';
+    seenCount: number;
+    lastSeen: number;
+  } | null>(null);
   const previewFrameIdRef = useRef<string>('');
   const previewSelectionRef = useRef<{
     count: number | null;
@@ -2767,13 +2777,22 @@ export function StreamCompanionPage() {
 
     if (result.matchResult) {
       const pending = pendingAutoResultRef.current;
+      const now = Date.now();
       if (!pending || pending.result !== result.matchResult) {
-        pendingAutoResultRef.current = { result: result.matchResult, seenCount: 1 };
+        pendingAutoResultRef.current = {
+          result: result.matchResult,
+          seenCount: 1,
+          lastSeen: now,
+        };
         return;
       }
       const nextSeenCount = pending.seenCount + 1;
       if (nextSeenCount < 2) {
-        pendingAutoResultRef.current = { result: result.matchResult, seenCount: nextSeenCount };
+        pendingAutoResultRef.current = {
+          result: result.matchResult,
+          seenCount: nextSeenCount,
+          lastSeen: now,
+        };
         return;
       }
       pendingAutoResultRef.current = null;
@@ -2799,7 +2818,15 @@ export function StreamCompanionPage() {
       recordMatch(result.matchResult, frameId);
       return;
     }
-    pendingAutoResultRef.current = null;
+    // No result this frame — but keep the pending counter alive for a
+    // short window. The result detector flickers (banner animations,
+    // transition frames), and resetting on the first miss means a
+    // single dropped frame between two hits prevents confirmation.
+    // Stale-tolerance: drop pending only after 6s of no hits.
+    const pendingPersist = pendingAutoResultRef.current;
+    if (pendingPersist && Date.now() - pendingPersist.lastSeen > 6000) {
+      pendingAutoResultRef.current = null;
+    }
 
     // Active battler tracking (during battle — use team membership as filter)
       if (filledMyTeam.length >= 2 && filledOpponents.length >= 1) {
